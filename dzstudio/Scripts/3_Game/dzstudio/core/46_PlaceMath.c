@@ -187,14 +187,18 @@ class DZS_PlaceMath
 		return true;
 	}
 
-	// Screen offset of a world offset 'd' at the point 'at', without the perspective change along 'd'
-	// (handles keep their shape however close the camera comes).
+	// Screen offset of a world offset 'd' at the point 'at', linear in 'd': the direction of the projected line at
+	// 'at', without its perspective growth along 'd' (handles keep their shape however close the camera comes).
 	static void Flat(vector at, vector d, out float dx, out float dy)
 	{
 		UpdateView();
-		float z = Math.Max(vector.Dot(at - s_VCam, s_VFwd), 0.05);
-		dx = s_VFx * vector.Dot(d, s_VRight) / z;
-		dy = -s_VFy * vector.Dot(d, s_VUp) / z;
+		vector rel = at - s_VCam;
+		float z = Math.Max(vector.Dot(rel, s_VFwd), 0.05);
+		float x = vector.Dot(rel, s_VRight);
+		float y = vector.Dot(rel, s_VUp);
+		float dz = vector.Dot(d, s_VFwd);
+		dx = s_VFx * (vector.Dot(d, s_VRight) * z - x * dz) / (z * z);
+		dy = -s_VFy * (vector.Dot(d, s_VUp) * z - y * dz) / (z * z);
 	}
 
 	// A segment clipped at the plane 0.1 m in front of the camera; false if nothing is left.
