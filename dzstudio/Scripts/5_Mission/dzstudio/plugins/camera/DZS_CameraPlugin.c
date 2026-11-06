@@ -52,7 +52,7 @@ class DZS_CameraPlugin : DZS_Plugin
 	static const int STAGE_MIN = 1;
 	static const int STAGE_MAX = 45;
 	static const int STAGE_DEFAULT = 21;
-	static const float DEG_PER_PX = 0.075;
+	static const float DEG_PER_PX = 0.05;
 	// GetMouseState(X/Y) units per screen pixel of cursor movement, measured on the test PC.
 	static const float MOUSE_UNITS_PER_PX = 48.5;
 	static const float MIN_HEIGHT = 0.5;
@@ -90,11 +90,8 @@ class DZS_CameraPlugin : DZS_Plugin
 	protected bool m_OrbitPivot;
 
 	protected bool m_FreeLook;
-	protected bool m_AnarchyLatched;
-	protected bool m_AnarchyKey;
-	protected bool m_AnarchyMouse;
+	protected bool m_Anarchy;
 	protected bool m_AnarchyWas;
-	protected string m_AnarchySource = "button";
 	protected float m_LastLimitHint = -1000;
 
 	protected bool m_Flying;
@@ -139,12 +136,12 @@ class DZS_CameraPlugin : DZS_Plugin
 		RegisterTexts();
 
 		DZS_Settings st = m_Kernel.GetSettings();
-		st.DefineSlider("camera.fov", "camera", "Sichtfeld", "Field of view", "Wie viel die Kamera waagerecht zeigt", "How much the camera shows from side to side", 30, 120, 1, 0, "°", 70);
+		st.DefineSlider("camera.fov", "camera", "Sichtfeld", "Field of view", "Wie viel die Kamera waagerecht zeigt", "How much the camera shows from side to side", 30, 150, 1, 0, "°", 100);
 		st.DefineSlider("camera.viewDistance", "camera", "Klick-Reichweite", "Click range", "Wie weit Klicks in die Szene reichen", "How far clicks into the scene reach", 200, 5000, 100, 0, " m", 1500);
 		st.DefineToggle("camera.groundProtection", "camera", "Nicht unter das Gelände", "Not below the ground", "Die Kamera bleibt über dem Boden", "The camera stays above the ground", true);
-		st.DefineToggle("camera.collision", "camera", "Kollision", "Collision", "Die Kamera stoppt vor Wänden und Objekten", "The camera stops in front of walls and objects", true);
+		st.DefineToggle("camera.collision", "camera", "Kollision", "Collision", "Die Kamera stoppt vor Wänden und Objekten", "The camera stops in front of walls and objects", false);
 		st.DefineToggle("camera.invertPitch", "camera", "Neigung umkehren", "Invert tilt", "Maus nach oben neigt die Kamera nach unten", "Mouse up tilts the camera down", false);
-		st.DefineSlider("camera.mouseSensitivity", "camera", "Mausempfindlichkeit", "Mouse sensitivity", "Wie weit die Kamera je Mausbewegung dreht", "How far the camera turns per mouse movement", 25, 200, 5, 0, " %", 100);
+		st.DefineSlider("camera.mouseSensitivity", "camera", "Mausempfindlichkeit", "Mouse sensitivity", "Wie weit die Kamera je Mausbewegung dreht", "How far the camera turns per mouse movement", 10, 200, 5, 0, " %", 100);
 		st.DefineToggle("camera.playerInvulnerable", "camera", "Spielfigur unverwundbar", "Character invulnerable", "Die Spielfigur nimmt keinen Schaden", "The character takes no damage", true);
 		st.Define("camera.speedStage", DZS_Json.Int(STAGE_DEFAULT));
 
@@ -153,8 +150,8 @@ class DZS_CameraPlugin : DZS_Plugin
 		Hold(ui, "camera.back", "Rückwärts fahren", "Drive backward", "S");
 		Hold(ui, "camera.left", "Links fahren", "Drive left", "A");
 		Hold(ui, "camera.right", "Rechts fahren", "Drive right", "D");
-		Hold(ui, "camera.up", "Hoch", "Up", "E");
-		Hold(ui, "camera.down", "Runter", "Down", "Q");
+		Hold(ui, "camera.up", "Hoch", "Up", "Q");
+		Hold(ui, "camera.down", "Runter", "Down", "Z");
 		array<string> drives = {"camera.forward", "camera.back", "camera.left", "camera.right", "camera.up", "camera.down"};
 		foreach (string did : drives)
 			ui.SetNoCtrl(did);
@@ -169,8 +166,8 @@ class DZS_CameraPlugin : DZS_Plugin
 		ui.SetGesture("camera.orbit");
 		ui.SetGesture("camera.speed");
 		array<string> anarchyKeys = {"GRAVE", "Mouse4"};
-		ui.RegisterAction("camera", "camera.anarchy", "Anarchy-Modus", "Anarchy mode", anarchyKeys, m_Actions);
-		ui.SetHold("camera.anarchy");
+		ui.RegisterAction("camera", "camera.anarchy", "Anarchy-Modus an/aus", "Anarchy mode on/off", anarchyKeys, m_Actions);
+		ui.SetGroup("camera.anarchy", "camera");
 		Press(ui, "camera.freeLook", "Freie Sicht", "Free look", "SPACE");
 		Press(ui, "camera.jump", "Sprung zum Mauszeiger", "Jump to pointer", "MouseMiddle");
 		ui.SetWhen("camera.jump", "scene,map");
@@ -183,7 +180,9 @@ class DZS_CameraPlugin : DZS_Plugin
 		Press(ui, "camera.invulnerable", "Unverwundbar umschalten (nur in der Spielfigur)", "Toggle invulnerable (character only)", "INSERT");
 		ui.SetWhen("camera.invulnerable", "character");
 		Press(ui, "camera.light", "Kameralicht", "Camera light", "Shift+L");
-		Press(ui, "camera.hideUi", "Oberfläche aus/an", "Interface off/on", "U");
+		array<string> hideKeys = {"Y", "U"};
+		ui.RegisterAction("camera", "camera.hideUi", "Oberfläche aus/an", "Interface off/on", hideKeys, m_Actions);
+		ui.SetGroup("camera.hideUi", "camera");
 		ui.SetWhen("camera.hideUi", "scene,map");
 		Press(ui, "camera.map", "Karte", "Map", "M");
 		ui.SetWhen("camera.map", "scene,map");
@@ -192,14 +191,12 @@ class DZS_CameraPlugin : DZS_Plugin
 		ui.SetListed("camera.copyPosition", false);
 		ui.SetWhen("camera.copyPosition", "scene,map");
 		Press(ui, "camera.collision", "Kollision", "Collision", "");
-		Press(ui, "camera.anarchyLatch", "Anarchy", "Anarchy", "");
 		ui.SetListed("camera.collision", false);
 		ui.SetWhen("camera.collision", "scene,map,fullsearch");
-		ui.SetListed("camera.anarchyLatch", false);
 		ui.AddMenuEntry("view", "camera.hideUi", 210);
 		ui.AddMenuEntry("view", "camera.collision", 310, true);
 		ui.AddMenuEntry("view", "camera.light", 320, true);
-		ui.RegisterTool("camera", "camera.anarchyLatch", "Anarchy", "Anarchy", "switches", "zap", 10);
+		ui.RegisterTool("camera", "camera.anarchy", "Anarchy", "Anarchy", "switches", "zap", 10);
 		ui.RegisterTool("camera", "camera.light", "Kameralicht", "Camera light", "switches", "flashlight", 20);
 	}
 
@@ -212,10 +209,10 @@ class DZS_CameraPlugin : DZS_Plugin
 		DZS_Texts.Add("camera.gear.max", "max", "max");
 		DZS_Texts.Add("camera.freeLook.banner", "Freie Sicht — [%1] zum Beenden", "Free look — [%1] to exit");
 		DZS_Texts.Add("camera.anarchy.banner", "ANARCHY — Boden, Kollision und Kartengrenzen aus · %1", "ANARCHY — ground, collision and map borders off · %1");
-		DZS_Texts.Add("camera.anarchy.endKey", "[%1] loslassen", "release [%1]");
+		DZS_Texts.Add("camera.anarchy.endKey", "[%1] zum Beenden", "[%1] to end");
 		DZS_Texts.Add("camera.anarchy.endButton", "Knopf zum Beenden", "button to end");
-		DZS_Texts.Add("camera.anarchy.hint", "Anarchy-Modus: [%1] oder [%2] halten, um weiterzufahren", "Anarchy mode: hold [%1] or [%2] to keep going");
-		DZS_Texts.Add("camera.anarchy.hint1", "Anarchy-Modus: [%1] halten, um weiterzufahren", "Anarchy mode: hold [%1] to keep going");
+		DZS_Texts.Add("camera.anarchy.hint", "Anarchy-Modus: [%1] oder [%2] drücken, um weiterzufahren", "Anarchy mode: press [%1] or [%2] to keep going");
+		DZS_Texts.Add("camera.anarchy.hint1", "Anarchy-Modus: [%1] drücken, um weiterzufahren", "Anarchy mode: press [%1] to keep going");
 		DZS_Texts.Add("camera.anarchy.hint0", "Anarchy-Modus: Knopf in der oberen Leiste, um weiterzufahren", "Anarchy mode: button in the top bar to keep going");
 		DZS_Texts.Add("camera.collision.on", "Kollision an", "Collision on");
 		DZS_Texts.Add("camera.collision.off", "Kollision aus", "Collision off");
@@ -323,7 +320,7 @@ class DZS_CameraPlugin : DZS_Plugin
 	vector GetPosition() { return m_Pos; }
 	float GetYaw() { return m_Yaw; }
 	float GetPitch() { return m_Pitch; }
-	bool IsAnarchy() { return m_AnarchyLatched || m_AnarchyKey || m_AnarchyMouse; }
+	bool IsAnarchy() { return m_Anarchy; }
 	bool IsFreeLook() { return m_FreeLook; }
 	int GetStage() { return m_Stage; }
 	float GetWorldSize() { return m_WorldSize; }
@@ -659,8 +656,11 @@ class DZS_CameraPlugin : DZS_Plugin
 			DZS_Json value = DZS_Json.Boolean(next);
 			m_Kernel.GetSettings().Set("camera.collision", value);
 		}
-		else if (id == "camera.anarchyLatch")
-			m_AnarchyLatched = !m_AnarchyLatched;
+		else if (id == "camera.anarchy")
+		{
+			m_Anarchy = !m_Anarchy;
+			UpdateAnarchyDisplay();
+		}
 		else if (id == "camera.light")
 			SetLight(!m_LightOn);
 		else if (id == "camera.focus")
@@ -673,8 +673,8 @@ class DZS_CameraPlugin : DZS_Plugin
 			return CollisionOn();
 		if (id == "camera.light")
 			return m_LightOn;
-		if (id == "camera.anarchyLatch")
-			return m_AnarchyLatched;
+		if (id == "camera.anarchy")
+			return m_Anarchy;
 		return false;
 	}
 
@@ -810,7 +810,8 @@ class DZS_CameraPlugin : DZS_Plugin
 			m_Map.Toggle();
 		if (m_FreeLook)
 			SetFreeLook(false);
-		m_AnarchyLatched = false;
+		m_Anarchy = false;
+		UpdateAnarchyDisplay();
 		m_Mode = MODE_NONE;
 		m_Flying = false;
 	}
@@ -853,7 +854,6 @@ class DZS_CameraPlugin : DZS_Plugin
 	{
 		DZS_Screen scr = m_Kernel.GetScreen();
 		scr.SetStatusIcon("camera.ground", !GroundOn(), "arrow-down-to-line", DZS_Texts.Get("camera.ground.off"), "warning");
-		scr.SetStatusIcon("camera.collision", !CollisionOn(), "ghost", DZS_Texts.Get("camera.collision.off"), "warning");
 	}
 
 	// ---- status bar ----
@@ -976,12 +976,7 @@ class DZS_CameraPlugin : DZS_Plugin
 		{
 			m_Char.Update(dt);
 			if (m_Char.IsIn())
-			{
-				m_AnarchyKey = false;
-				m_AnarchyMouse = false;
-				UpdateAnarchyDisplay();
 				return;
-			}
 		}
 		if (m_Map)
 			m_Map.Update(dt);
@@ -992,24 +987,6 @@ class DZS_CameraPlugin : DZS_Plugin
 		bool dialog = scr.HasKeyboardOwner("dialog") || GetGame().GetUIManager().GetMenu() != null;
 		if (dialog && m_FreeLook)
 			SetFreeLook(false);
-
-		// anarchy: key held (not while a field, dialog or menu has the keyboard), mouse 4, or latched button
-		bool anarchyHeld = !kbBlocked && ui.IsHeld("camera.anarchy");
-		bool mouseAnarchy = false;
-		if (anarchyHeld)
-		{
-			array<string> ab = ui.GetBindings("camera.anarchy");
-			foreach (string abk : ab)
-			{
-				string ak = DZS_UiRegistry.KeyOf(abk);
-				if ((ak == "Mouse4" || ak == "Mouse5" || ak == "MouseMiddle") && DZS_UiRegistry.KeyDown(ak))
-					mouseAnarchy = true;
-			}
-		}
-		bool keyAnarchy = anarchyHeld && !mouseAnarchy;
-		m_AnarchyKey = keyAnarchy;
-		m_AnarchyMouse = mouseAnarchy;
-		UpdateAnarchyDisplay();
 
 		bool driveBlocked = kbBlocked || ctrl || m_Mode == MODE_ORBIT;
 		float fwd = 0;
@@ -1274,20 +1251,6 @@ class DZS_CameraPlugin : DZS_Plugin
 		DZS_Log.Info("speed stage " + m_Stage + " = " + SpeedText(Speed(), ""));
 	}
 
-	// The binding of the anarchy action that is held now (for the banner text).
-	protected string HeldAnarchyBinding()
-	{
-		array<string> b = m_Kernel.GetUi().GetBindings("camera.anarchy");
-		foreach (string k : b)
-		{
-			if (DZS_UiRegistry.KeyDown(DZS_UiRegistry.KeyOf(k)))
-				return k;
-		}
-		if (b.Count() > 0)
-			return b[0];
-		return "GRAVE";
-	}
-
 	protected void LimitHint()
 	{
 		if (m_Time - m_LastLimitHint < 20)
@@ -1308,18 +1271,9 @@ class DZS_CameraPlugin : DZS_Plugin
 	{
 		bool on = IsAnarchy();
 		DZS_Screen scr = m_Kernel.GetScreen();
-		string source = "button";
-		if (!m_AnarchyLatched)
-		{
-			if (m_AnarchyKey)
-				source = "key";
-			else if (m_AnarchyMouse)
-				source = "mouse";
-		}
-		if (on == m_AnarchyWas && source == m_AnarchySource)
+		if (on == m_AnarchyWas)
 			return;
 		m_AnarchyWas = on;
-		m_AnarchySource = source;
 		scr.ShowSceneFrame(on, "warning");
 		if (!on)
 		{
@@ -1328,14 +1282,13 @@ class DZS_CameraPlugin : DZS_Plugin
 			return;
 		}
 		scr.HideMessage("camera.anarchyHint");
-		string end;
-		if (source == "key" || source == "mouse")
-			end = DZS_Texts.Fmt("camera.anarchy.endKey", HeldAnarchyBinding());
-		else
-			end = DZS_Texts.Get("camera.anarchy.endButton");
+		string end = DZS_Texts.Get("camera.anarchy.endButton");
+		string key = m_Kernel.GetUi().FirstBinding("camera.anarchy");
+		if (key != "")
+			end = DZS_Texts.Fmt("camera.anarchy.endKey", key);
 		scr.HideBanner("camera.anarchy");
 		scr.ShowBanner("camera.anarchy", 0, "warning", DZS_Texts.Fmt("camera.anarchy.banner", end));
-		DZS_Log.Info("anarchy on (" + source + ")");
+		DZS_Log.Info("anarchy on");
 	}
 
 	// Drive log: time with a drive key down, distance and height change, for the measurements in the game.

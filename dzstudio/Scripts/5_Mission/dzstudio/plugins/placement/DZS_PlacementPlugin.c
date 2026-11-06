@@ -65,7 +65,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 {
 	static const float DRAG_PX = 4;
 	static const float HANDLE_PX = 96;
-	static const float HANDLE_HIT = 8;
+	static const float HANDLE_HIT = 16;
 	static const int G_NONE = 0;
 	static const int G_PRESS_OBJ = 1;
 	static const int G_DRAG = 2;
@@ -257,7 +257,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		Tool(ui, "placement.tool.move", "Verschieben", "Move", "move-3d", 20);
 		Tool(ui, "placement.tool.rotate", "Drehen", "Rotate", "rotate-3d", 30);
 		Tool(ui, "placement.tool.scale", "Skalieren", "Scale", "scale-3d", 40);
-		Press(ui, "placement.toolCycle", "Werkzeug reihum", "Cycle tool", "G", "scene", "placement");
+		Press2(ui, "placement.toolCycle", "Verschieben / Drehen / Skalieren reihum", "Cycle move / rotate / scale", "E", "G", "scene", "placement");
 		Press(ui, "placement.axis", "Drehachse reihum", "Cycle axis", "R", "hand", "placement");
 		Press(ui, "placement.tab", "Durchsteigen", "Step through", "TAB", "scene", "selection");
 		Press(ui, "placement.drop", "Fallen lassen", "Drop", "END", "selection", "placement");
@@ -2333,7 +2333,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		if (m_Tool == "placement.tool.scale")
 		{
 			float off = DZS_Scale.Px(72) * 0.70710678;
-			float half = DZS_Scale.Px(7) + hit / 2;
+			float half = DZS_Scale.Px(10) + hit / 2;
 			if (Math.AbsFloat(mx - (px + off)) <= half && Math.AbsFloat(my - (py - off)) <= half)
 				return 3;
 			return -1;
@@ -2349,9 +2349,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 			if (m_Tool == "placement.tool.move")
 			{
 				float ex, ey;
-				if (!DZS_PlaceMath.ToScreen(pivot + axes[i] * len, ex, ey))
-					continue;
-				if (Math.Sqrt((ex - px) * (ex - px) + (ey - py) * (ey - py)) < DZS_Scale.Px(24))
+				if (!ArrowTip(pivot, axes[i] * len, px, py, ex, ey))
 					continue;
 				d = DZS_PlaceMath.DistToSegment(mx, my, px, py, ex, ey);
 			}
@@ -2364,14 +2362,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 				bool hasLast = false;
 				for (int k = 0; k <= 48; k++)
 				{
-					float ang = k * Math.PI2 / 48;
-					vector p = pivot + a * (r * Math.Cos(ang)) + b * (r * Math.Sin(ang));
 					float sx, sy;
-					if (!DZS_PlaceMath.ToScreen(p, sx, sy))
-					{
-						hasLast = false;
-						continue;
-					}
+					RingPoint(pivot, a, b, r, k, px, py, sx, sy);
 					if (hasLast)
 						d = Math.Min(d, DZS_PlaceMath.DistToSegment(mx, my, lx, ly, sx, sy));
 					lx = sx;
@@ -2386,6 +2378,26 @@ class DZS_PlacementPlugin : DZS_Plugin
 			}
 		}
 		return best;
+	}
+
+	// Screen end of a move arrow drawn flat at the pivot; false when it points almost at the camera.
+	protected bool ArrowTip(vector pivot, vector d, float px, float py, out float ex, out float ey)
+	{
+		float dx, dy;
+		DZS_PlaceMath.Flat(pivot, d, dx, dy);
+		ex = px + dx;
+		ey = py + dy;
+		return Math.Sqrt(dx * dx + dy * dy) >= DZS_Scale.Px(24);
+	}
+
+	// Point k of 48 on a rotate ring, drawn flat at the pivot.
+	protected void RingPoint(vector pivot, vector a, vector b, float r, int k, float px, float py, out float x, out float y)
+	{
+		float ang = k * Math.PI2 / 48;
+		float dx, dy;
+		DZS_PlaceMath.Flat(pivot, a * (r * Math.Cos(ang)) + b * (r * Math.Sin(ang)), dx, dy);
+		x = px + dx;
+		y = py + dy;
 	}
 
 	protected void RingPlane(array<vector> axes, int i, out vector a, out vector b)
@@ -3019,9 +3031,9 @@ class DZS_PlacementPlugin : DZS_Plugin
 		}
 		if (id == "placement.toolCycle")
 		{
-			array<string> tools = {"placement.tool.select", "placement.tool.move", "placement.tool.rotate", "placement.tool.scale"};
+			array<string> tools = {"placement.tool.move", "placement.tool.rotate", "placement.tool.scale"};
 			int ti = tools.Find(m_Tool);
-			string next = tools[(ti + 1) % 4];
+			string next = tools[(ti + 1) % 3];
 			OnAction(next);
 			return;
 		}
@@ -4795,14 +4807,14 @@ class DZS_PlacementPlugin : DZS_Plugin
 		HandleAxes(lead, axes);
 		array<string> colors = {"axisX", "axisY", "axisZ"};
 		float len = WorldLen(pivot, DZS_Scale.Px(HANDLE_PX));
-		float thin = Math.Max(2, DZS_Scale.Px(2));
+		float thin = Math.Max(3, DZS_Scale.Px(3));
 		if (m_Tool == "placement.tool.scale")
 		{
 			float off = DZS_Scale.Px(72) * 0.70710678;
-			float size = DZS_Scale.Px(14);
+			float size = DZS_Scale.Px(18);
 			int sc = DZS_Color.Get("text");
 			if (m_HandleHover == 3 || m_HandleHeld == 3)
-				size = DZS_Scale.Px(18);
+				size = DZS_Scale.Px(24);
 			m_Canvas.Line(px, py, px + off, py - off, Math.Max(1, DZS_Scale.Px(1)), sc);
 			m_Canvas.Square(px + off, py - off, size, sc);
 			return;
@@ -4817,13 +4829,11 @@ class DZS_PlacementPlugin : DZS_Plugin
 			int col = DZS_Color.Get(colors[i]);
 			float w = thin;
 			if (m_HandleHover == i || held == i)
-				w = thin * 2;
+				w = thin * 1.7;
 			if (m_Tool == "placement.tool.move")
 			{
 				float ex, ey;
-				if (!DZS_PlaceMath.ToScreen(pivot + axes[i] * len, ex, ey))
-					continue;
-				if (Math.Sqrt((ex - px) * (ex - px) + (ey - py) * (ey - py)) < DZS_Scale.Px(24))
+				if (!ArrowTip(pivot, axes[i] * len, px, py, ex, ey))
 					continue;
 				m_Canvas.Line(px, py, ex, ey, w, col);
 				float dx = ex - px;
@@ -4831,7 +4841,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 				float dl = Math.Sqrt(dx * dx + dy * dy);
 				dx /= dl;
 				dy /= dl;
-				float hs = DZS_Scale.Px(10);
+				float hs = DZS_Scale.Px(14);
 				m_Canvas.Line(ex, ey, ex - dx * hs - dy * hs * 0.5, ey - dy * hs + dx * hs * 0.5, w, col);
 				m_Canvas.Line(ex, ey, ex - dx * hs + dy * hs * 0.5, ey - dy * hs - dx * hs * 0.5, w, col);
 			}
@@ -4839,7 +4849,16 @@ class DZS_PlacementPlugin : DZS_Plugin
 			{
 				vector a, b;
 				RingPlane(axes, i, a, b);
-				m_Canvas.Circle(pivot, a, b, len * 0.5, w, col);
+				float lx, ly;
+				RingPoint(pivot, a, b, len * 0.5, 0, px, py, lx, ly);
+				for (int k = 1; k <= 48; k++)
+				{
+					float qx, qy;
+					RingPoint(pivot, a, b, len * 0.5, k, px, py, qx, qy);
+					m_Canvas.Line(lx, ly, qx, qy, w, col);
+					lx = qx;
+					ly = qy;
+				}
 			}
 		}
 	}

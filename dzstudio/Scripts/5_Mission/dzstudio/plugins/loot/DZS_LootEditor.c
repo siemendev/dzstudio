@@ -1206,7 +1206,7 @@ class DZS_LootEditor : Managed
 				vector w = WorldOfPoint(p);
 				if (vector.Dot(w - cam, cdir) <= 0.05)
 					continue;
-				vector sp = GetGame().GetScreenPos(w);
+				vector sp = DZS_PlaceMath.Project(w);
 				if (sp[0] < x0 || sp[0] > x1 || sp[1] < y0 || sp[1] > y1)
 					continue;
 				string k = Key(c, i);
@@ -1384,14 +1384,16 @@ class DZS_LootEditor : Managed
 		UpdateHandles();
 		if (!HandlesShown() || m_HandleTips.Count() != 3)
 			return -1;
-		vector c = GetGame().GetScreenPos(m_HandleCenter);
+		vector c = DZS_PlaceMath.Project(m_HandleCenter);
 		if (c[2] <= 0)
 			return -1;
 		int best = -1;
-		float bestD = DZS_Scale.Px(8);
+		float bestD = DZS_Scale.Px(14);
 		for (int i = 0; i < 3; i++)
 		{
-			vector t = GetGame().GetScreenPos(m_HandleTips[i]);
+			float tdx, tdy;
+			DZS_PlaceMath.Flat(m_HandleCenter, m_HandleTips[i] - m_HandleCenter, tdx, tdy);
+			vector t = Vector(c[0] + tdx, c[1] + tdy, 0);
 			float d = SegDist(mx, my, c[0], c[1], t[0], t[1]);
 			if (d < bestD)
 			{
@@ -1501,14 +1503,16 @@ class DZS_LootEditor : Managed
 		UpdateHandles();
 		if (m_HandleTips.Count() != 3)
 			return;
-		vector c = GetGame().GetScreenPos(m_HandleCenter);
+		vector c = DZS_PlaceMath.Project(m_HandleCenter);
 		if (c[2] <= 0)
 			return;
 		array<string> cols = {"axisX", "axisY", "axisZ"};
 		float hw = Math.Max(2, DZS_Scale.Px(2));
 		for (int i = 0; i < 3; i++)
 		{
-			vector t = GetGame().GetScreenPos(m_HandleTips[i]);
+			float tdx, tdy;
+			DZS_PlaceMath.Flat(m_HandleCenter, m_HandleTips[i] - m_HandleCenter, tdx, tdy);
+			vector t = Vector(c[0] + tdx, c[1] + tdy, 0);
 			int col = DZS_Color.Get(cols[i]);
 			if (m_Handle == i)
 				col = DZS_LootPlugin.Lighter(col);
@@ -1694,7 +1698,7 @@ class DZS_LootEditor : Managed
 				continue;
 			vector b = DZS_LootPlugin.WorldOf(o, r, u, f, p.P());
 			vector top = b + Vector(0, p.Height(), 0);
-			vector sp = GetGame().GetScreenPos(top);
+			vector sp = DZS_PlaceMath.Project(top);
 			if (sp[2] <= 0)
 				continue;
 			float x = sp[0] - size / 2;

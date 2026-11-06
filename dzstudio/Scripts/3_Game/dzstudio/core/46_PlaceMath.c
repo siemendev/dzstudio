@@ -123,17 +123,78 @@ class DZS_PlaceMath
 
 	// ---- screen ----
 
+	// Pinhole projection of the current camera. GetScreenPos gives wrong places for points far outside the
+	// picture (frames and handles bent when the camera came close); it is used only for three points near the
+	// middle to read the centre and the focal lengths whenever the camera or the screen changes.
+	protected static vector s_VCam;
+	protected static vector s_VFwd;
+	protected static vector s_VRight = "1 0 0";
+	protected static vector s_VUp = "0 1 0";
+	protected static float s_VCx;
+	protected static float s_VCy;
+	protected static float s_VFx = 1;
+	protected static float s_VFy = 1;
+	protected static int s_VW = -1;
+	protected static int s_VH = -1;
+
+	protected static void UpdateView()
+	{
+		vector cam = GetGame().GetCurrentCameraPosition();
+		vector fwd = GetGame().GetCurrentCameraDirection();
+		int sw, sh;
+		GetScreenSize(sw, sh);
+		if (sw == s_VW && sh == s_VH && vector.DistanceSq(cam, s_VCam) < 0.0000000001 && vector.DistanceSq(fwd, s_VFwd) < 0.0000000001)
+			return;
+		s_VCam = cam;
+		s_VFwd = fwd;
+		s_VW = sw;
+		s_VH = sh;
+		float hl = Math.Sqrt(fwd[0] * fwd[0] + fwd[2] * fwd[2]);
+		if (hl > 0.0001)
+			s_VRight = Vector(fwd[2] / hl, 0, -fwd[0] / hl);
+		vector r = s_VRight;
+		s_VUp = Vector(fwd[1] * r[2] - fwd[2] * r[1], fwd[2] * r[0] - fwd[0] * r[2], fwd[0] * r[1] - fwd[1] * r[0]);
+		vector mid = cam + fwd * 10;
+		vector sc = GetGame().GetScreenPos(mid);
+		vector sx = GetGame().GetScreenPos(mid + s_VRight);
+		vector sy = GetGame().GetScreenPos(mid + s_VUp);
+		s_VCx = sc[0];
+		s_VCy = sc[1];
+		s_VFx = (sx[0] - sc[0]) * 10;
+		s_VFy = (sc[1] - sy[1]) * 10;
+	}
+
+	// Screen pixels (x, y) and depth along the view (z) of a world point; x and y are meaningful only in front.
+	static vector Project(vector w)
+	{
+		UpdateView();
+		vector rel = w - s_VCam;
+		float z = vector.Dot(rel, s_VFwd);
+		float zz = Math.Max(z, 0.0001);
+		float x = s_VCx + s_VFx * vector.Dot(rel, s_VRight) / zz;
+		float y = s_VCy - s_VFy * vector.Dot(rel, s_VUp) / zz;
+		return Vector(x, y, z);
+	}
+
 	// Screen pixels of a world point; false if it lies behind the camera.
 	static bool ToScreen(vector w, out float x, out float y)
 	{
-		vector cam = GetGame().GetCurrentCameraPosition();
-		vector dir = GetGame().GetCurrentCameraDirection();
-		if (vector.Dot(w - cam, dir) < 0.05)
+		vector s = Project(w);
+		if (s[2] < 0.05)
 			return false;
-		vector s = GetGame().GetScreenPos(w);
 		x = s[0];
 		y = s[1];
 		return true;
+	}
+
+	// Screen offset of a world offset 'd' at the point 'at', without the perspective change along 'd'
+	// (handles keep their shape however close the camera comes).
+	static void Flat(vector at, vector d, out float dx, out float dy)
+	{
+		UpdateView();
+		float z = Math.Max(vector.Dot(at - s_VCam, s_VFwd), 0.05);
+		dx = s_VFx * vector.Dot(d, s_VRight) / z;
+		dy = -s_VFy * vector.Dot(d, s_VUp) / z;
 	}
 
 	// A segment clipped at the plane 0.1 m in front of the camera; false if nothing is left.
@@ -149,8 +210,8 @@ class DZS_PlaceMath
 			a = a + (b - a) * (da / (da - db) + 0.0001);
 		else if (db <= 0)
 			b = b + (a - b) * (db / (db - da) + 0.0001);
-		vector sa = GetGame().GetScreenPos(a);
-		vector sb = GetGame().GetScreenPos(b);
+		vector sa = Project(a);
+		vector sb = Project(b);
 		x1 = sa[0];
 		y1 = sa[1];
 		x2 = sb[0];

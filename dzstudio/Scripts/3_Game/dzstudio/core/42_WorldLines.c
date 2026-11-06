@@ -485,8 +485,8 @@ class DZS_WorldLines
 			return 0;
 		vector pa = a + (b - a) * t0;
 		vector pb = a + (b - a) * t1;
-		vector sa = GetGame().GetScreenPos(pa);
-		vector sb = GetGame().GetScreenPos(pb);
+		vector sa = DZS_PlaceMath.Project(pa);
+		vector sb = DZS_PlaceMath.Project(pb);
 		float lx = sb[0] - sa[0];
 		float ly = sb[1] - sa[1];
 		float len = Math.Sqrt(lx * lx + ly * ly);
@@ -526,8 +526,8 @@ class DZS_WorldLines
 			return;
 		vector pa = a + (b - a) * t0;
 		vector pb = a + (b - a) * t1;
-		vector sa = GetGame().GetScreenPos(pa);
-		vector sb = GetGame().GetScreenPos(pb);
+		vector sa = DZS_PlaceMath.Project(pa);
+		vector sb = DZS_PlaceMath.Project(pb);
 		float lx = sb[0] - sa[0];
 		float ly = sb[1] - sa[1];
 		float len = Math.Sqrt(lx * lx + ly * ly);
@@ -583,8 +583,8 @@ class DZS_WorldLines
 			{
 				if (f.m_Cover != 0)
 				{
-					vector ua = GetGame().GetScreenPos(a + (b - a) * c0);
-					vector ub = GetGame().GetScreenPos(a + (b - a) * c1);
+					vector ua = DZS_PlaceMath.Project(a + (b - a) * c0);
+					vector ub = DZS_PlaceMath.Project(a + (b - a) * c1);
 					DZS_Clip.Line(cv, ua[0], ua[1], ub[0], ub[1], f.m_Width, f.m_Cover);
 				}
 				continue;
@@ -595,7 +595,7 @@ class DZS_WorldLines
 				nt = 1;
 			nt = Math.Clamp(nt, c0, c1);
 			vector pn = a + (b - a) * nt;
-			vector sn = GetGame().GetScreenPos(pn);
+			vector sn = DZS_PlaceMath.Project(pn);
 			int last = e.m_T.Count() - 1;
 			for (int k = 0; k < last; k++)
 			{
@@ -607,8 +607,8 @@ class DZS_WorldLines
 					continue;
 				vector p = a + (b - a) * u0;
 				vector q = a + (b - a) * u1;
-				vector sp = GetGame().GetScreenPos(p);
-				vector sq = GetGame().GetScreenPos(q);
+				vector sp = DZS_PlaceMath.Project(p);
+				vector sq = DZS_PlaceMath.Project(q);
 				if (f.m_Dash > 0)
 				{
 					float dp = Math.Sqrt((sp[0] - sn[0]) * (sp[0] - sn[0]) + (sp[1] - sn[1]) * (sp[1] - sn[1]));
@@ -660,7 +660,7 @@ class DZS_WorldLines
 			return;
 		if (Depth(p) <= NEAR)
 			return;
-		vector s = GetGame().GetScreenPos(p);
+		vector s = DZS_PlaceMath.Project(p);
 		float r = diameter * 0.5;
 		if (ring)
 		{
