@@ -164,7 +164,7 @@ class DZS_Rays
 	static bool Below(vector p, float above, array<Object> exclude, out vector hit, out vector normal)
 	{
 		vector from = p + Vector(0, above, 0);
-		array<ref DZS_RayHit> hs = Ray(from, "0 -1 0", above + 1000, exclude);
+		array<ref DZS_RayHit> hs = DZS_Rays.Ray(from, "0 -1 0", above + 1000, exclude);
 		if (hs.Count() == 0)
 			return false;
 		hit = hs[0].m_Pos;
