@@ -15,7 +15,7 @@ class CfgMods
 	{
 		dir = "dzstudio";
 		name = "dzStudio";
-		version = "0.5.0";
+		version = "0.6.0";
 		type = "mod";
 		dependencies[] = {"Game", "World", "Mission"};
 		class defs
