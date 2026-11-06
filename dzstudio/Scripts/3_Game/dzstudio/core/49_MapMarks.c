@@ -7,6 +7,7 @@ class DZS_MapMark : Managed
 	float m_Z;
 	int m_Color;
 	bool m_Ring;
+	bool m_Diamond;
 	// diameter in reference pixels
 	float m_Size = 10;
 	string m_Tip;

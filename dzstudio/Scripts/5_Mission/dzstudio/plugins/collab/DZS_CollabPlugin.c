@@ -23,6 +23,8 @@ class DZS_CollabSlot : DZS_SyncSlot
 	override void OnRejected(DZS_SubmitResult result)
 	{
 		DZS_Log.Info("collab: remote operation not applied: " + result.m_ReasonEn);
+		if (result.m_Status == DZS_SubmitStatus.UNKNOWN_TYPE)
+			m_P.NeedsNewer();
 	}
 }
 
@@ -1837,9 +1839,15 @@ class DZS_CollabPlugin : DZS_Plugin
 			np.m_CanInvite = DZS_CollabJ.B(e, "canInvite");
 			np.m_CanSave = DZS_CollabJ.B(e, "canSave");
 			np.m_CanManage = DZS_CollabJ.B(e, "canManage");
+			np.m_Kind = DZS_CollabJ.S(e, "kind");
+			np.m_AgentName = DZS_CollabJ.S(e, "agentName");
 			next.Insert(np);
 			if (m_S.m_PeersKnown && !old && pid != m_S.m_Pid)
-				Msg("", np.m_Name + " ist beigetreten", np.m_Name + " joined", 2, MSG_PEER);
+			{
+				if (np.IsAgent())
+					np.m_Phase = "waiting";
+				Msg("", np.Label() + " ist beigetreten", np.Label() + " joined", 2, MSG_PEER);
+			}
 		}
 		if (m_S.m_PeersKnown)
 		{
@@ -1852,7 +1860,7 @@ class DZS_CollabPlugin : DZS_Plugin
 						still = true;
 				}
 				if (!still && !m_Removed.Contains(was.m_Pid))
-					Msg("", was.m_Name + " hat die Sitzung verlassen", was.m_Name + " left the session", 2, MSG_PEER);
+					Msg("", was.Label() + " hat die Sitzung verlassen", was.Label() + " left the session", 2, MSG_PEER);
 			}
 		}
 		m_S.m_Peers = next;
@@ -1891,6 +1899,15 @@ class DZS_CollabPlugin : DZS_Plugin
 				p.m_Pos = DZS_CollabJ.V(e, "position");
 				p.m_HasPos = true;
 			}
+			if (!p.IsAgent())
+				continue;
+			string phase = DZS_CollabJ.S(e, "phase");
+			if (phase == "")
+				phase = "waiting";
+			if (phase == "review" && p.m_Phase != "" && p.m_Phase != "review")
+				Msg("", p.Label() + " wartet auf Prüfung", p.Label() + " is waiting for review", 2, MSG_PEER);
+			p.m_Phase = phase;
+			p.m_Status = DZS_CollabJ.S(e, "status");
 		}
 	}
 
@@ -1948,6 +1965,9 @@ class DZS_CollabPlugin : DZS_Plugin
 			{
 				string who = DZS_CollabJ.S(e, "name");
 				string rpid = DZS_CollabJ.S(e, "participantId");
+				DZS_CollabPeer gone = m_S.Peer(rpid);
+				if (gone)
+					who = gone.Label();
 				m_Removed.Set(rpid, true);
 				Msg("", who + " wurde entfernt", who + " was removed", 2, MSG_PEER);
 			}
@@ -2057,7 +2077,7 @@ class DZS_CollabPlugin : DZS_Plugin
 			drop.Insert(del);
 			DZS_CollabPeer p = m_S.Peer(hp);
 			if (p)
-				holder = p.m_Name;
+				holder = p.Label();
 			m_S.m_LockOf.Set(del, hp);
 		}
 		DZS_SelectionApi sel = DZS_SelectionApi.Get();
@@ -2132,7 +2152,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		DZS_CollabPeer p = m_S.Peer(m_S.m_LockOf.Get(id));
 		if (!p)
 			return "?";
-		return p.m_Name;
+		return p.Label();
 	}
 
 	int HolderColor(string id)
@@ -2597,7 +2617,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		{
 			DZS_CollabPeer p = m_S.Peer(DZS_CollabJ.S(denied.m_Items[0], "holder"));
 			if (p)
-				who = p.m_Name;
+				who = p.Label();
 		}
 		if (inst)
 			StepRefused(m_StepRedo, DZS_Texts.Pick(who + " bearbeitet " + StepThing(inst, m_StepRedo), who + " is editing " + StepThing(inst, m_StepRedo)));
@@ -3009,6 +3029,37 @@ class DZS_CollabPlugin : DZS_Plugin
 		}
 		string title = DZS_Texts.Pick(de, en);
 		DZS_CollabEndDialog d = new DZS_CollabEndDialog(this, title);
+		d.Open();
+	}
+
+	// An operation of a type this version does not know: the state would drift, so leave (after the rebase that found it).
+	protected bool m_NeedsNewer;
+
+	void NeedsNewer()
+	{
+		if (m_S)
+			m_NeedsNewer = true;
+	}
+
+	protected void LeaveForNewer()
+	{
+		m_NeedsNewer = false;
+		if (!m_S)
+			return;
+		DZS_Log.Warn("collab: unknown operation type in session " + m_S.m_Id + " — leaving");
+		string body = "{" + SessHead() + "}";
+		DZS_CollabNet n = NetFor(m_S.m_Server);
+		n.Send("session/leave", "session/leave", body);
+		bool host = m_S.IsHost();
+		EndLocally("newer version needed");
+		string de = "Diese Sitzung braucht eine neuere dzStudio-Version";
+		string en = "This session needs a newer dzStudio version";
+		if (host)
+		{
+			Msg("danger", de, en, 4);
+			return;
+		}
+		DZS_CollabEndDialog d = new DZS_CollabEndDialog(this, DZS_Texts.Pick(de, en));
 		d.Open();
 	}
 
@@ -3910,8 +3961,8 @@ class DZS_CollabPlugin : DZS_Plugin
 		if (!m_S || !p)
 			return;
 		m_RemoveTarget = p.m_Pid;
-		string de = p.m_Name + " aus der Sitzung entfernen?";
-		string en = "Remove " + p.m_Name + " from the session?";
+		string de = p.Label() + " aus der Sitzung entfernen?";
+		string en = "Remove " + p.Label() + " from the session?";
 		string k1 = DZS_Texts.Pick("Gemeinsam", "Together");
 		string t1 = DZS_Texts.Pick("Entfernen", "Remove");
 		string a1 = DZS_Texts.Pick(de, en);
@@ -4151,6 +4202,8 @@ class DZS_CollabPlugin : DZS_Plugin
 	override void OnUpdate(float dt)
 	{
 		m_Now += dt;
+		if (m_NeedsNewer)
+			LeaveForNewer();
 		SyncFixed();
 		PublishPeople();
 		UpdateLeaveWait(dt);
@@ -4236,12 +4289,13 @@ class DZS_CollabPlugin : DZS_Plugin
 				m.m_Z = p.m_Pos[2];
 				m.m_Color = DZS_CollabColors.Get(p.m_Colour);
 				m.m_Ring = p.m_State == "disconnected";
-				m.m_Tip = p.m_Name;
+				m.m_Diamond = p.IsAgent();
+				m.m_Tip = p.Label();
 				string sub = PeerSub(p);
 				if (sub != "")
 					m.m_Tip += " · " + sub;
 				marks.Insert(m);
-				sig += p.m_Pid + "|" + m.m_X + "|" + m.m_Z + "|" + m.m_Color + "|" + m.m_Ring + "|" + m.m_Tip + ";";
+				sig += p.m_Pid + "|" + m.m_X + "|" + m.m_Z + "|" + m.m_Color + "|" + m.m_Ring + "|" + m.m_Diamond + "|" + m.m_Tip + ";";
 			}
 		}
 		if (sig == m_MarkSig)
@@ -4289,6 +4343,13 @@ class DZS_CollabPlugin : DZS_Plugin
 		}
 		if (p.m_State == "disconnected")
 			return DZS_Texts.Pick("keine Verbindung", "no connection");
+		if (p.IsAgent())
+		{
+			string ph = p.PhaseText();
+			if (p.m_Held > 0)
+				ph += " · " + p.m_Held + DZS_Texts.Pick(" belegt", " held");
+			return ph;
+		}
 		if (p.m_State == "idle")
 		{
 			int mins = p.m_Idle / 60;
@@ -4320,6 +4381,15 @@ class DZS_CollabPlugin : DZS_Plugin
 		return s;
 	}
 
+	string PeerWhere(DZS_CollabPeer p)
+	{
+		if (!p.m_HasPos)
+			return DZS_Texts.Pick("Ort noch unbekannt", "Location not known yet");
+		int x = Math.Round(p.m_Pos[0]);
+		int z = Math.Round(p.m_Pos[2]);
+		return DZS_Texts.Pick("bei ", "at ") + x + " · " + z;
+	}
+
 	protected void PublishPeople()
 	{
 		if (!m_S || !m_S.m_Ready || m_S.m_Ended)
@@ -4331,6 +4401,8 @@ class DZS_CollabPlugin : DZS_Plugin
 		array<DZS_CollabPeer> order = DZS_CollabPanel.Ordered(m_S);
 		foreach (DZS_CollabPeer p : order)
 		{
+			if (p.IsAgent())
+				continue;
 			DZS_SessionMember m = new DZS_SessionMember();
 			m.m_Pid = p.m_Pid;
 			m.m_UserId = p.m_UserId;

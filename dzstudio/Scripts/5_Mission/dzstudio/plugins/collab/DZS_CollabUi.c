@@ -8,12 +8,16 @@ class DZS_CollabRow : Managed
 	TextWidget m_Name;
 	TextWidget m_Mark;
 	TextWidget m_Sub;
+	float m_SubW;
+	ref DZS_Hit m_SubTip;
 	ref DZS_Button m_Jump;
 	ref DZS_Button m_Release;
 	ref DZS_Button m_Remove;
 
 	void Destroy()
 	{
+		if (m_SubTip)
+			m_SubTip.Destroy();
 		if (m_Jump)
 			m_Jump.Destroy();
 		if (m_Release)
@@ -126,6 +130,7 @@ class DZS_CollabPanel : DZS_PanelContent
 			nb.m_OnClick.Insert(OnKnob);
 			m_Knobs.Insert(nb);
 		}
+		DZS_CollabPeer me = s.Me();
 		array<DZS_CollabPeer> order = Ordered(s);
 		foreach (DZS_CollabPeer p : order)
 		{
@@ -135,16 +140,27 @@ class DZS_CollabPanel : DZS_PanelContent
 			row.m_Name = DZS_W.Text(m_Root, DZS_Font.READ, 13, DZS_Color.Get("text"));
 			row.m_Mark = DZS_W.Text(m_Root, DZS_Font.LABEL, 10, DZS_Color.Get("textQuiet"));
 			row.m_Sub = DZS_W.Text(m_Root, DZS_Font.MONO, 11, DZS_Color.Get("textMuted"));
+			if (p.IsAgent())
+			{
+				row.m_SubTip = new DZS_Hit(m_Root, null, "collab.agent");
+				row.m_SubTip.m_FocusKind = "";
+			}
 			if (p.m_Pid != s.m_Pid)
 			{
 				row.m_Jump = new DZS_Button(m_Root, "ghost", DZS_Texts.Pick("Hinspringen", "Go there"), "", 22);
 				row.m_Jump.m_Tag = "jump|" + p.m_Pid;
 				row.m_Jump.m_OnClick.Insert(OnRowKnob);
-				if (s.m_CanManage && p.m_Role != "host")
+				bool manage = s.m_CanManage && p.m_Role != "host";
+				// everyone may remove their own agents, also without the right to manage
+				bool ownAgent = p.IsAgent() && me != null && !me.IsAgent() && p.m_UserId == me.m_UserId;
+				if (manage)
 				{
 					row.m_Release = new DZS_Button(m_Root, "ghost", DZS_Texts.Pick("Belegung freigeben", "Release selection"), "", 22);
 					row.m_Release.m_Tag = "release|" + p.m_Pid;
 					row.m_Release.m_OnClick.Insert(OnRowKnob);
+				}
+				if (manage || ownAgent)
+				{
 					row.m_Remove = new DZS_Button(m_Root, "ghost", DZS_Texts.Pick("Entfernen", "Remove"), "", 22);
 					row.m_Remove.m_Tag = "remove|" + p.m_Pid;
 					row.m_Remove.m_OnClick.Insert(OnRowKnob);
@@ -177,7 +193,7 @@ class DZS_CollabPanel : DZS_PanelContent
 			return;
 		string sig = "";
 		foreach (DZS_CollabPeer p : s.m_Peers)
-			sig += p.m_Pid + p.m_Colour + p.m_Role + ",";
+			sig += p.m_Pid + p.m_Colour + p.m_Role + p.m_Kind + ",";
 		if (s.m_CanManage)
 			sig += "m";
 		sig += ListedKnobs();
@@ -197,11 +213,13 @@ class DZS_CollabPanel : DZS_PanelContent
 			DZS_CollabPeer rp = s.Peer(row.m_Pid);
 			if (!rp)
 				continue;
-			row.m_Name.SetText(DZS_W.Literal(rp.m_Name));
+			row.m_Name.SetText(DZS_W.Literal(rp.Label()));
 			string mark = "";
 			if (rp.m_Pid == s.m_Pid)
 				mark = DZS_Texts.Pick("du", "you");
-			if (s.m_Kind == "local" && rp.m_Role == "host")
+			if (rp.IsAgent())
+				mark = DZS_Texts.Pick("Agent", "agent");
+			else if (s.m_Kind == "local" && rp.m_Role == "host")
 			{
 				if (mark != "")
 					mark += " · ";
@@ -215,7 +233,14 @@ class DZS_CollabPanel : DZS_PanelContent
 			}
 			row.m_Mark.SetText(DZS_Texts.Upper(mark));
 			string sub = m_P.PeerSub(rp);
-			row.m_Sub.SetText(DZS_W.Literal(sub));
+			if (row.m_SubW > 0)
+				DZS_W.FitText(row.m_Sub, sub, row.m_SubW);
+			else
+				row.m_Sub.SetText(DZS_W.Literal(sub));
+			if (row.m_SubTip)
+				row.m_SubTip.SetTip(sub + " · " + m_P.PeerWhere(rp));
+			if (row.m_Jump && rp.IsAgent())
+				row.m_Jump.SetEnabled(rp.m_HasPos, DZS_Texts.Pick("Ort noch unbekannt", "Location not known yet"));
 			if (row.m_Release)
 				row.m_Release.SetEnabled(rp.m_Held > 0, DZS_Texts.Pick("Belegt nichts", "Holds nothing"));
 		}
@@ -241,10 +266,14 @@ class DZS_CollabPanel : DZS_PanelContent
 		{
 			DZS_W.Place(row.m_Swatch, pad, y + DZS_Scale.Px(4), sw, sw);
 			float nx = pad + sw + DZS_Scale.Px(8);
-			DZS_W.Place(row.m_Name, nx, y, DZS_Scale.Px(110), DZS_Scale.Px(20));
-			float nw = DZS_W.TextWidth(row.m_Name);
+			float room = width - nx - pad - DZS_W.TextWidth(row.m_Mark) - DZS_Scale.Px(8);
+			DZS_W.Place(row.m_Name, nx, y, room, DZS_Scale.Px(20));
+			float nw = Math.Min(DZS_W.TextWidth(row.m_Name), room);
 			DZS_W.Place(row.m_Mark, nx + nw + DZS_Scale.Px(8), y + DZS_Scale.Px(3), DZS_Scale.Px(120), DZS_Scale.Px(16));
-			DZS_W.Place(row.m_Sub, nx, y + DZS_Scale.Px(20), width - nx - pad, DZS_Scale.Px(16));
+			row.m_SubW = width - nx - pad;
+			DZS_W.Place(row.m_Sub, nx, y + DZS_Scale.Px(20), row.m_SubW, DZS_Scale.Px(16));
+			if (row.m_SubTip)
+				row.m_SubTip.Place(nx, y + DZS_Scale.Px(20), row.m_SubW, DZS_Scale.Px(16));
 			float bx = nx;
 			float by = y + DZS_Scale.Px(40);
 			if (row.m_Jump)

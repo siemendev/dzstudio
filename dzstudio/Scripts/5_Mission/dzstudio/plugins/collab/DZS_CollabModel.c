@@ -39,6 +39,40 @@ class DZS_CollabPeer : Managed
 	bool m_HasPos;
 	int m_LastSeen;
 	int m_Held;
+	// "studio" or "agent" (servers with the capability agents); phase and status only for agents
+	string m_Kind;
+	string m_AgentName;
+	string m_Phase;
+	string m_Status;
+
+	bool IsAgent() { return m_Kind == "agent"; }
+
+	// How dzStudio names the participant: an agent as "‹agentName› · Agent of ‹user›".
+	string Label()
+	{
+		if (!IsAgent())
+			return m_Name;
+		string of = DZS_Texts.Pick("Agent von " + m_Name, "Agent of " + m_Name);
+		if (m_AgentName == "")
+			return of;
+		return m_AgentName + " · " + of;
+	}
+
+	string PhaseText()
+	{
+		string p = DZS_Texts.Pick("wartet auf Arbeit", "waiting for work");
+		if (m_Phase == "working")
+		{
+			if (m_Status != "")
+				return m_Status;
+			return DZS_Texts.Pick("arbeitet", "working");
+		}
+		if (m_Phase == "review")
+			p = DZS_Texts.Pick("wartet auf Prüfung", "waiting for review");
+		if (m_Status != "")
+			p += " — " + m_Status;
+		return p;
+	}
 }
 
 // One operation of the own instance on its way to the server.

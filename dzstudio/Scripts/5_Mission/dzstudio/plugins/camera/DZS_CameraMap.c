@@ -532,7 +532,21 @@ class DZS_CameraMap : Managed
 			float x = s[0] - m_RX;
 			float y = s[1] - m_RY;
 			float d = DZS_Scale.Px(m.m_Size);
-			if (m.m_Ring)
+			if (m.m_Diamond)
+			{
+				d *= 1.3;
+				if (m.m_Ring)
+				{
+					DiamondEdge(x, y, d + 2 * edge, Math.Max(2, DZS_Scale.Px(2)) + 2 * edge, plate);
+					DiamondEdge(x, y, d, Math.Max(2, DZS_Scale.Px(2)), m.m_Color);
+				}
+				else
+				{
+					Diamond(x, y, d + 3 * edge, plate);
+					Diamond(x, y, d, m.m_Color);
+				}
+			}
+			else if (m.m_Ring)
 			{
 				Ring(x, y, d + edge, Math.Max(2, DZS_Scale.Px(2)) + 2 * edge, plate);
 				Ring(x, y, d, Math.Max(2, DZS_Scale.Px(2)), m.m_Color);
@@ -664,6 +678,28 @@ class DZS_CameraMap : Managed
 				half = 0.5;
 			DZS_Clip.Line(m_Canvas, x - half, y + yc, x + half, y + yc, h + 0.4, color);
 		}
+	}
+
+	protected void Diamond(float x, float y, float d, int color)
+	{
+		float r = d / 2;
+		int strips = Math.Clamp(Math.Ceil(d / 2), 2, 24);
+		float h = d / strips;
+		for (int k = 0; k < strips; k++)
+		{
+			float yc = -r + h * (k + 0.5);
+			float half = Math.Max(0.5, r - Math.AbsFloat(yc));
+			DZS_Clip.Line(m_Canvas, x - half, y + yc, x + half, y + yc, h + 0.4, color);
+		}
+	}
+
+	protected void DiamondEdge(float x, float y, float d, float w, int color)
+	{
+		float r = d / 2 - w / 2;
+		DZS_Clip.Line(m_Canvas, x, y - r, x + r, y, w, color);
+		DZS_Clip.Line(m_Canvas, x + r, y, x, y + r, w, color);
+		DZS_Clip.Line(m_Canvas, x, y + r, x - r, y, w, color);
+		DZS_Clip.Line(m_Canvas, x - r, y, x, y - r, w, color);
 	}
 
 	protected void Ring(float x, float y, float d, float w, int color)
