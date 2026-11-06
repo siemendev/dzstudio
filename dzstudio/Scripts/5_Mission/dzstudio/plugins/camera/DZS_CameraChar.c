@@ -1,0 +1,427 @@
+// Game character: a figure of the game in first person to walk the
+// scene. Not part of the project. While it is steered, keyboard and mouse belong to the game (DZS_Screen.SetGameControl);
+// the free camera stays where it was and takes over again on Pos1.
+class DZS_CameraChar : Managed
+{
+	static const string CLASS_NAME = "SurvivorM_Mirek";
+	static const float DEATH_BACK = 3.0;
+
+	protected DZS_CameraPlugin m_P;
+	protected DZS_Kernel m_Kernel;
+	protected Man m_Man;
+	protected bool m_In;
+	protected bool m_Invuln;
+	protected float m_DeadFor = -1;
+	protected ref DZS_Plate m_Plate;
+	protected ref DZS_Plate m_Hint;
+	protected bool m_ProbeDone;
+
+	void DZS_CameraChar(DZS_CameraPlugin p, DZS_Kernel kernel)
+	{
+		m_P = p;
+		m_Kernel = kernel;
+	}
+
+	bool IsIn() { return m_In; }
+	bool Exists() { return m_Man != null; }
+	bool IsInvulnerable() { return m_Invuln; }
+	Man GetMan() { return m_Man; }
+
+	protected Man Make(vector pos, float yaw)
+	{
+		Entity e = GetGame().CreatePlayer(null, CLASS_NAME, pos, 0, "NONE");
+		Man m = Man.Cast(e);
+		if (!m)
+		{
+			DZS_Log.Warn("character: " + CLASS_NAME + " not made");
+			return null;
+		}
+		m.SetOrientation(Vector(yaw, 0, 0));
+		DZS_Log.Info("character made at " + pos.ToString() + " yaw " + yaw);
+		GiveLoadout(m);
+		return m;
+	}
+
+	// Map key of the running world for the loadout files (data/ausruestung/<key>.txt).
+	static string LoadoutKey()
+	{
+		string w = GetGame().GetWorldName();
+		w.ToLower();
+		if (w == "enoch")
+			return "livonia";
+		if (w == "sakhal")
+			return "sakhal";
+		if (w == "nasdara")
+			return "badlands";
+		return "chernarus";
+	}
+
+	static string LoadoutPath(string key)
+	{
+		string own = "$profile:dzstudio\\ausruestung\\" + key + ".txt";
+		if (FileExist(own))
+			return own;
+		string bundled = "dzstudio/data/ausruestung/" + key + ".txt";
+		if (FileExist(bundled))
+			return bundled;
+		return "dzstudio/data/ausruestung/chernarus.txt";
+	}
+
+	// A new figure gets the test loadout of its map.
+	protected void GiveLoadout(Man man)
+	{
+		PlayerBase pb = PlayerBase.Cast(man);
+		if (!pb)
+			return;
+		string key = LoadoutKey();
+		string path = LoadoutPath(key);
+		FileHandle fh = OpenFile(path, FileMode.READ);
+		if (!fh)
+		{
+			DZS_Log.Warn("character loadout: cannot read " + path);
+			return;
+		}
+		array<string> lines = new array<string>();
+		string line;
+		while (FGets(fh, line) >= 0)
+			lines.Insert(line);
+		CloseFile(fh);
+		EntityAI base = null;
+		EntityAI weapon = null;
+		int made = 0;
+		int loose = 0;
+		int unknown = 0;
+		int failed = 0;
+		foreach (string raw : lines)
+		{
+			string ln = raw.Trim();
+			if (ln == "" || ln.IndexOf("#") == 0)
+				continue;
+			ln.Replace("\t", " ");
+			array<string> parts = new array<string>();
+			ln.Split(" ", parts);
+			array<string> cols = new array<string>();
+			foreach (string pc : parts)
+			{
+				if (pc != "")
+					cols.Insert(pc);
+			}
+			if (cols.Count() < 2)
+				continue;
+			string where = cols[0];
+			string cls = cols[1];
+			int count = 1;
+			if (cols.Count() > 2)
+				count = Math.Max(1, cols[2].ToInt());
+			if (!GetGame().ConfigIsExisting("CfgVehicles " + cls) && !GetGame().ConfigIsExisting("CfgWeapons " + cls) && !GetGame().ConfigIsExisting("CfgMagazines " + cls))
+			{
+				DZS_Log.Warn("character loadout " + key + ": unknown class " + cls);
+				unknown++;
+				continue;
+			}
+			for (int k = 0; k < count; k++)
+			{
+				EntityAI e = null;
+				bool done = false;
+				if (where == "tragen")
+					e = pb.GetInventory().CreateAttachment(cls);
+				else if (where == "hand")
+					e = pb.GetHumanInventory().CreateInHands(cls);
+				else if (where == "schulter")
+					e = pb.GetInventory().CreateAttachment(cls);
+				else if (where == "anbau" && base)
+					e = base.GetInventory().CreateAttachment(cls);
+				else if (where == "laden")
+				{
+					Weapon_Base wb = Weapon_Base.Cast(weapon);
+					done = wb && wb.SpawnAmmo(cls);
+				}
+				else if (where == "rucksack" || where == "weste")
+				{
+					string slot = "Back";
+					if (where == "weste")
+						slot = "Vest";
+					EntityAI holder = pb.FindAttachmentBySlotName(slot);
+					if (holder)
+						e = holder.GetInventory().CreateInInventory(cls);
+				}
+				if (!e && !done && where != "laden" && where != "anbau")
+				{
+					e = pb.GetInventory().CreateInInventory(cls);
+					if (e)
+						loose++;
+				}
+				if (e || done)
+					made++;
+				else
+				{
+					failed++;
+					DZS_Log.Warn("character loadout " + key + ": " + cls + " (" + where + ") not placed");
+				}
+				if (e && where != "anbau")
+					base = e;
+				if (e && (where == "hand" || where == "schulter"))
+					weapon = e;
+			}
+		}
+		DZS_Log.Info("character loadout " + key + " from " + path + ": " + made + " made, " + loose + " where room was, " + failed + " not placed, " + unknown + " unknown class(es)");
+	}
+
+	void Toggle()
+	{
+		if (m_In)
+			Leave();
+		else
+			Enter();
+	}
+
+	void Enter()
+	{
+		if (m_In)
+			return;
+		ProbeKeys();
+		if (!m_Man || !m_Man.IsAlive())
+		{
+			Drop();
+			vector cam = m_P.GetPosition();
+			vector ground = Vector(cam[0], GetGame().SurfaceY(cam[0], cam[2]), cam[2]);
+			m_Man = Make(ground, m_P.GetYaw());
+			if (!m_Man)
+				return;
+		}
+		m_P.BeforeCharacter();
+		m_Invuln = m_Kernel.GetSettings().GetBool("camera.playerInvulnerable", true);
+		ApplyDamage();
+		GetGame().SelectPlayer(null, m_Man);
+		m_P.SetCameraActive(false);
+		ShowGameHud(true);
+		m_Kernel.GetScreen().SetGameControl(true);
+		m_In = true;
+		m_DeadFor = -1;
+		ShowPlate();
+		DZS_Log.Info("character in at " + m_Man.GetPosition().ToString() + ", invulnerable " + m_Invuln + ", camera " + m_P.GetPosition().ToString());
+	}
+
+	void Leave()
+	{
+		if (!m_In)
+			return;
+		m_In = false;
+		HidePlate();
+		ShowGameHud(false);
+		m_Kernel.GetScreen().SetGameControl(false);
+		m_P.SetCameraActive(true);
+		string at = "gone";
+		if (m_Man)
+			at = m_Man.GetPosition().ToString();
+		DZS_Log.Info("character out (figure " + at + "), camera " + m_P.GetPosition().ToString() + " yaw " + m_P.GetYaw() + " pitch " + m_P.GetPitch());
+	}
+
+	// Einfg: for this stay in the figure only; the setting stays.
+	void ToggleInvulnerable()
+	{
+		if (!m_In)
+			return;
+		m_Invuln = !m_Invuln;
+		ApplyDamage();
+		ShowPlate();
+		string de = "Unverwundbar aus";
+		string en = "Invulnerable off";
+		if (m_Invuln)
+		{
+			de = "Unverwundbar an";
+			en = "Invulnerable on";
+		}
+		m_Kernel.GetScreen().ShowMessage("camera.invulnerable", "", DZS_Texts.Pick(de, en), 2.0);
+		DZS_Log.Info("character invulnerable " + m_Invuln);
+	}
+
+	// The game's own display (quick bar, status icons) only while the figure is steered.
+	protected void ShowGameHud(bool show)
+	{
+		Mission mission = GetGame().GetMission();
+		if (!mission)
+			return;
+		Hud hud = mission.GetHud();
+		if (!hud)
+			return;
+		hud.ShowHudUI(show);
+		hud.ShowQuickbarPlayer(show);
+		HideGameCrosshair();
+	}
+
+	// The game's crosshair frame of the hud (dot, weapon cross) stays off in the figure and after it;
+	// its selector only shows children, so the hidden frame keeps them off.
+	protected static Widget s_Cross;
+
+	static void HideGameCrosshair()
+	{
+		if (!s_Cross)
+		{
+			Widget ws = GetGame().GetWorkspace();
+			if (!ws)
+				return;
+			s_Cross = ws.FindAnyWidget("CrossHairs");
+		}
+		Widget ch = s_Cross;
+		if (ch && ch.IsVisible())
+		{
+			ch.Show(false);
+			DZS_Log.Info("game crosshair hidden");
+		}
+	}
+
+	protected void ApplyDamage()
+	{
+		if (m_Man)
+			m_Man.SetAllowDamage(!m_Invuln);
+	}
+
+	// T: the figure to the point under the pointer; the camera stays.
+	void ToPoint(vector hit)
+	{
+		if (m_Man && m_Man.IsAlive())
+		{
+			m_Man.SetPosition(hit);
+			DZS_Log.Info("character moved to " + hit.ToString());
+			return;
+		}
+		Drop();
+		m_Man = Make(hit, m_P.GetYaw());
+	}
+
+	void Update(float dt)
+	{
+		if (m_In)
+			HideGameCrosshair();
+		if (!m_Man)
+			return;
+		if (m_Man.IsAlive())
+		{
+			if (m_In && m_Invuln)
+				KeepWhole();
+			return;
+		}
+		if (m_DeadFor < 0)
+		{
+			m_DeadFor = 0;
+			DZS_Log.Info("character died at " + m_Man.GetPosition().ToString());
+		}
+		m_DeadFor += dt;
+		if (m_DeadFor >= DEATH_BACK)
+		{
+			Leave();
+			Drop();
+			DZS_Log.Info("character gone after " + DZS_Num.Fixed(DEATH_BACK, 1) + " s");
+		}
+	}
+
+	// Health, blood and shock stay full while invulnerable.
+	protected void KeepWhole()
+	{
+		array<string> kinds = {"", "Blood", "Shock"};
+		foreach (string k : kinds)
+		{
+			float mx = m_Man.GetMaxHealth("", k);
+			if (mx > 0 && m_Man.GetHealth("", k) < mx)
+				m_Man.SetHealth("", k, mx);
+		}
+	}
+
+	void Drop()
+	{
+		if (m_Man)
+			GetGame().ObjectDelete(m_Man);
+		m_Man = null;
+		m_DeadFor = -1;
+	}
+
+	void End()
+	{
+		if (m_In)
+			Leave();
+		Drop();
+	}
+
+	// Health of the figure for the log (acceptance: alive, health full after a fall).
+	string HealthText()
+	{
+		if (!m_Man)
+			return "none";
+		return "alive " + m_Man.IsAlive() + " health " + DZS_Num.Fixed(m_Man.GetHealth("", ""), 1) + "/" + DZS_Num.Fixed(m_Man.GetMaxHealth("", ""), 1) + " blood " + DZS_Num.Fixed(m_Man.GetHealth("", "Blood"), 0) + " shock " + DZS_Num.Fixed(m_Man.GetHealth("", "Shock"), 0);
+	}
+
+	// ---- display: top left, 12 px from the edge ----
+
+	protected void ShowPlate()
+	{
+		HidePlate();
+		Widget root = m_Kernel.GetScreen().GetRoot();
+		string tone = "warning";
+		string icon = "shield-off";
+		string label = DZS_Texts.Pick("Verwundbar", "Vulnerable");
+		if (m_Invuln)
+		{
+			tone = "success";
+			icon = "shield";
+			label = DZS_Texts.Pick("Unverwundbar", "Invulnerable");
+		}
+		m_Plate = new DZS_Plate(root, tone, label);
+		if (m_Plate.m_Icon)
+			DZS_W.SetIcon(m_Plate.m_Icon, icon);
+		float pad = DZS_Scale.Px(12);
+		m_Plate.Place(pad, pad);
+		DZS_UiRegistry ui = m_Kernel.GetUi();
+		string back = ui.FirstBinding("camera.player");
+		string sw = ui.FirstBinding("camera.invulnerable");
+		string hint = DZS_Texts.Pick("[" + back + "] zurück zum Editor · [" + sw + "] umschalten", "[" + back + "] back to the editor · [" + sw + "] toggle");
+		m_Hint = new DZS_Plate(root, "textMuted", hint, "read", 12);
+		m_Hint.m_Line.SetColor(DZS_Color.Get("textMuted"));
+		m_Hint.Place(pad, pad + m_Plate.m_H + DZS_Scale.Px(6));
+	}
+
+	protected void HidePlate()
+	{
+		if (m_Plate)
+			m_Plate.Destroy();
+		m_Plate = null;
+		if (m_Hint)
+			m_Hint.Destroy();
+		m_Hint = null;
+	}
+
+	// Vor dem Bau im Spiel nachweisen: which inputs of the game hold Pos1 or Einfg in the current (default) binding.
+	protected void ProbeKeys()
+	{
+		if (m_ProbeDone)
+			return;
+		m_ProbeDone = true;
+		UAInputAPI api = GetUApi();
+		TIntArray ids = new TIntArray();
+		api.GetActiveInputs(ids);
+		int hits = 0;
+		foreach (int id : ids)
+		{
+			UAInput inp = api.GetInputByID(id);
+			if (!inp)
+				continue;
+			int was = inp.AlternativeIndex();
+			for (int a = 0; a < inp.AlternativeCount(); a++)
+			{
+				inp.SelectAlternative(a);
+				for (int k = 0; k < inp.BindKeyCount(); k++)
+				{
+					int key = inp.GetBindKey(k);
+					string nm = api.GetButtonName(key);
+					if (key == KeyCode.KC_HOME || key == KeyCode.KC_INSERT)
+					{
+						hits++;
+						DZS_Log.Info("character keys: input " + id + " hash " + inp.NameHash() + " bound to " + nm);
+					}
+				}
+			}
+			inp.SelectAlternative(was);
+		}
+		DZS_Log.Info("character keys: " + ids.Count() + " game inputs, " + hits + " bound to Pos1/Einfg (KC_HOME " + KeyCode.KC_HOME + ", KC_INSERT " + KeyCode.KC_INSERT + ")");
+	}
+}

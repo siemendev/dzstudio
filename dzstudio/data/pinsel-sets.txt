@@ -1,0 +1,307 @@
+# dzstudio pinsel-sets 1 · DayZ 1.30 · built by tools/brush/build_sets.py
+# set<TAB>German name<TAB>English name, then entries: name share randomYaw tilt slope slopeMax heightOffset scaleMin scaleMax
+set	Bäume: Ahorn (Sommer)	Trees: Maple (summer)
+DZ\plants_bliss\Tree\t_acer_2s_summer.p3d	1	1	3	0	15	-0.25	0.9	1.1
+set	Bäume: Apfelbaum	Trees: Apple tree
+DZ\plants\tree\t_malusDomestica_1s.p3d	1	1	3	0	15	-0.23	0.9	1.1
+DZ\plants\tree\t_malusDomestica_2s.p3d	1	1	3	0	15	-0.24	0.9	1.1
+DZ\plants\tree\t_malusDomestica_3s.p3d	1	1	3	0	15	-0.24	0.9	1.1
+set	Bäume: Apfelbaum (Sommer)	Trees: Apple tree (summer)
+DZ\plants_bliss\Tree\t_malusDomestica_2s_summer.p3d	1	1	3	0	15	-0.24	0.9	1.1
+DZ\plants_bliss\Tree\t_malusDomestica_3s_summer.p3d	1	1	3	0	15	-0.24	0.9	1.1
+set	Bäume: Birke	Trees: Birch
+DZ\plants\tree\b_BetulaPendula_1f.p3d	1	1	3	0	15	-0.14	0.9	1.1
+DZ\plants\tree\t_BetulaPendula_1f.p3d	1	1	3	0	15	-0.13	0.9	1.1
+DZ\plants\tree\t_BetulaPendula_1fb.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants\tree\t_BetulaPendula_1s.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants\tree\t_BetulaPendula_2f.p3d	1	1	3	0	15	-0.14	0.9	1.1
+DZ\plants\tree\t_BetulaPendula_2fb.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants\tree\t_BetulaPendula_2fc.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_BetulaPendula_2s.p3d	1	1	3	0	15	-0.24	0.9	1.1
+DZ\plants\tree\t_BetulaPendula_2w.p3d	1	1	3	0	15	-0.12	0.9	1.1
+DZ\plants\tree\t_BetulaPendula_3f.p3d	1	1	3	0	15	-0.08	0.9	1.1
+DZ\plants\tree\t_BetulaPendula_3fb.p3d	1	1	3	0	15	-0.22	0.9	1.1
+DZ\plants\tree\t_BetulaPendula_3fc.p3d	1	1	3	0	15	-0.15	0.9	1.1
+DZ\plants\tree\t_BetulaPendula_3s.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Birke (Sommer)	Trees: Birch (summer)
+DZ\plants_bliss\Tree\t_BetulaPendulaE_1s_summer.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants_bliss\Tree\t_BetulaPendulaE_2f_summer.p3d	1	1	3	0	15	-0.18	0.9	1.1
+DZ\plants_bliss\Tree\t_BetulaPendulaE_2s_summer.p3d	1	1	3	0	15	-0.19	0.9	1.1
+DZ\plants_bliss\Tree\t_BetulaPendulaE_2w_summer.p3d	1	1	3	0	15	-0.15	0.9	1.1
+DZ\plants_bliss\Tree\t_BetulaPendulaE_3f_summer.p3d	1	1	3	0	15	-0.14	0.9	1.1
+DZ\plants_bliss\Tree\t_BetulaPendulaE_3s_summer.p3d	1	1	3	0	15	-0.14	0.9	1.1
+set	Bäume: Birke (Spätherbst)	Trees: Birch (late autumn)
+DZ\plants_sakhal\latefall\b_BetulaPendula_1f_latefall.p3d	1	1	3	0	15	-0.14	0.9	1.1
+DZ\plants_sakhal\latefall\t_BetulaPendula_1f_latefall.p3d	1	1	3	0	15	-0.13	0.9	1.1
+DZ\plants_sakhal\latefall\t_BetulaPendula_1fb_latefall.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants_sakhal\latefall\t_BetulaPendula_1s_latefall.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants_sakhal\latefall\t_BetulaPendula_2f_latefall.p3d	1	1	3	0	15	-0.14	0.9	1.1
+DZ\plants_sakhal\latefall\t_BetulaPendula_2fb_latefall.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants_sakhal\latefall\t_BetulaPendula_2fc_latefall.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_sakhal\latefall\t_BetulaPendula_2s_latefall.p3d	1	1	3	0	15	-0.24	0.9	1.1
+DZ\plants_sakhal\latefall\t_BetulaPendula_2w_latefall.p3d	1	1	3	0	15	-0.12	0.9	1.1
+DZ\plants_sakhal\latefall\t_BetulaPendula_3f_latefall.p3d	1	1	3	0	15	-0.08	0.9	1.1
+DZ\plants_sakhal\latefall\t_BetulaPendula_3fb_latefall.p3d	1	1	3	0	15	-0.22	0.9	1.1
+DZ\plants_sakhal\latefall\t_BetulaPendula_3fc_latefall.p3d	1	1	3	0	15	-0.15	0.9	1.1
+DZ\plants_sakhal\latefall\t_BetulaPendula_3s_latefall.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_sakhal\latefall\t_BetulaPendulaE_2w_latefall.p3d	1	1	3	0	15	-0.15	0.9	1.1
+set	Bäume: Birke (Winter)	Trees: Birch (winter)
+DZ\plants_sakhal\winter\b_BetulaPendula_1f_winter.p3d	1	1	3	0	15	-0.14	0.9	1.1
+DZ\plants_sakhal\winter\t_BetulaPendula_1f_winter.p3d	1	1	3	0	15	-0.13	0.9	1.1
+DZ\plants_sakhal\winter\t_BetulaPendula_1fb_winter.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants_sakhal\winter\t_BetulaPendula_1s_winter.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants_sakhal\winter\t_BetulaPendula_2f_winter.p3d	1	1	3	0	15	-0.14	0.9	1.1
+DZ\plants_sakhal\winter\t_BetulaPendula_2fb_winter.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants_sakhal\winter\t_BetulaPendula_2fc_winter.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_sakhal\winter\t_BetulaPendula_2s_winter.p3d	1	1	3	0	15	-0.24	0.9	1.1
+DZ\plants_sakhal\winter\t_BetulaPendula_2w_winter.p3d	1	1	3	0	15	-0.12	0.9	1.1
+DZ\plants_sakhal\winter\t_BetulaPendula_3f_winter.p3d	1	1	3	0	15	-0.08	0.9	1.1
+DZ\plants_sakhal\winter\t_BetulaPendula_3fb_winter.p3d	1	1	3	0	15	-0.22	0.9	1.1
+DZ\plants_sakhal\winter\t_BetulaPendula_3fc_winter.p3d	1	1	3	0	15	-0.15	0.9	1.1
+DZ\plants_sakhal\winter\t_BetulaPendula_3s_winter.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_sakhal\winter\t_BetulaPendulaE_2w_winter.p3d	1	1	3	0	15	-0.15	0.9	1.1
+set	Bäume: Birnbaum	Trees: Pear tree
+DZ\plants\tree\t_pyrusCommunis_2s.p3d	1	1	3	0	15	-0.09	0.9	1.1
+DZ\plants\tree\t_pyrusCommunis_3s.p3d	1	1	3	0	15	-0.25	0.9	1.1
+DZ\plants\tree\t_pyrusCommunis_3sb.p3d	1	1	3	0	15	-0.14	0.9	1.1
+set	Bäume: Birnbaum (Sommer)	Trees: Pear tree (summer)
+DZ\plants_bliss\Tree\t_pyrusCommunis_2s_summer.p3d	1	1	3	0	15	-0.09	0.9	1.1
+DZ\plants_bliss\Tree\t_pyrusCommunis_3s_summer.p3d	1	1	3	0	15	-0.24	0.9	1.1
+set	Bäume: Buche	Trees: Beech
+DZ\plants\tree\b_FagusSylvatica_1f.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_1f.p3d	1	1	3	0	15	-0.11	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_1fb.p3d	1	1	3	0	15	-0.09	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_1fc.p3d	1	1	3	0	15	-0.15	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_1fd.p3d	1	1	3	0	15	-0.08	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_1fe.p3d	1	1	3	0	15	-0.25	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_1s.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_2d.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_2f.p3d	1	1	3	0	15	-0.18	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_2fb.p3d	1	1	3	0	15	-0.21	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_2fc.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_2s.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_2sb.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_3d.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_3f.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_3fb.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_FagusSylvatica_3s.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Buche (Sommer)	Trees: Beech (summer)
+DZ\plants_bliss\Tree\t_FagusSylvatica_1f_summer.p3d	1	1	3	0	15	-0.11	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_1fb_summer.p3d	1	1	3	0	15	-0.09	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_1fc_summer.p3d	1	1	3	0	15	-0.15	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_1fd_summer.p3d	1	1	3	0	15	-0.11	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_1fe_summer.p3d	1	1	3	0	15	-0.25	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_1s_summer.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_2d_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_2f_summer.p3d	1	1	3	0	15	-0.18	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_2fb_summer.p3d	1	1	3	0	15	-0.21	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_2fc_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_2s_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_2sb_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_3d_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_3f_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_3fb_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvatica_3s_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvaticaE_2s_summer.p3d	1	1	3	0	15	-0.23	0.9	1.1
+DZ\plants_bliss\Tree\t_FagusSylvaticaE_3f_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Eberesche	Trees: Rowan
+DZ\plants\tree\t_sorbus_2s.p3d	1	1	3	0	15	-0.23	0.9	1.1
+set	Bäume: Eberesche (Sommer)	Trees: Rowan (summer)
+DZ\plants_bliss\Tree\t_sorbus_2s_summer.p3d	1	1	3	0	15	-0.23	0.9	1.1
+set	Bäume: Eiche	Trees: Oak
+DZ\plants\tree\b_quercusRobur_1f.p3d	1	1	3	0	15	-0.01	0.9	1.1
+DZ\plants\tree\t_quercusRobur_1f.p3d	1	1	3	0	15	-0.25	0.9	1.1
+DZ\plants\tree\t_quercusRobur_1fb.p3d	1	1	3	0	15	-0.08	0.9	1.1
+DZ\plants\tree\t_quercusRobur_1fc.p3d	1	1	3	0	15	-0.14	0.9	1.1
+DZ\plants\tree\t_quercusRobur_1fd.p3d	1	1	3	0	15	-0.09	0.9	1.1
+DZ\plants\tree\t_quercusRobur_1s.p3d	1	1	3	0	15	-0.09	0.9	1.1
+DZ\plants\tree\t_quercusRobur_2d.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_quercusRobur_2f.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_quercusRobur_2fb.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_quercusRobur_2fc.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_quercusRobur_2s.p3d	1	1	3	0	15	-0.09	0.9	1.1
+DZ\plants\tree\t_quercusRobur_2sb.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_quercusRobur_2sc.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants\tree\t_quercusRobur_3d.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_quercusRobur_3f.p3d	1	1	3	0	15	-0.09	0.9	1.1
+DZ\plants\tree\t_quercusRobur_3fb.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_quercusRobur_3s.p3d	1	1	3	0	15	-0.09	0.9	1.1
+DZ\plants\tree\t_quercusRobur_3sb.p3d	1	1	3	0	15	-0.09	0.9	1.1
+set	Bäume: Esche	Trees: Ash
+DZ\plants\tree\t_FraxinusExcelsior_2f.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_FraxinusExcelsior_2s.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_FraxinusExcelsior_2w.p3d	1	1	3	0	15	-0.12	0.9	1.1
+DZ\plants\tree\t_FraxinusExcelsior_3s.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Fichte	Trees: Spruce
+DZ\plants\tree\b_PiceaAbies_1f.p3d	1	1	3	0	15	-0.01	0.9	1.1
+DZ\plants\tree\b_PiceaAbies_1fb.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants\tree\t_PiceaAbies_1f.p3d	1	1	3	0	15	-0.05	0.9	1.1
+DZ\plants\tree\t_PiceaAbies_1s.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants\tree\t_PiceaAbies_1sb.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants\tree\t_piceaabies_2d.p3d	1	1	3	0	15	-0.18	0.9	1.1
+DZ\plants\tree\t_PiceaAbies_2f.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants\tree\t_PiceaAbies_2fb.p3d	1	1	3	0	15	-0.19	0.9	1.1
+DZ\plants\tree\t_PiceaAbies_2s.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants\tree\t_PiceaAbies_2sb.p3d	1	1	3	0	15	-0.21	0.9	1.1
+DZ\plants\tree\t_piceaabies_3d.p3d	1	1	3	0	15	-0.26	0.9	1.1
+DZ\plants\tree\t_PiceaAbies_3f.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_PiceaAbies_3s.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Fichte (dunkel)	Trees: Spruce (dark)
+DZ\plants_sakhal\dark\b_PiceaAbies_1f_dark.p3d	1	1	3	0	15	-0.01	0.9	1.1
+DZ\plants_sakhal\dark\b_PiceaAbies_1fb_dark.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants_sakhal\dark\t_PiceaAbies_1f_dark.p3d	1	1	3	0	15	-0.05	0.9	1.1
+DZ\plants_sakhal\dark\t_PiceaAbies_1s_dark.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants_sakhal\dark\t_PiceaAbies_1sb_dark.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants_sakhal\dark\t_piceaabies_2d_dark.p3d	1	1	3	0	15	-0.18	0.9	1.1
+DZ\plants_sakhal\dark\t_PiceaAbies_2f_dark.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants_sakhal\dark\t_PiceaAbies_2fb_dark.p3d	1	1	3	0	15	-0.19	0.9	1.1
+DZ\plants_sakhal\dark\t_PiceaAbies_2s_dark.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants_sakhal\dark\t_PiceaAbies_2sb_dark.p3d	1	1	3	0	15	-0.21	0.9	1.1
+DZ\plants_sakhal\dark\t_piceaabies_3d_dark.p3d	1	1	3	0	15	-0.26	0.9	1.1
+set	Bäume: Fichte (gefroren)	Trees: Spruce (frozen)
+DZ\plants_sakhal\frozen\b_PiceaAbies_1f_frozen.p3d	1	1	3	0	15	-0.01	0.9	1.1
+DZ\plants_sakhal\frozen\b_PiceaAbies_1fb_frozen.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants_sakhal\frozen\t_PiceaAbies_1f_frozen.p3d	1	1	3	0	15	-0.05	0.9	1.1
+DZ\plants_sakhal\frozen\t_PiceaAbies_1s_frozen.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants_sakhal\frozen\t_PiceaAbies_1sb_frozen.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants_sakhal\frozen\t_PiceaAbies_2f_frozen.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants_sakhal\frozen\t_PiceaAbies_2fb_frozen.p3d	1	1	3	0	15	-0.19	0.9	1.1
+DZ\plants_sakhal\frozen\t_PiceaAbies_2s_frozen.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants_sakhal\frozen\t_PiceaAbies_2sb_frozen.p3d	1	1	3	0	15	-0.21	0.9	1.1
+set	Bäume: Fichte (Sommer)	Trees: Spruce (summer)
+DZ\plants_bliss\Tree\b_PiceaAbies_1f_summer.p3d	1	1	3	0	15	-0.01	0.9	1.1
+DZ\plants_bliss\Tree\b_PiceaAbies_1fb_summer.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants_bliss\Tree\t_PiceaAbies_1f_summer.p3d	1	1	3	0	15	-0.05	0.9	1.1
+DZ\plants_bliss\Tree\t_PiceaAbies_1s_summer.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants_bliss\Tree\t_PiceaAbies_1sb_summer.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants_bliss\Tree\t_PiceaAbies_2f_summer.p3d	1	1	3	0	15	-0.19	0.9	1.1
+DZ\plants_bliss\Tree\t_PiceaAbies_2fb_summer.p3d	1	1	3	0	15	-0.19	0.9	1.1
+DZ\plants_bliss\Tree\t_PiceaAbies_2s_summer.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants_bliss\Tree\t_PiceaAbies_2sb_summer.p3d	1	1	3	0	15	-0.21	0.9	1.1
+DZ\plants_bliss\Tree\t_PiceaAbies_3f_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_bliss\Tree\t_PiceaAbies_3s_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Fichte (Winter)	Trees: Spruce (winter)
+DZ\plants_sakhal\winter\b_PiceaAbies_1f_winter.p3d	1	1	3	0	15	-0.01	0.9	1.1
+DZ\plants_sakhal\winter\b_PiceaAbies_1fb_winter.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants_sakhal\winter\t_PiceaAbies_1f_winter.p3d	1	1	3	0	15	-0.05	0.9	1.1
+DZ\plants_sakhal\winter\t_PiceaAbies_1s_winter.p3d	1	1	3	0	15	-0.04	0.9	1.1
+DZ\plants_sakhal\winter\t_PiceaAbies_1sb_winter.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants_sakhal\winter\t_piceaabies_2d_winter.p3d	1	1	3	0	15	-0.18	0.9	1.1
+DZ\plants_sakhal\winter\t_PiceaAbies_2f_winter.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants_sakhal\winter\t_PiceaAbies_2fb_winter.p3d	1	1	3	0	15	-0.19	0.9	1.1
+DZ\plants_sakhal\winter\t_PiceaAbies_2s_winter.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants_sakhal\winter\t_PiceaAbies_2sb_winter.p3d	1	1	3	0	15	-0.21	0.9	1.1
+DZ\plants_sakhal\winter\t_piceaabies_3d_winter.p3d	1	1	3	0	15	-0.26	0.9	1.1
+set	Bäume: Hainbuche	Trees: Hornbeam
+DZ\plants\tree\t_carpinus_2s.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Kahler Baum	Trees: Bare tree
+DZ\plants\tree\t_naked_1s.p3d	1	1	3	0	15	-0.08	0.9	1.1
+DZ\plants\tree\t_naked_2s.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Kiefer	Trees: Pine
+DZ\plants\tree\t_PinusSylvestris_1f.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants\tree\t_PinusSylvestris_1s.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants\tree\t_PinusSylvestris_2f.p3d	1	1	3	0	15	-0.15	0.9	1.1
+DZ\plants\tree\t_PinusSylvestris_2fb.p3d	1	1	3	0	15	-0.08	0.9	1.1
+DZ\plants\tree\t_PinusSylvestris_2s.p3d	1	1	3	0	15	-0.14	0.9	1.1
+DZ\plants\tree\t_PinusSylvestris_2sb.p3d	1	1	3	0	15	-0.16	0.9	1.1
+DZ\plants\tree\t_PinusSylvestris_3d.p3d	1	1	3	0	15	-0.09	0.9	1.1
+DZ\plants\tree\t_PinusSylvestris_3f.p3d	1	1	3	0	15	-0.13	0.9	1.1
+DZ\plants\tree\t_PinusSylvestris_3fb.p3d	1	1	3	0	15	-0.11	0.9	1.1
+DZ\plants\tree\t_PinusSylvestris_3fc.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_PinusSylvestris_3s.p3d	1	1	3	0	15	-0.09	0.9	1.1
+set	Bäume: Kiefer (Sommer)	Trees: Pine (summer)
+DZ\plants_bliss\Tree\t_PinusSylvestris_1f_summer.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants_bliss\Tree\t_PinusSylvestris_1s_summer.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants_bliss\Tree\t_PinusSylvestris_2f_summer.p3d	1	1	3	0	15	-0.15	0.9	1.1
+DZ\plants_bliss\Tree\t_PinusSylvestris_2fb_summer.p3d	1	1	3	0	15	-0.08	0.9	1.1
+DZ\plants_bliss\Tree\t_PinusSylvestris_2s_summer.p3d	1	1	3	0	15	-0.14	0.9	1.1
+DZ\plants_bliss\Tree\t_PinusSylvestris_2sb_summer.p3d	1	1	3	0	15	-0.16	0.9	1.1
+DZ\plants_bliss\Tree\t_PinusSylvestris_3d_summer.p3d	1	1	3	0	15	-0.09	0.9	1.1
+DZ\plants_bliss\Tree\t_PinusSylvestris_3f_summer.p3d	1	1	3	0	15	-0.13	0.9	1.1
+DZ\plants_bliss\Tree\t_PinusSylvestris_3fb_summer.p3d	1	1	3	0	15	-0.11	0.9	1.1
+DZ\plants_bliss\Tree\t_PinusSylvestris_3fc_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_bliss\Tree\t_PinusSylvestris_3s_summer.p3d	1	1	3	0	15	-0.09	0.9	1.1
+set	Bäume: Lärche	Trees: Larch
+DZ\plants\tree\t_LarixDecidua_1f.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants\tree\t_LarixDecidua_1s.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants\tree\t_LarixDecidua_2f.p3d	1	1	3	0	15	-0.22	0.9	1.1
+DZ\plants\tree\t_LarixDecidua_2fb.p3d	1	1	3	0	15	-0.15	0.9	1.1
+DZ\plants\tree\t_LarixDecidua_2s.p3d	1	1	3	0	15	-0.19	0.9	1.1
+DZ\plants\tree\t_LarixDecidua_3f.p3d	1	1	3	0	15	-0.21	0.9	1.1
+DZ\plants\tree\t_LarixDecidua_3fb.p3d	1	1	3	0	15	-0.16	0.9	1.1
+set	Bäume: Lärche (Sommer)	Trees: Larch (summer)
+DZ\plants_bliss\Tree\t_LarixDecidua_1f_summer.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants_bliss\Tree\t_LarixDecidua_1s_summer.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants_bliss\Tree\t_LarixDecidua_2f_summer.p3d	1	1	3	0	15	-0.22	0.9	1.1
+DZ\plants_bliss\Tree\t_LarixDecidua_2fb_summer.p3d	1	1	3	0	15	-0.15	0.9	1.1
+DZ\plants_bliss\Tree\t_LarixDecidua_2s_summer.p3d	1	1	3	0	15	-0.19	0.9	1.1
+DZ\plants_bliss\Tree\t_LarixDecidua_3f_summer.p3d	1	1	3	0	15	-0.21	0.9	1.1
+DZ\plants_bliss\Tree\t_LarixDecidua_3fb_summer.p3d	1	1	3	0	15	-0.16	0.9	1.1
+set	Bäume: Pflaumenbaum	Trees: Plum tree
+DZ\plants\tree\t_prunusDomestica_2s.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Robinie	Trees: Black locust
+DZ\plants\tree\t_robiniaPseudoacacia_1f.p3d	1	1	3	0	15	-0.05	0.9	1.1
+DZ\plants\tree\t_robiniaPseudoacacia_2f.p3d	1	1	3	0	15	-0.13	0.9	1.1
+DZ\plants\tree\t_robiniaPseudoacacia_2s.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_robiniaPseudoacacia_3f.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Schwarzpappel	Trees: Black poplar
+DZ\plants\tree\t_populusNigra_3s.p3d	1	1	3	0	15	-0.17	0.9	1.1
+set	Bäume: Schwarzpappel (Sommer)	Trees: Black poplar (summer)
+DZ\plants_bliss\Tree\t_populusNigra_3sb_summer.p3d	1	1	3	0	15	-0.13	0.9	1.1
+set	Bäume: Schwarzpappel (Spätherbst)	Trees: Black poplar (late autumn)
+DZ\plants_sakhal\latefall\t_populusNigra_3s_latefall.p3d	1	1	3	0	15	-0.17	0.9	1.1
+set	Bäume: Silberpappel	Trees: White poplar
+DZ\plants\tree\t_populusAlba_1f.p3d	1	1	3	0	15	-0.19	0.9	1.1
+DZ\plants\tree\t_populusAlba_2s.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_populusAlba_3s.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Silberpappel (Spätherbst)	Trees: White poplar (late autumn)
+DZ\plants_sakhal\latefall\t_populusAlba_1f_latefall.p3d	1	1	3	0	15	-0.19	0.9	1.1
+DZ\plants_sakhal\latefall\t_populusAlba_2s_latefall.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_sakhal\latefall\t_populusAlba_3s_latefall.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Silberweide	Trees: White willow
+DZ\plants\tree\t_salixAlba_2s.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants\tree\t_salixAlba_2sb.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Silberweide (Sommer)	Trees: White willow (summer)
+DZ\plants_bliss\Tree\t_salixAlba_2sb_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Silberweide (Sumpf)	Trees: White willow (swamp)
+DZ\plants\tree\t_salixAlba_2sb_swamp.p3d	1	1	3	0	15	-0.27	0.9	1.1
+set	Bäume: Stadtbaum	Trees: Town tree
+DZ\plants\tree\t_town_1s.p3d	1	1	3	0	15	-0.10	0.9	1.1
+DZ\plants\tree\t_town_1sb.p3d	1	1	3	0	15	-0.10	0.9	1.1
+set	Bäume: Walnuss	Trees: Walnut
+DZ\plants\tree\t_juglansRegia_2s.p3d	1	1	3	0	15	-0.09	0.9	1.1
+DZ\plants\tree\t_juglansRegia_3s.p3d	1	1	3	0	15	-0.09	0.9	1.1
+set	Bäume: Walnuss (Sommer)	Trees: Walnut (summer)
+DZ\plants_bliss\Tree\t_juglansRegia_2s_summer.p3d	1	1	3	0	15	-0.09	0.9	1.1
+DZ\plants_bliss\Tree\t_juglansRegia_3s_summer.p3d	1	1	3	0	15	-0.09	0.9	1.1
+set	Büsche gemischt	Mixed bushes
+DZ\plants\bush\b_betulaHumilis_1s.p3d	1	1	3	0	15	-0.25	0.9	1.1
+DZ\plants\bush\b_corylusAvellana_1f.p3d	1	1	3	0	15	-0.21	0.9	1.1
+DZ\plants\bush\b_corylusAvellana_2s.p3d	1	1	3	0	15	-0.21	0.9	1.1
+DZ\plants\bush\b_crataegusLaevigata_1s.p3d	1	1	3	0	15	-0.13	0.9	1.1
+DZ\plants\bush\b_crataegusLaevigata_2s.p3d	1	1	3	0	15	-0.15	0.9	1.1
+DZ\plants\bush\b_naked_2s.p3d	1	1	3	0	15	-0.08	0.9	1.1
+DZ\plants\bush\b_prunusSpinosa_1s.p3d	1	1	3	0	15	-0.08	0.9	1.1
+DZ\plants\bush\b_prunusSpinosa_2s.p3d	1	1	3	0	15	-0.07	0.9	1.1
+DZ\plants\bush\b_rosaCanina_1s.p3d	1	1	3	0	15	-0.06	0.9	1.1
+DZ\plants\bush\b_rosaCanina_2s.p3d	1	1	3	0	15	-0.07	0.9	1.1
+DZ\plants\bush\b_sambucusNigra_1s.p3d	1	1	3	0	15	-0.13	0.9	1.1
+DZ\plants\bush\b_sambucusNigra_2s.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants_bliss\Bush\b_betulaNana_1s_summer.p3d	1	1	3	0	15	-0.13	0.9	1.1
+DZ\plants_bliss\Bush\b_caraganaArborescens_2s_summer.p3d	1	1	3	0	15	-0.23	0.9	1.1
+DZ\plants_bliss\Bush\b_corylusHeterophylla_1s_summer.p3d	1	1	3	0	15	-0.12	0.9	1.1
+DZ\plants_bliss\Bush\b_corylusHeterophylla_2s_summer.p3d	1	1	3	0	15	-0.21	0.9	1.1
+DZ\plants_bliss\Bush\b_FagusSylvatica_1f_summer.p3d	1	1	3	0	15	-0.03	0.9	1.1
+DZ\plants_bliss\Bush\b_phragmitesAustralis_summer.p3d	1	1	3	0	15	-0.27	0.9	1.1
+DZ\plants_bliss\Bush\b_prunusSpinosa_1s_summer.p3d	1	1	3	0	15	-0.08	0.9	1.1
+DZ\plants_bliss\Bush\b_prunusSpinosa_2s_summer.p3d	1	1	3	0	15	-0.07	0.9	1.1
+DZ\plants_bliss\Bush\b_rosaCanina_1s_summer.p3d	1	1	3	0	15	-0.06	0.9	1.1
+DZ\plants_bliss\Bush\b_rosaCanina_2s_summer.p3d	1	1	3	0	15	-0.07	0.9	1.1
+DZ\plants_bliss\Bush\b_sambucusNigra_1s_summer.p3d	1	1	3	0	15	-0.13	0.9	1.1
+DZ\plants_bliss\Bush\b_sambucusNigra_2s_summer.p3d	1	1	3	0	15	-0.17	0.9	1.1
+DZ\plants_sakhal\latefall\b_betulaHumilis_1s_latefall.p3d	1	1	3	0	15	-0.25	0.9	1.1
+DZ\plants_sakhal\latefall\b_betulaNana_1s_latefall.p3d	1	1	3	0	15	-0.13	0.9	1.1
+DZ\plants_sakhal\latefall\b_caraganaArborescens_2s_leafless.p3d	1	1	3	0	15	-0.23	0.9	1.1
+DZ\plants_sakhal\winter\b_betulaHumilis_1s_winter.p3d	1	1	3	0	15	-0.25	0.9	1.1
+DZ\plants_sakhal\winter\b_betulaNana_1s_winter.p3d	1	1	3	0	15	-0.13	0.9	1.1
+DZ\plants_sakhal\winter\b_caraganaArborescens_2s_winter.p3d	1	1	3	0	15	-0.23	0.9	1.1

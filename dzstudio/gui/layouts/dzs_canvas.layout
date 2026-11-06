@@ -1,0 +1,9 @@
+CanvasWidgetClass DZS_Canvas {
+ ignorepointer 1
+ position 0 0
+ size 10 10
+ hexactpos 1
+ vexactpos 1
+ hexactsize 1
+ vexactsize 1
+}

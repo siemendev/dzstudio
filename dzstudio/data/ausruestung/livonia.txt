@@ -1,0 +1,40 @@
+# Gear of the walking character on Livonia. One line per item: where, class name, count.
+# wohin: tragen (Kleidung, Helm, Rucksack, Weste), hand (Waffe in der Hand), schulter (zweite Waffe am Körper),
+# anbau (an den letzten Gegenstand, der kein Anbau ist), laden (Magazin bzw. Munition in die letzte Waffe),
+# rucksack, weste, irgendwo (wo Platz ist). Eine Datei $profile:dzstudio\ausruestung\<karte>.txt geht dieser vor.
+
+tragen	GorkaEJacket_Summer
+tragen	GorkaPants_Summer
+tragen	MilitaryBoots_Black
+tragen	TacticalGloves_Green
+tragen	GorkaHelmet
+tragen	Headtorch_Black
+tragen	SmershVest
+tragen	AssaultBag_Green
+
+hand	M4A1
+anbau	M4_RISHndgrd
+anbau	M4_OEBttstck
+anbau	M68Optic
+laden	Mag_STANAG_30Rnd
+schulter	M79
+laden	Ammo_40mm_Explosive
+weste	Mag_STANAG_30Rnd	2
+weste	FNX45
+weste	Mag_FNX45_15Rnd	2
+weste	M67Grenade	2
+weste	M18SmokeGrenade_White	2
+weste	FlashGrenade
+weste	Grenade_ChemGas
+rucksack	Ammo_40mm_Explosive	3
+rucksack	Ammo_40mm_Smoke_White	3
+rucksack	Flashlight
+anbau	Battery9V
+rucksack	Binoculars
+rucksack	OrienteeringCompass
+rucksack	Shovel
+rucksack	Pliers
+rucksack	Hatchet
+rucksack	BakedBeansCan	2
+rucksack	Canteen
+rucksack	BandageDressing	3

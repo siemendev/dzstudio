@@ -1,0 +1,89 @@
+FrameWidgetClass DZS_EditProbe {
+ ignorepointer 1
+ position 0 0
+ size 1 1
+ hexactpos 1
+ vexactpos 1
+ hexactsize 0
+ vexactsize 0
+ {
+  EditBoxWidgetClass ep0 {
+   color 1 1 1 1
+   position 520 160
+   size 420 40
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   style Empty
+   font "dzstudio/gui/fonts/dzs_text"
+  }
+  EditBoxWidgetClass ep1 {
+   color 1 1 1 1
+   position 520 220
+   size 420 40
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   style Default
+   font "dzstudio/gui/fonts/dzs_text"
+  }
+  EditBoxWidgetClass ep2 {
+   color 1 1 1 1
+   position 520 280
+   size 420 40
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   style DayZNormal
+   font "dzstudio/gui/fonts/dzs_text"
+  }
+  EditBoxWidgetClass ep3 {
+   color 1 1 1 1
+   position 520 340
+   size 420 40
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   style Editor
+   font "dzstudio/gui/fonts/dzs_text"
+  }
+  EditBoxWidgetClass ep4 {
+   color 1 1 1 1
+   position 520 400
+   size 420 40
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   style ServerBrowser
+   font "dzstudio/gui/fonts/dzs_text"
+  }
+  EditBoxWidgetClass ep5 {
+   color 1 1 1 0
+   position 520 460
+   size 420 40
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   style Empty
+   font "dzstudio/gui/fonts/dzs_text"
+  }
+  EditBoxWidgetClass ep6 {
+   color 1 1 1 1
+   position 520 520
+   size 420 40
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   style Empty
+   "no focus" 1
+   font "dzstudio/gui/fonts/dzs_text"
+  }
+ }
+}

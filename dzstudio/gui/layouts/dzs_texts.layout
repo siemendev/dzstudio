@@ -1,0 +1,343 @@
+FrameWidgetClass DZS_Texts {
+ ignorepointer 1
+ position 0 0
+ size 10 10
+ hexactpos 1
+ vexactpos 1
+ hexactsize 1
+ vexactsize 1
+ {
+  TextWidgetClass display {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_display"
+   "exact text" 0
+   "text valign" center
+  }
+  TextWidgetClass display_c {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_display"
+   "exact text" 0
+   "text valign" center
+   "text halign" center
+  }
+  TextWidgetClass display_r {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_display"
+   "exact text" 0
+   "text valign" center
+   "text halign" right
+  }
+  TextWidgetClass label {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_caps"
+   "exact text" 0
+   "text valign" center
+  }
+  TextWidgetClass label_c {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_caps"
+   "exact text" 0
+   "text valign" center
+   "text halign" center
+  }
+  TextWidgetClass label_r {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_caps"
+   "exact text" 0
+   "text valign" center
+   "text halign" right
+  }
+  TextWidgetClass labelbold {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_strong"
+   "exact text" 0
+   "text valign" center
+  }
+  TextWidgetClass labelbold_c {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_strong"
+   "exact text" 0
+   "text valign" center
+   "text halign" center
+  }
+  TextWidgetClass labelbold_r {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_strong"
+   "exact text" 0
+   "text valign" center
+   "text halign" right
+  }
+  TextWidgetClass mono {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_code"
+   "exact text" 0
+   "text valign" center
+  }
+  TextWidgetClass mono_c {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_code"
+   "exact text" 0
+   "text valign" center
+   "text halign" center
+  }
+  TextWidgetClass mono_r {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_code"
+   "exact text" 0
+   "text valign" center
+   "text halign" right
+  }
+  TextWidgetClass menu {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_menu"
+   "exact text" 0
+   "text valign" center
+  }
+  TextWidgetClass menu_c {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_menu"
+   "exact text" 0
+   "text valign" center
+   "text halign" center
+  }
+  TextWidgetClass menu_r {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_menu"
+   "exact text" 0
+   "text valign" center
+   "text halign" right
+  }
+  TextWidgetClass read {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_text"
+   "exact text" 0
+   "text valign" center
+  }
+  TextWidgetClass read_c {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_text"
+   "exact text" 0
+   "text valign" center
+   "text halign" center
+  }
+  TextWidgetClass read_r {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_text"
+   "exact text" 0
+   "text valign" center
+   "text halign" right
+  }
+  TextWidgetClass readbold {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_heavy"
+   "exact text" 0
+   "text valign" center
+  }
+  TextWidgetClass readbold_c {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_heavy"
+   "exact text" 0
+   "text valign" center
+   "text halign" center
+  }
+  TextWidgetClass readbold_r {
+   ignorepointer 1
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   text ""
+   font "dzstudio/gui/fonts/dzs_heavy"
+   "exact text" 0
+   "text valign" center
+   "text halign" right
+  }
+  EditBoxWidgetClass edit_mono {
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   style ServerBrowser
+   "exact text" 0
+   font "dzstudio/gui/fonts/dzs_code"
+  }
+  EditBoxWidgetClass edit_read {
+   color 1 1 1 1
+   position 0 0
+   size 100 20
+   hexactpos 1
+   vexactpos 1
+   hexactsize 1
+   vexactsize 1
+   style ServerBrowser
+   "exact text" 0
+   font "dzstudio/gui/fonts/dzs_text"
+  }
+ }
+}

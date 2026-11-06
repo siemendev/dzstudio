@@ -1,0 +1,8 @@
+tools	Hatchet,Headtorch_Black,Headtorch_Grey,Battery9V,Broom
+containers	SmallProtectorCase,WineBottle,Bear_Beige,Bear_Dark,Bear_Pink
+clothes	Hoodie_Black,Hoodie_Green,ChestHolster,Hoodie_Blue,Hoodie_Brown
+lootdispatch	CivSedanWheel,HatchbackWheel,Hatchback_02_Wheel,Offroad_02_Wheel,Sedan_02_Wheel
+food	UnknownFoodCan,PotatoSeed,PepperSeedsPack,PumpkinSeedsPack,TomatoSeedsPack
+weapons	Ammo_12gaPellets,Ammo_12gaSlug,Ammo_380,Ammo_762x39,Ammo_9x19
+books	
+explosives	M67Grenade,RGD5Grenade,FlashGrenade,LandMineTrap,M18SmokeGrenade_Green
