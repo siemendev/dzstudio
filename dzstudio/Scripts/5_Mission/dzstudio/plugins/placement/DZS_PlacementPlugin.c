@@ -114,6 +114,9 @@ class DZS_PlacementPlugin : DZS_Plugin
 	protected vector m_HandYpr;
 	protected float m_HandOffset;
 	protected float m_HandScale = 1;
+	protected ref DZS_ElementData m_HandCopy;
+	protected string m_HandCopyKey;
+	protected string m_MenuObjId;
 	protected int m_Axis;
 	protected bool m_HandVisible;
 	protected bool m_HandNoGround;
@@ -257,6 +260,9 @@ class DZS_PlacementPlugin : DZS_Plugin
 		Tool(ui, "placement.tool.move", "Verschieben", "Move", "move-3d", 20);
 		Tool(ui, "placement.tool.rotate", "Drehen", "Rotate", "rotate-3d", 30);
 		Tool(ui, "placement.tool.scale", "Skalieren", "Scale", "scale-3d", 40);
+		Press(ui, "placement.pipette", "Pipette", "Eyedropper", "I", "scene", "placement");
+		ui.RegisterTool("placement", "placement.pipette", "Pipette", "Eyedropper", "switches", "pipette", 5);
+		ui.SetToolTip("placement.pipette", "Pipette — Objekt anklicken, eine Kopie kommt in die Hand", "Eyedropper — click an object, a copy goes into the hand", "placement.pipette");
 		Press2(ui, "placement.toolCycle", "Verschieben / Drehen / Skalieren reihum", "Cycle move / rotate / scale", "E", "G", "scene", "placement");
 		Press(ui, "placement.axis", "Drehachse reihum", "Cycle axis", "R", "hand", "placement");
 		Press(ui, "placement.tab", "Durchsteigen", "Step through", "TAB", "scene", "selection");
@@ -292,7 +298,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 		Press(ui, "placement.position", "Position …", "Position …", "", "selection", "placement");
 		Press(ui, "placement.dupes", "Doppelte aufräumen …", "Clean up duplicates …", "", "scene", "placement");
 		Press(ui, "placement.carry", "Versetzen", "Move to cursor", "", "selection", "placement");
-		array<string> menuOnly = {"placement.carry", "placement.position", "placement.dupes", "placement.deselect", "placement.straighten", "placement.surface", "placement.alignHeight", "placement.alignYaw", "placement.randomYaw", "placement.align", "placement.swap", "placement.focus", "placement.followSlope"};
+		Press(ui, "placement.pipetteObj", "Davon eins in die Hand", "Take one into the hand", "", "selection", "placement");
+		array<string> menuOnly = {"placement.pipetteObj", "placement.carry", "placement.position", "placement.dupes", "placement.deselect", "placement.straighten", "placement.surface", "placement.alignHeight", "placement.alignYaw", "placement.randomYaw", "placement.align", "placement.swap", "placement.focus", "placement.followSlope"};
 		foreach (string mo : menuOnly)
 			ui.SetListed(mo, false);
 		Hold(ui, "placement.key.fwd", "Auswahl vor", "Selection forward", "UP");
@@ -428,8 +435,11 @@ class DZS_PlacementPlugin : DZS_Plugin
 		DZS_Texts.Add("placement.scaleOut", "%1 Objekte mit Größe außerhalb 0,05–20 — erst in den Eigenschaften anpassen", "%1 objects with size outside 0.05–20 — adjust them in the properties first");
 		DZS_Texts.Add("placement.notSpawnable", "%1 spawnt auf Konsole nicht", "%1 does not spawn on console");
 		DZS_Texts.Add("placement.takeOver", "[%2]+Klick: ein %1 in die Hand", "[%2]+click: one %1 into the hand");
+		DZS_Texts.Add("placement.takeOverTool", "Klick: ein %1 in die Hand", "Click: one %1 into the hand");
 		DZS_Texts.Add("placement.pipette.menu", "Davon eins in die Hand", "Take one into the hand");
 		DZS_Texts.Add("placement.pick", "Objekt anklicken, dessen Höhe übernommen wird · [Esc] abbrechen", "Click the object whose height is taken · [Esc] cancel");
+		DZS_Texts.Add("placement.pickPipette", "Objekt anklicken: eine Kopie kommt in die Hand · [Esc] abbrechen", "Click an object: a copy goes into the hand · [Esc] cancel");
+		DZS_Texts.Add("placement.notInCatalog", "%1 steht nicht im Katalog — mit Duplizieren kopieren", "%1 is not in the catalogue — copy it with Duplicate");
 		DZS_Texts.Add("placement.pickYaw", "Objekt anklicken, dessen Richtung übernommen wird · [Esc] abbrechen", "Click the object whose direction is taken · [Esc] cancel");
 		DZS_Texts.Add("placement.swapBanner", "Austauschen: neues Objekt im Katalog wählen · [Esc] abbrechen", "Replace: choose the new object in the catalogue · [Esc] cancel");
 		DZS_Texts.Add("placement.sameN", "%1 %2 ausgewählt", "%1 %2 selected");
@@ -875,6 +885,10 @@ class DZS_PlacementPlugin : DZS_Plugin
 			m_HandOffset = 0;
 			m_HandScale = 1;
 		}
+		string handLow = h;
+		handLow.ToLower();
+		if (!m_KeepHandValues || handLow != m_HandCopyKey)
+			m_HandCopy = null;
 		m_KeepHandValues = false;
 		if (was == "" && !DZS_UiRegistry.ModDown("Shift"))
 			ClearSelection();
@@ -1068,7 +1082,21 @@ class DZS_PlacementPlugin : DZS_Plugin
 			return;
 		DZS_OpBuilder b = inst.BeginOperation("placement:edit", 1);
 		string group = DZS_ActiveGroup.ForNewObjects(inst, b);
-		string id = b.Create(DZS_KIND_OBJECT, group, DZS_END, Fields(m_HandObj.m_Name, m_HandObj.m_Pos, m_HandObj.m_Ypr, m_HandScale));
+		string id;
+		if (m_HandCopy)
+		{
+			DZS_ElementData d = m_HandCopy.Copy();
+			map<string, string> placed = Fields(m_HandObj.m_Name, m_HandObj.m_Pos, m_HandObj.m_Ypr, m_HandScale);
+			d.m_Fields.Set(DZS_Obj.POS, placed.Get(DZS_Obj.POS));
+			d.m_Fields.Set(DZS_Obj.YPR, placed.Get(DZS_Obj.YPR));
+			d.m_Fields.Set(DZS_Obj.SCALE, placed.Get(DZS_Obj.SCALE));
+			array<ref DZS_Companion> comps = new array<ref DZS_Companion>();
+			for (int ci = 0; ci < d.m_Companions.Count(); ci++)
+				comps.Insert(d.m_Companions.GetElement(ci));
+			id = b.Create(DZS_KIND_OBJECT, group, DZS_END, d.m_Fields, false, false, comps);
+		}
+		else
+			id = b.Create(DZS_KIND_OBJECT, group, DZS_END, Fields(m_HandObj.m_Name, m_HandObj.m_Pos, m_HandObj.m_Ypr, m_HandScale));
 		DZS_SubmitResult r = b.Commit(DZS_Texts.Get("placement.op.place") + ": " + Shown(m_HandObj.m_Name), "Place: " + m_HandObj.m_Name);
 		if (!r.Ok())
 			return;
@@ -1430,6 +1458,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 		m_Gesture = G_NONE;
 		if (g == G_PRESS_OBJ)
 		{
+			if (m_PressAlt && !m_PressCtrl && PipettePlaced(inst, m_PressId, false))
+				return;
 			array<string> one = {m_PressId};
 			if (m_PressCtrl && m_PressWasSel)
 				RemoveFromSelection(one);
@@ -1456,13 +1486,44 @@ class DZS_PlacementPlugin : DZS_Plugin
 		m_HandleHeld = -1;
 	}
 
-	// Alt+click on a map object.
+	// Alt+click or the pipette tool: the first object under the pointer, of the map or placed.
 	protected bool TakeOverUnderPointer(DZS_Instance inst, bool inHand)
 	{
-		Object o = MapObjectUnderPointer();
-		if (!o)
+		array<ref DZS_RayHit> hits = PickRay(Excluded());
+		if (hits.Count() == 0 || !hits[0].m_Obj)
 			return false;
-		return Pipette(o, inHand);
+		string id = DZS_SceneApi.Get().IdOf(hits[0].m_Obj);
+		if (id != "")
+			return PipettePlaced(inst, id, inHand);
+		return Pipette(hits[0].m_Obj, inHand);
+	}
+
+	// A copy of a placed object into the hand: name, turn, size and every other field and companion.
+	protected bool PipettePlaced(DZS_Instance inst, string id, bool inHand)
+	{
+		DZS_CatalogApi cat = DZS_CatalogApi.Get();
+		string name;
+		inst.GetField(id, DZS_Obj.NAME, name);
+		if (!cat || !cat.InCatalog(name))
+		{
+			if (inHand)
+				return false;
+			Msg("placement.takeOver", "warning", DZS_Texts.Fmt("placement.notInCatalog", Shown(name)));
+			return true;
+		}
+		DZS_PlaceObj src = DZS_PlaceObj.FromState(inst, id);
+		if (!DZS_UiRegistry.ModDown("Shift"))
+			ClearSelection();
+		m_KeepHandValues = true;
+		m_HandYpr = src.m_Ypr;
+		m_HandOffset = 0;
+		m_HandScale = Math.Clamp(src.m_Scale, DZS_Obj.SCALE_MIN, DZS_Obj.SCALE_MAX);
+		m_HandCopy = inst.GetElementCopy(id);
+		m_HandCopyKey = name;
+		m_HandCopyKey.ToLower();
+		cat.TakeInHand(name);
+		DZS_Log.Info("placement: pipette copy of " + id + " (" + name + ") ypr " + m_HandYpr.ToString() + " scale " + m_HandScale + ", " + m_HandCopy.m_Fields.Count() + " fields, " + m_HandCopy.m_Companions.Count() + " companions");
+		return true;
 	}
 
 	// Catalog entry of a map object: its class, else its model path (rocks and plants have no class).
@@ -1504,6 +1565,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 		m_HandYpr = ypr;
 		m_HandOffset = 0;
 		m_HandScale = Math.Clamp(o.GetScale(), DZS_Obj.SCALE_MIN, DZS_Obj.SCALE_MAX);
+		m_HandCopy = null;
+		m_HandCopyKey = "";
 		cat.TakeInHand(name);
 		DZS_Log.Info("placement: taken over " + name + " ypr " + ypr.ToString() + " scale " + m_HandScale);
 		return true;
@@ -2870,6 +2933,18 @@ class DZS_PlacementPlugin : DZS_Plugin
 				return false;
 			}
 		}
+		if (id == "placement.pipetteObj" && m_MenuObjId != "" && inst.Has(m_MenuObjId))
+		{
+			string pn;
+			inst.GetField(m_MenuObjId, DZS_Obj.NAME, pn);
+			DZS_CatalogApi pcat = DZS_CatalogApi.Get();
+			if (!pcat || !pcat.InCatalog(pn))
+			{
+				de = DZS_Texts.Fmt("placement.notInCatalog", Shown(pn));
+				en = de;
+				return false;
+			}
+		}
 		bool needSel = selOnly.Find(id) >= 0;
 		if (needSel && m_Sel.Count() == 0)
 		{
@@ -2905,6 +2980,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 	{
 		if (id == "placement.followSlope")
 			return FollowSlope();
+		if (id == "placement.pipette")
+			return m_PickFor == "placement.pipette";
 		return false;
 	}
 
@@ -3186,6 +3263,26 @@ class DZS_PlacementPlugin : DZS_Plugin
 		if (id == "placement.alignHeight" || id == "placement.alignYaw")
 		{
 			m_PickFor = id;
+			return;
+		}
+		if (id == "placement.pipetteObj")
+		{
+			if (m_MenuObjId != "" && inst.Has(m_MenuObjId))
+				PipettePlaced(inst, m_MenuObjId, false);
+			return;
+		}
+		if (id == "placement.pipette")
+		{
+			if (m_PickFor == id)
+			{
+				EndPick();
+				return;
+			}
+			DZS_CatalogApi pc = DZS_CatalogApi.Get();
+			if (pc && m_Hand != "")
+				pc.DropHand();
+			m_PickFor = id;
+			DZS_Log.Info("placement: pipette tool on");
 			return;
 		}
 		if (id == "placement.align")
@@ -3527,19 +3624,6 @@ class DZS_PlacementPlugin : DZS_Plugin
 		m_Kernel.GetUi().Trigger(it.m_ActionId);
 	}
 
-	// The first thing the pointer ray meets, when it is an object of the map (not placed).
-	protected Object MapObjectUnderPointer()
-	{
-		array<ref DZS_RayHit> hits = PickRay(Excluded());
-		if (hits.Count() == 0)
-			return null;
-		Object o = hits[0].m_Obj;
-		DZS_SceneApi scene = DZS_SceneApi.Get();
-		if (!o || scene.IdOf(o) != "")
-			return null;
-		return o;
-	}
-
 	// Context menu of a map object: "Davon eins in die Hand" (Pipette), then what other plugins add (loot).
 	protected void OpenMapObjectMenu(Object o)
 	{
@@ -3595,7 +3679,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 			SetSelection(one, target);
 		}
 		DZS_UiRegistry ui = m_Kernel.GetUi();
-		array<string> ids = {"placement.cut", "placement.copy", "placement.copyText", "placement.paste", "placement.duplicate", "placement.delete", "|", "placement.carry", "|", "placement.straighten", "placement.surface", "placement.drop", "placement.alignHeight", "placement.alignYaw", "placement.randomYaw", "|", "placement.swap", "|", "placement.lock", "placement.hide", "|", "placement.selectSame", "camera.focus", "|", "catalog.saveTemplate", "properties.details"};
+		m_MenuObjId = target;
+		array<string> ids = {"placement.cut", "placement.copy", "placement.copyText", "placement.paste", "placement.duplicate", "placement.delete", "|", "placement.pipetteObj", "placement.carry", "|", "placement.straighten", "placement.surface", "placement.drop", "placement.alignHeight", "placement.alignYaw", "placement.randomYaw", "|", "placement.swap", "|", "placement.lock", "placement.hide", "|", "placement.selectSame", "camera.focus", "|", "catalog.saveTemplate", "properties.details"};
 		array<ref DZS_MenuItem> items = new array<ref DZS_MenuItem>();
 		bool sep = false;
 		foreach (string aid : ids)
@@ -4027,6 +4112,12 @@ class DZS_PlacementPlugin : DZS_Plugin
 
 	protected void PickTarget(DZS_Instance inst)
 	{
+		if (m_PickFor == "placement.pipette")
+		{
+			if (TakeOverUnderPointer(inst, false))
+				m_PickFor = "";
+			return;
+		}
 		DZS_SceneApi scene = DZS_SceneApi.Get();
 		array<ref DZS_RayHit> hits = PickRay(Excluded());
 		if (hits.Count() == 0)
@@ -4954,6 +5045,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 			title = DZS_Texts.Get("placement.pick");
 			if (m_PickFor == "placement.alignYaw")
 				title = DZS_Texts.Get("placement.pickYaw");
+			else if (m_PickFor == "placement.pipette")
+				title = DZS_Texts.Get("placement.pickPipette");
 			lines.Clear();
 		}
 		if (title == "" && m_Gesture == G_NONE && m_Hand == "" && m_Hover != "" && DZS_SelectGuard.IsBlocked(m_Hover))
@@ -4999,11 +5092,27 @@ class DZS_PlacementPlugin : DZS_Plugin
 		string text = "";
 		bool alt = DZS_UiRegistry.ModDown("Alt");
 		bool ctrl = DZS_UiRegistry.ModDown("Ctrl");
-		if ((alt || ctrl) && m_Hand == "" && m_Kernel.GetSceneTool() == "" && m_Gesture == G_NONE && m_Hover == "" && PointerInScene() && !SceneMouseBlocked())
+		bool tool = m_PickFor == "placement.pipette";
+		if ((alt || ctrl || tool) && m_Hand == "" && m_Kernel.GetSceneTool() == "" && m_Gesture == G_NONE && PointerInScene() && !SceneMouseBlocked())
 		{
 			array<ref DZS_RayHit> hits = PickRay(Excluded());
 			DZS_SceneApi scene = DZS_SceneApi.Get();
-			if (hits.Count() > 0 && scene.IdOf(hits[0].m_Obj) == "")
+			string placedId = "";
+			if (hits.Count() > 0)
+				placedId = scene.IdOf(hits[0].m_Obj);
+			if (placedId != "" && (alt || tool) && !ctrl)
+			{
+				string pn;
+				inst.GetField(placedId, DZS_Obj.NAME, pn);
+				DZS_CatalogApi pcat = DZS_CatalogApi.Get();
+				if (pcat && pcat.InCatalog(pn) && tool)
+					text = DZS_Texts.Fmt("placement.takeOverTool", Shown(pn));
+				else if (pcat && pcat.InCatalog(pn))
+					text = DZS_Texts.Fmt("placement.takeOver", Shown(pn), "Alt");
+				else
+					text = DZS_Texts.Fmt("placement.notInCatalog", Shown(pn));
+			}
+			else if (hits.Count() > 0 && placedId == "" && m_Hover == "")
 			{
 				Object o = hits[0].m_Obj;
 				string name = CatalogNameOf(o);
@@ -5012,7 +5121,10 @@ class DZS_PlacementPlugin : DZS_Plugin
 					string held = "Alt";
 					if (ctrl && !alt)
 						held = "Ctrl";
-					text = DZS_Texts.Fmt("placement.takeOver", Shown(name), held);
+					if (tool && !alt && !ctrl)
+						text = DZS_Texts.Fmt("placement.takeOverTool", Shown(name));
+					else
+						text = DZS_Texts.Fmt("placement.takeOver", Shown(name), held);
 				}
 				else
 					text = DZS_Texts.Fmt("placement.notSpawnable", MapObjectShown(o));
