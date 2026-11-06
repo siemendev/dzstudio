@@ -64,7 +64,7 @@ class DZS_PlaceEsc : DZS_EscHandler
 class DZS_PlacementPlugin : DZS_Plugin
 {
 	static const float DRAG_PX = 4;
-	static const float HANDLE_PX = 96;
+	static const float HANDLE_PX = 120;
 	static const float HANDLE_HIT = 16;
 	static const int G_NONE = 0;
 	static const int G_PRESS_OBJ = 1;
@@ -2357,7 +2357,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 			{
 				vector a, b;
 				RingPlane(axes, i, a, b);
-				float r = len * 0.5;
+				float r = len * 0.75;
 				float lx, ly;
 				bool hasLast = false;
 				for (int k = 0; k <= 48; k++)
@@ -4850,11 +4850,11 @@ class DZS_PlacementPlugin : DZS_Plugin
 				vector a, b;
 				RingPlane(axes, i, a, b);
 				float lx, ly;
-				RingPoint(pivot, a, b, len * 0.5, 0, px, py, lx, ly);
+				RingPoint(pivot, a, b, len * 0.75, 0, px, py, lx, ly);
 				for (int k = 1; k <= 48; k++)
 				{
 					float qx, qy;
-					RingPoint(pivot, a, b, len * 0.5, k, px, py, qx, qy);
+					RingPoint(pivot, a, b, len * 0.75, k, px, py, qx, qy);
 					m_Canvas.Line(lx, ly, qx, qy, w, col);
 					lx = qx;
 					ly = qy;

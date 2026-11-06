@@ -52,7 +52,7 @@ class DZS_CameraPlugin : DZS_Plugin
 	static const int STAGE_MIN = 1;
 	static const int STAGE_MAX = 45;
 	static const int STAGE_DEFAULT = 21;
-	static const float DEG_PER_PX = 0.05;
+	static const float DEG_PER_PX = 0.03;
 	// GetMouseState(X/Y) units per screen pixel of cursor movement, measured on the test PC.
 	static const float MOUSE_UNITS_PER_PX = 48.5;
 	static const float MIN_HEIGHT = 0.5;
