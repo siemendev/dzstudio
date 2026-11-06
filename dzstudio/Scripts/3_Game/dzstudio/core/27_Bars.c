@@ -1,5 +1,5 @@
 // The fixed bars of the screen layout: the top bar (brand, menus, tools, provider plate,
-// "Speichern") and the two side bars with their sections from plugins.
+// "Save") and the two side bars with their sections from plugins.
 class DZS_TopBar : DZS_HitListener
 {
 	static const float H = 44;
@@ -73,7 +73,7 @@ class DZS_TopBar : DZS_HitListener
 		m_Save.m_Hit.m_FocusKind = "";
 	}
 
-	// Provider plate: text from the storage provider; tone "" = no lamp ("Lokal").
+	// Provider plate: text from the storage provider; tone "" = no lamp ("Local").
 	void SetProviderPlate(string text, string tone)
 	{
 		m_PlateText.SetText(text);

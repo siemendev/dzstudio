@@ -216,7 +216,7 @@ class DZS_CollabSession : Managed
 
 class DZS_CollabColors
 {
-	// The colour row of the groups (Blau, Orange, Türkis, Pink, Gelbgrün, Gelb, Schiefer, Fuchsie).
+	// The colour row of the groups (blue, orange, turquoise, pink, yellow-green, yellow, slate, fuchsia).
 	static int Get(int colour)
 	{
 		if (colour == 1) return ARGB(255, 0x60, 0xA5, 0xFA);

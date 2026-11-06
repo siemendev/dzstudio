@@ -131,7 +131,7 @@ class DZS_Dialog : DZS_HitListener
 		Close();
 	}
 	void OnClosed() {}
-	// Esc and the close knob: "Abbrechen" for questions, "Schließen" for tool dialogs.
+	// Esc and the close knob: "Cancel" for questions, "Close" for tool dialogs.
 	void Cancel()
 	{
 		m_OnResult.Invoke(this, "cancel");
@@ -212,7 +212,7 @@ class DZS_Dialog : DZS_HitListener
 		return m_Focus[m_FocusIdx].m_Hit;
 	}
 
-	// First field; else the main knob if on; else the first list entry; else "Abbrechen"/"Schließen".
+	// First field; else the main knob if on; else the first list entry; else "Cancel"/"Close".
 	void InitialFocus()
 	{
 		for (int i = 0; i < m_Focus.Count(); i++)
@@ -543,7 +543,7 @@ class DZS_Dialog : DZS_HitListener
 	bool IsQuestion() { return m_Question; }
 }
 
-// "Bestätigung": small question with knobs (Gefahr for what discards something for good).
+// "Confirmation": small question with knobs (danger for what discards something for good).
 class DZS_ConfirmDialog : DZS_Dialog
 {
 	protected string m_Text;
@@ -619,7 +619,7 @@ class DZS_ConfirmDialog : DZS_Dialog
 	}
 }
 
-// Work that keeps the editor busy for a while: block indicator and „‹verb› … n %“; no knobs,
+// Work that keeps the editor busy for a while: block indicator and "‹verb› … n %"; no knobs,
 // Esc and clicks do nothing until the owner closes it.
 class DZS_ProgressDialog : DZS_Dialog
 {

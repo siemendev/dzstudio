@@ -42,7 +42,7 @@ class DZS_CameraChar : Managed
 		return m;
 	}
 
-	// Map key of the running world for the loadout files (data/ausruestung/<key>.txt).
+	// Map key of the running world for the loadout files (data/loadouts/<key>.txt).
 	static string LoadoutKey()
 	{
 		string w = GetGame().GetWorldName();
@@ -58,13 +58,33 @@ class DZS_CameraChar : Managed
 
 	static string LoadoutPath(string key)
 	{
-		string own = "$profile:dzstudio\\ausruestung\\" + key + ".txt";
+		string own = "$profile:dzstudio\\loadouts\\" + key + ".txt";
 		if (FileExist(own))
 			return own;
-		string bundled = "dzstudio/data/ausruestung/" + key + ".txt";
+		string bundled = "dzstudio/data/loadouts/" + key + ".txt";
 		if (FileExist(bundled))
 			return bundled;
-		return "dzstudio/data/ausruestung/chernarus.txt";
+		return "dzstudio/data/loadouts/chernarus.txt";
+	}
+
+	// Where-words of loadout files written before 0.6 are still understood.
+	static string LoadoutWhere(string w)
+	{
+		if (w == "tragen")
+			return "wear";
+		if (w == "schulter")
+			return "shoulder";
+		if (w == "anbau")
+			return "attach";
+		if (w == "laden")
+			return "load";
+		if (w == "rucksack")
+			return "backpack";
+		if (w == "weste")
+			return "vest";
+		if (w == "irgendwo")
+			return "anywhere";
+		return w;
 	}
 
 	// A new figure gets the test loadout of its map.
@@ -108,7 +128,7 @@ class DZS_CameraChar : Managed
 			}
 			if (cols.Count() < 2)
 				continue;
-			string where = cols[0];
+			string where = LoadoutWhere(cols[0]);
 			string cls = cols[1];
 			int count = 1;
 			if (cols.Count() > 2)
@@ -123,29 +143,29 @@ class DZS_CameraChar : Managed
 			{
 				EntityAI e = null;
 				bool done = false;
-				if (where == "tragen")
+				if (where == "wear")
 					e = pb.GetInventory().CreateAttachment(cls);
 				else if (where == "hand")
 					e = pb.GetHumanInventory().CreateInHands(cls);
-				else if (where == "schulter")
+				else if (where == "shoulder")
 					e = pb.GetInventory().CreateAttachment(cls);
-				else if (where == "anbau" && base)
+				else if (where == "attach" && base)
 					e = base.GetInventory().CreateAttachment(cls);
-				else if (where == "laden")
+				else if (where == "load")
 				{
 					Weapon_Base wb = Weapon_Base.Cast(weapon);
 					done = wb && wb.SpawnAmmo(cls);
 				}
-				else if (where == "rucksack" || where == "weste")
+				else if (where == "backpack" || where == "vest")
 				{
 					string slot = "Back";
-					if (where == "weste")
+					if (where == "vest")
 						slot = "Vest";
 					EntityAI holder = pb.FindAttachmentBySlotName(slot);
 					if (holder)
 						e = holder.GetInventory().CreateInInventory(cls);
 				}
-				if (!e && !done && where != "laden" && where != "anbau")
+				if (!e && !done && where != "load" && where != "attach")
 				{
 					e = pb.GetInventory().CreateInInventory(cls);
 					if (e)
@@ -158,9 +178,9 @@ class DZS_CameraChar : Managed
 					failed++;
 					DZS_Log.Warn("character loadout " + key + ": " + cls + " (" + where + ") not placed");
 				}
-				if (e && where != "anbau")
+				if (e && where != "attach")
 					base = e;
-				if (e && (where == "hand" || where == "schulter"))
+				if (e && (where == "hand" || where == "shoulder"))
 					weapon = e;
 			}
 		}
@@ -217,7 +237,7 @@ class DZS_CameraChar : Managed
 		DZS_Log.Info("character out (figure " + at + "), camera " + m_P.GetPosition().ToString() + " yaw " + m_P.GetYaw() + " pitch " + m_P.GetPitch());
 	}
 
-	// Einfg: for this stay in the figure only; the setting stays.
+	// Insert: for this stay in the figure only; the setting stays.
 	void ToggleInvulnerable()
 	{
 		if (!m_In)
@@ -390,7 +410,7 @@ class DZS_CameraChar : Managed
 		m_Hint = null;
 	}
 
-	// Vor dem Bau im Spiel nachweisen: which inputs of the game hold Pos1 or Einfg in the current (default) binding.
+	// To verify in the game before the build: which inputs of the game hold Home or Insert in the current (default) binding.
 	protected void ProbeKeys()
 	{
 		if (m_ProbeDone)

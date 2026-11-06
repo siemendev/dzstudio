@@ -1,4 +1,4 @@
-// Makes the group "Objekte" when new objects have no group to go into. The project
+// Makes the group "Objects" when new objects have no group to go into. The project
 // provider sets it (it knows files and colours); the kernel asks it inside the operation that sets the objects.
 class DZS_GroupMaker : Managed
 {
@@ -51,7 +51,7 @@ class DZS_ActiveGroup
 		return true;
 	}
 
-	// Name for hints and the status bar; "Objekte" while no group exists that new objects would go into.
+	// Name for hints and the status bar; "Objects" while no group exists that new objects would go into.
 	static string Name(DZS_Instance inst)
 	{
 		string g = Get(inst);
@@ -62,7 +62,7 @@ class DZS_ActiveGroup
 		return name;
 	}
 
-	// For an operation that sets new objects: the active group, or a new group "Objekte" made in the same
+	// For an operation that sets new objects: the active group, or a new group "Objects" made in the same
 	// operation (its undo removes it again); it becomes active once the operation is in.
 	static string ForNewObjects(DZS_Instance inst, DZS_OpBuilder b)
 	{

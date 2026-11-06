@@ -1,4 +1,4 @@
-// The parts of "Gemeinsam bearbeiten" the user sees: section "Gemeinsam", settings page, dialogs.
+// The parts of "Edit together" the user sees: section "Together", settings page, dialogs.
 
 // One row of the participant list: colour field, name, marks, place, knobs.
 class DZS_CollabRow : Managed
@@ -313,7 +313,7 @@ class DZS_CollabPanel : DZS_PanelContent
 	}
 }
 
-// Settings › "Gemeinsam bearbeiten": the known servers with lamp and sign-in.
+// Settings › "Edit together": the known servers with lamp and sign-in.
 class DZS_CollabServerRow : DZS_HitListener
 {
 	DZS_CollabPage m_Page;
@@ -516,7 +516,7 @@ class DZS_CollabPage : DZS_SettingsPage
 	}
 }
 
-// "Server hinzufügen …": address field; the server is asked at once and taken only with protocol 1.
+// "Add server …": address field; the server is asked at once and taken only with protocol 1.
 class DZS_CollabAddDialog : DZS_Dialog
 {
 	DZS_CollabPlugin m_P;
@@ -687,7 +687,7 @@ class DZS_CollabCodeDialog : DZS_Dialog
 	}
 }
 
-// Projekt › "Gemeinsam bearbeiten …" for a local project: starts a session.
+// Project › "Edit together …" for a local project: starts a session.
 class DZS_CollabStartDialog : DZS_Dialog
 {
 	DZS_CollabPlugin m_P;
@@ -758,7 +758,7 @@ class DZS_CollabStartDialog : DZS_Dialog
 	}
 }
 
-// "Einladen": the code, big, with "Kopieren" and "Neuer Code".
+// "Invite": the code, big, with "Copy" and "New code".
 class DZS_CollabInviteDialog : DZS_Dialog
 {
 	DZS_CollabPlugin m_P;
@@ -828,7 +828,7 @@ class DZS_CollabInviteDialog : DZS_Dialog
 	}
 }
 
-// "Sitzung beitreten": the invite code above, the sessions the server lists below (Beitreten).
+// "Join session": the invite code above, the sessions the server lists below (Join).
 class DZS_CollabJoinRow : Managed
 {
 	string m_Id;
@@ -987,8 +987,8 @@ class DZS_CollabEndDialog : DZS_Dialog
 	protected bool m_Reopen;
 	protected bool m_CanReopen;
 
-	// reopen: a project held by the server — „Neu öffnen“ instead of „Verwerfen“; without the right to save it is off
-	// and „Verwerfen“ stands beside it.
+	// reopen: a project held by the server — "Reopen" instead of "Discard"; without the right to save it is off
+	// and "Discard" stands beside it.
 	void DZS_CollabEndDialog(DZS_CollabPlugin p, string title, bool reopen = false, bool canReopen = true)
 	{
 		m_P = p;
@@ -1053,7 +1053,7 @@ class DZS_CollabEndDialog : DZS_Dialog
 	}
 }
 
-// „Die Verbindung war zu lange weg“.
+// "The connection was gone too long".
 class DZS_CollabLostDialog : DZS_Dialog
 {
 	DZS_CollabPlugin m_P;

@@ -512,7 +512,7 @@ class DZS_CollabHosted : Managed
 				if (hf.m_Parts < 1)
 					hf.m_Parts = 1;
 				hf.m_Rel = hf.m_Name;
-				if (hf.m_Name == "manifest" || hf.m_Name == DZS_ProjectFile.NAME)
+				if (hf.m_Name == "manifest" || hf.m_Name == DZS_ProjectFile.NAME || hf.m_Name == DZS_LegacyNames.PROJECT_FILE)
 				{
 					hf.m_Rel = DZS_ProjectFile.NAME;
 					p.m_Manifest = hf.m_Name;
@@ -871,7 +871,7 @@ class DZS_CollabHosted : Managed
 					mm = mm.Get("mismatches");
 				if (mm && mm.IsArr() && mm.Count() > 0)
 					name = DZS_CollabJ.S(mm.m_Items[0], "name");
-				if (name == "manifest" || name == DZS_ProjectFile.NAME)
+				if (name == "manifest" || name == DZS_ProjectFile.NAME || name == DZS_LegacyNames.PROJECT_FILE)
 					name = "Manifest";
 				EndSave(name + " kam beim Server nicht richtig an", name + " did not reach the server intact");
 				return;

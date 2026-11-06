@@ -206,7 +206,7 @@ class DZS_EnvPanel : DZS_PanelContent
 		m_Dark.m_OnClick.Insert(OnNights);
 	}
 
-	// Shown again: "Erweitert" starts closed only the first time (it stays as it was until the end).
+	// Shown again: "Advanced" starts closed only the first time (it stays as it was until the end).
 	void OnShown() {}
 
 	override float Layout(float width)

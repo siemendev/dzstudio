@@ -205,7 +205,7 @@ class DZS_CheckListDialog : DZS_Dialog
 		return y;
 	}
 
-	// Anfangsfokus: "Trotzdem speichern" with warnings; first entry with errors and when reading.
+	// Initial focus: "Save anyway" with warnings; first entry with errors and when reading.
 	override void InitialFocus()
 	{
 		DZS_Button go = FootButton("save");

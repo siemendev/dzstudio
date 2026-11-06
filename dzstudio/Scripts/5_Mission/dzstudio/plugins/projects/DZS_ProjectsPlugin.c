@@ -137,7 +137,7 @@ class DZS_SavePlan : Managed
 	string m_ProjectPart;
 	string m_Name;
 	bool m_SaveAs;
-	// "Kopie speichern …": written like Save As, but the open project stays where it is
+	// "Save copy …": written like Save As, but the open project stays where it is
 	bool m_Copy;
 	// the written copy has loot off; the open project is not touched
 	bool m_NoLoot;
@@ -160,8 +160,8 @@ class DZS_SavePlan : Managed
 }
 
 [DZS_RegisterPlugin(DZS_ProjectsPlugin)]
-// The group "Objekte" for new objects when the project has none that takes them:
-// bound to objekte.json, or objekte (2).json … if that file or binding already exists; next colour of the row.
+// The group "Objects" for new objects when the project has none that takes them:
+// bound to objects.json, or objects (2).json … if that file or binding already exists; next colour of the row.
 class DZS_LocalGroupMaker : DZS_GroupMaker
 {
 	protected DZS_ProjectsPlugin m_P;
@@ -187,7 +187,7 @@ class DZS_LocalGroupMaker : DZS_GroupMaker
 			f.ToLower();
 			files.Insert(f);
 		}
-		string file = "objekte.json";
+		string file = "objects.json";
 		int n = 1;
 		while (true)
 		{
@@ -197,7 +197,7 @@ class DZS_LocalGroupMaker : DZS_GroupMaker
 			if (files.Find(low) < 0 && !onDisk)
 				break;
 			n++;
-			file = "objekte (" + n + ").json";
+			file = "objects (" + n + ").json";
 		}
 		map<string, string> gf = new map<string, string>();
 		gf.Set(DZS_Obj.GROUP_NAME, DZS_Texts.Get("core.group.objects"));
@@ -207,14 +207,14 @@ class DZS_LocalGroupMaker : DZS_GroupMaker
 		array<ref DZS_Companion> comps = new array<ref DZS_Companion>();
 		comps.Insert(new DZS_Companion(DZS_LocalStore.GROUP_PLUGINS, 1, "[]"));
 		string id = b.Create(DZS_KIND_GROUP, DZS_PROJECT_ID, DZS_END, gf, false, false, comps);
-		DZS_Log.Info("projects: new group Objekte " + id + " file " + file);
+		DZS_Log.Info("projects: new group Objects " + id + " file " + file);
 		return id;
 	}
 }
 
 class DZS_ProjectsPlugin : DZS_Plugin
 {
-	static const string BACKUP_DIR = "$profile:dzstudio\\sicherung";
+	static const string BACKUP_DIR = "$profile:dzstudio\\backups";
 	static const float QUIET = 5.0;
 	static const float GAP = 30.0;
 
@@ -242,7 +242,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	protected ref DZS_SavePlan m_Plan;
 	protected ref DZS_Issues m_LastIssues;
 	protected string m_LastIssuesKind;
-	// what waits for the question "Ungespeicherte Änderungen": open, new, home, quit, restore
+	// what waits for the question "Unsaved changes": open, new, home, quit, restore
 	protected string m_After;
 	protected string m_AfterArg;
 	protected string m_AfterArg2;
@@ -775,7 +775,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			ImportInto(im);
 	}
 
-	// Into the open project: a new group named after the file, one step "‹Datei› importieren";
+	// Into the open project: a new group named after the file, one step "Import ‹file›";
 	// the camera stays.
 	protected void ImportInto(DZS_DzeImport im)
 	{
@@ -922,7 +922,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	protected string m_CopyNoteDe;
 	protected string m_CopyNoteEn;
 
-	// noLoot: „Als eigene Kopie speichern …“ with loot texts missing — only the written copy has
+	// noLoot: "Save as own copy …" with loot texts missing — only the written copy has
 	// loot off.
 	void OpenCopyDialog(bool noLoot = false, string noteDe = "", string noteEn = "")
 	{
@@ -1042,7 +1042,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			GoRestore(arg);
 	}
 
-	// Closes the open project; quietly = it was saved or the user said "Nicht speichern".
+	// Closes the open project; quietly = it was saved or the user said "Don't save".
 	void CloseProject(bool quietly)
 	{
 		DZS_Instance inst = Shown();
@@ -1286,6 +1286,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	// Map available and loaded? Otherwise load its world first.
 	protected void OpenChecked(string folder)
 	{
+		DZS_ProjectFile.Adopt(DZS_LocalStore.Dir(folder));
 		DZS_PFData pf = DZS_ProjectFile.Read(DZS_Files.Read(DZS_LocalStore.Path(folder, DZS_ProjectFile.NAME)));
 		if (pf.m_Status == "newer")
 		{
@@ -1335,7 +1336,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	}
 
 	// Reads every group file and the project file and brings it all in as one load. Sliced:
-	// about 4 ms per frame with „Öffnet … n %“ over everything until the scene shows all objects (no frame over 50 ms).
+	// about 4 ms per frame with "Opening … n %" over everything until the scene shows all objects (no frame over 50 ms).
 	void LoadProject(string folder, bool sliced = false, DZS_Json backupHead = null)
 	{
 		DZS_Log.Info("open project " + folder);
@@ -1975,10 +1976,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			view = CameraView();
 		}
 		string groupName = DZS_Texts.Get("core.group.objects");
-		string groupFile = groupName;
-		groupFile.ToLower();
-		groupFile += ".json";
-		string folder = DZS_LocalStore.NewProject(name, mapKey, view, groupFile, groupName);
+		string folder = DZS_LocalStore.NewProject(name, mapKey, view, "objects.json", groupName);
 		Touch(folder, "opened");
 		if (DZS_Maps.WorldOf(mapKey) != m_World)
 		{
@@ -2025,7 +2023,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 
 	// ---- saving ----
 
-	// then: "" or "leave" (continue m_After afterwards); saveAsName for Speichern unter.
+	// then: "" or "leave" (continue m_After afterwards); saveAsName for Save as.
 	// One save at a time: a save asked for while the provider's last one is undecided is queued
 	protected bool m_SaveQueued;
 	protected bool m_QueuedAuto;
@@ -2377,7 +2375,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	protected ref DZS_SavePlan m_WritingPlan;
 	protected string m_WritingFolder;
 	protected float m_WritingStart;
-	// "save", "copy" (Kopie speichern), "mirror" / "late" (the folder after a provider's save)
+	// "save", "copy" (Save copy), "mirror" / "late" (the folder after a provider's save)
 	protected string m_WritingKind;
 	protected bool m_WritingNoFollow;
 
@@ -2496,7 +2494,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		m_LatePlan = null;
 	}
 
-	// The provider's save was given up by the user (e.g. „Abbrechen“ in its own question): nothing written, no failure.
+	// The provider's save was given up by the user (e.g. "Cancel" in its own question): nothing written, no failure.
 	void ProviderCancelled()
 	{
 		DZS_SavePlan plan = m_ProvPlan;
@@ -3218,7 +3216,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 
 	// ---- backup as a folder: the files Save As would write, plus the head ----
 
-	static const string BACKUP_HEAD = "sicherung.dzstudio";
+	static const string BACKUP_HEAD = "backup.dzstudio";
 	protected ref DZS_PlanBuild m_BJob;
 	protected ref DZS_LocalWrite m_BWrite;
 	protected ref array<ref DZS_SaveFile> m_BFiles;
@@ -3400,28 +3398,28 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	static void RecoverBackupDir(string dir)
 	{
 		string head = dir + "\\" + BACKUP_HEAD;
-		bool useCopies = DZS_Files.Exists(head + ".neu") && ReadBackup(head + ".neu") != null;
+		bool useCopies = DZS_Files.Exists(head + ".new") && ReadBackup(head + ".new") != null;
 		array<string> all = DZS_Files.ListTree(dir);
 		foreach (string rel : all)
 		{
 			int n = rel.Length();
-			if (n > 4 && rel.Substring(n - 4, 4) == ".alt")
+			if (n > 4 && rel.Substring(n - 4, 4) == ".old")
 			{
 				DZS_Files.Delete(dir + "\\" + rel);
 				continue;
 			}
-			if (n <= 4 || rel.Substring(n - 4, 4) != ".neu" || rel == BACKUP_HEAD + ".neu")
+			if (n <= 4 || rel.Substring(n - 4, 4) != ".new" || rel == BACKUP_HEAD + ".new")
 				continue;
 			string copy = dir + "\\" + rel;
 			if (useCopies)
 				DZS_Files.Copy(copy, dir + "\\" + rel.Substring(0, n - 4));
 			DZS_Files.Delete(copy);
 		}
-		if (DZS_Files.Exists(head + ".neu"))
+		if (DZS_Files.Exists(head + ".new"))
 		{
 			if (useCopies)
-				DZS_Files.Copy(head + ".neu", head);
-			DZS_Files.Delete(head + ".neu");
+				DZS_Files.Copy(head + ".new", head);
+			DZS_Files.Delete(head + ".new");
 			DZS_Log.Info("backup " + dir + " recovered, copies used " + useCopies);
 		}
 	}
@@ -3592,11 +3590,11 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			m_SliceFh = null;
 			int bytes = DZS_Files.Length(m_Slice.m_Chunks);
 			array<string> head = m_SliceHead.ToChunks(true);
-			bool ok = DZS_Files.Write(m_SliceFile + ".neu", head);
+			bool ok = DZS_Files.Write(m_SliceFile + ".new", head);
 			if (ok)
 			{
-				ok = DZS_Files.Copy(m_SliceFile + ".neu", m_SliceFile);
-				DZS_Files.Delete(m_SliceFile + ".neu");
+				ok = DZS_Files.Copy(m_SliceFile + ".new", m_SliceFile);
+				DZS_Files.Delete(m_SliceFile + ".new");
 			}
 			if (ok)
 			{
@@ -3640,7 +3638,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		DZS_Files.List(BACKUP_DIR, names, folders);
 		foreach (string n : names)
 		{
-			if (n.Length() > 9 && n.Substring(n.Length() - 9, 9) == ".json.neu")
+			if (n.Length() > 9 && n.Substring(n.Length() - 9, 9) == ".json.new")
 			{
 				string main = BACKUP_DIR + "\\" + n.Substring(0, n.Length() - 4);
 				string copy = BACKUP_DIR + "\\" + n;
@@ -3787,7 +3785,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		RestoreBackup(file);
 	}
 
-	// Opens the project from the backup: same ids, "Wiederhergestellt — nicht gespeichert". In slices like opening.
+	// Opens the project from the backup: same ids, "Restored — not saved". In slices like opening.
 	protected void RestoreBackup(string file)
 	{
 		DZS_Json b = ReadBackup(file);
@@ -3877,7 +3875,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			int tf = root.Get("textform").m_Str.ToInt();
 			if (tf > DZS_TEXTFORM_VERSION)
 			{
-				error = "Textform-Version " + tf + " ist neuer als " + DZS_TEXTFORM_VERSION;
+				error = "text form version " + tf + " is newer than " + DZS_TEXTFORM_VERSION;
 				return false;
 			}
 			DZS_SrcNode st = root.Get("state");

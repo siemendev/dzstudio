@@ -85,7 +85,7 @@ class DZS_LootFiles : Managed
 		return f;
 	}
 
-	// Only mapgroupproto.xml and the name lists (the Ausgangsstand from the vanilla folder).
+	// Only mapgroupproto.xml and the name lists (the base state from the vanilla folder).
 	static DZS_LootFiles ReadBase(string protoPath, string limitsPath)
 	{
 		DZS_LootFiles f = new DZS_LootFiles();
@@ -103,7 +103,7 @@ class DZS_LootFiles : Managed
 			posPath = "";
 		if (!pc || (posPath != "" && !qc))
 		{
-			m_Error = "Datei fehlt";
+			m_Error = "file missing";
 			return;
 		}
 		LoadChunks(pc, qc, limPath, sha);
@@ -113,7 +113,7 @@ class DZS_LootFiles : Managed
 	{
 		if (!pc)
 		{
-			m_Error = "Datei fehlt";
+			m_Error = "file missing";
 			return;
 		}
 		m_ProtoChunks = pc;
@@ -141,7 +141,7 @@ class DZS_LootFiles : Managed
 		}
 		if (m_Proto.m_Root.m_Name != "prototype")
 		{
-			m_Error = "anderes Wurzelelement";
+			m_Error = "different root element";
 			m_ErrorFile = PROTO;
 			return;
 		}
@@ -160,7 +160,7 @@ class DZS_LootFiles : Managed
 			}
 			if (m_PosDoc.m_Root.m_Name != "map")
 			{
-				m_Error = "anderes Wurzelelement";
+				m_Error = "different root element";
 				m_ErrorFile = POS;
 				return;
 			}

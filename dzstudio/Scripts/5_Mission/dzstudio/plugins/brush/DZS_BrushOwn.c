@@ -437,7 +437,7 @@ class DZS_BrushEntryRow : Managed
 	}
 }
 
-// "Set bearbeiten …": tool dialog, medium, only "Schließen"; every change is applied and stored at once.
+// "Edit set …": tool dialog, medium, only "Close"; every change is applied and stored at once.
 class DZS_BrushEditDialog : DZS_Dialog
 {
 	protected DZS_BrushPlugin m_P;

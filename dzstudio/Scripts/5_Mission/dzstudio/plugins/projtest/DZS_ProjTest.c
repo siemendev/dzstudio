@@ -333,7 +333,7 @@ class DZS_ProjTest : DZS_Plugin
 		}
 		if (c == "settleeach")
 		{
-			// settleeach [i,j,…] — every object of the first group alone through „An Oberfläche“, one per frame; listed ones skipped
+			// settleeach [i,j,…] — every object of the first group alone through "Settle on ground", one per frame; listed ones skipped
 			m_SettleSkip = new array<int>();
 			if (a.Count() > 1)
 			{
@@ -549,7 +549,7 @@ class DZS_ProjTest : DZS_Plugin
 				ed.m_Fields.Set(DZS_Obj.YPR, DZS_Obj.Vec(Math.RandomFloat(0, 360), 0, 0));
 				ed.m_Fields.Set(DZS_Obj.SCALE, "1");
 				if (ei % 7 == 0)
-					ed.m_Fields.Set(DZS_Obj.CUSTOM, "Text mit \"Anführung\" und \\ Rückstrich, " + ei);
+					ed.m_Fields.Set(DZS_Obj.CUSTOM, "Text with \"quotes\" and \\ backslash, " + ei);
 				DZS_Change ec = DZS_Change.Create(ed);
 				eop.AddChange(ec);
 			}
@@ -846,7 +846,7 @@ class DZS_ProjTest : DZS_Plugin
 	{
 		int t0 = TickCount(0);
 		int n = 0;
-		string path = DZS_LocalStore.Path(m_HeapFolder, "objekte.json");
+		string path = DZS_LocalStore.Path(m_HeapFolder, "objects.json");
 		if (m_HeapMode == "read")
 		{
 			array<string> chunks = DZS_Files.Read(path);
@@ -855,7 +855,7 @@ class DZS_ProjTest : DZS_Plugin
 		else if (m_HeapMode == "parse")
 		{
 			array<string> pchunks = DZS_Files.Read(path);
-			DZS_Format fmt = m_Kernel.FormatForFile("objekte.json");
+			DZS_Format fmt = m_Kernel.FormatForFile("objects.json");
 			DZS_ReadResult rr = fmt.Read(pchunks);
 			n = rr.m_Objects.Count();
 		}
@@ -896,15 +896,15 @@ class DZS_ProjTest : DZS_Plugin
 		else if (m_HeapMode == "build" || m_HeapMode == "buildshow")
 		{
 			array<string> bchunks = DZS_Files.Read(path);
-			DZS_Format bfmt = m_Kernel.FormatForFile("objekte.json");
+			DZS_Format bfmt = m_Kernel.FormatForFile("objects.json");
 			DZS_ReadResult brr = bfmt.Read(bchunks);
 			DZS_Instance binst = m_Kernel.NewLoadInstance();
 			DZS_OpBuilder bb = binst.BeginOperation("core:load", 1);
 			map<string, string> pf = new map<string, string>();
 			bb.Create(DZS_KIND_PROJECT, "", "", pf, false, false, null, DZS_PROJECT_ID);
 			map<string, string> gf = new map<string, string>();
-			gf.Set(DZS_Obj.GROUP_NAME, "Objekte");
-			gf.Set(DZS_Obj.GROUP_FILE, "objekte.json");
+			gf.Set(DZS_Obj.GROUP_NAME, "Objects");
+			gf.Set(DZS_Obj.GROUP_FILE, "objects.json");
 			gf.Set(DZS_Obj.GROUP_FORMAT, bfmt.GetId());
 			string bgid = bb.Create(DZS_KIND_GROUP, DZS_PROJECT_ID, DZS_END, gf);
 			for (int oi = 0; oi < brr.m_Objects.Count(); oi++)
@@ -952,7 +952,7 @@ class DZS_ProjTest : DZS_Plugin
 				{
 					DZS_Json one = DZS_Json.Obj();
 					one.Set("provider", DZS_Json.Str("local"));
-					one.Set("loc", DZS_Json.Str("Projekt " + ci2));
+					one.Set("loc", DZS_Json.Str("Project " + ci2));
 					one.Set("opened", DZS_Json.Str("2026-11-02 18:00:00"));
 					list.Add(one);
 				}

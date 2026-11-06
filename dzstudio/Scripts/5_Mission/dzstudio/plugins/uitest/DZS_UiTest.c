@@ -113,7 +113,7 @@ class DZS_UiTest : DZS_Plugin
 		}
 		m_Seg = new DZS_StatusText("uitest.seg", DZS_Font.MONO, 160);
 		m_Kernel.GetScreen().AddStatusLeft(m_Seg);
-		m_Seg.SetText("Test-Segment");
+		m_Seg.SetText("Test segment");
 	}
 
 	void OnAction(string id)
@@ -243,7 +243,7 @@ class DZS_UiTestRow : DZS_PropertyRow
 	override void Build(Widget parent)
 	{
 		m_Frame = DZS_W.Frame(parent);
-		m_Label = DZS_PropertiesApi.RowLabel(m_Frame, "Test-Zeile");
+		m_Label = DZS_PropertiesApi.RowLabel(m_Frame, "Test row");
 		m_Value = DZS_W.Text(m_Frame, DZS_Font.READ, 13, DZS_Color.Get("text"));
 	}
 

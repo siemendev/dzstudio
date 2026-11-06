@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Builds dzstudio/data/pinsel-sets.txt, the brush sets that ship with DZSTUDIO, from the catalog's console list.
+"""Builds dzstudio/data/brush-sets.txt, the brush sets that ship with DZSTUDIO, from the catalog's console list.
 
 One set per tree species found in the tree folders (all sizes and growth forms, file names t_<Species>_… and
 b_<Species>_…; dead wood d_…, cut stumps, test and trail-marked models left out), one set per variant that is a model
-of its own (summer, winter, late autumn, dark, frozen, swamp), and "Büsche gemischt" with every bush model.
+of its own (summer, winter, late autumn, dark, frozen, swamp), and "Mixed bushes" with every bush model.
 Height offsets come from input/boxes-<version>.txt (measured in the game: start DZSTUDIO with -dzsBrushBoxes): the
 model's footprint radius 0.3 m above its foot (eight level rays against the geometry) times tan 15°, so that the
 foot sinks as far as the ground rises over that radius on a 15° slope. Roots make the measured radius large for big
@@ -13,8 +13,8 @@ import math, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
-LIST = os.path.join(ROOT, 'dzstudio', 'data', 'konsolenliste.txt')
-OUT = os.path.join(ROOT, 'dzstudio', 'data', 'pinsel-sets.txt')
+LIST = os.path.join(ROOT, 'dzstudio', 'data', 'console-list.txt')
+OUT = os.path.join(ROOT, 'dzstudio', 'data', 'brush-sets.txt')
 
 TREES = {
     'piceaabies': ('Fichte', 'Spruce'), 'pinussylvestris': ('Kiefer', 'Pine'), 'betulapendula': ('Birke', 'Birch'),
@@ -102,7 +102,7 @@ def main():
         r = min(r, 1.0)
         return -math.ceil(r * TAN15 * 100) / 100
 
-    out = ['# dzstudio pinsel-sets 1 · DayZ 1.30 · built by tools/brush/build_sets.py',
+    out = ['# dzstudio brush-sets 1 · DayZ 1.30 · built by tools/brush/build_sets.py',
            '# set<TAB>German name<TAB>English name, then entries: name share randomYaw tilt slope slopeMax heightOffset scaleMin scaleMax']
     def key(k):
         sp, var = k

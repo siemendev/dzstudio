@@ -258,12 +258,12 @@ class DZS_OpBuilder : Managed
 		if (!e)
 			return false;
 		DZS_Companion old = e.m_Companions.Get(type);
-		DZS_Companion neu = new DZS_Companion(type, version, data);
-		if (old && old.Equals(neu))
+		DZS_Companion fresh = new DZS_Companion(type, version, data);
+		if (old && old.Equals(fresh))
 			return false;
-		DZS_Change t254 = DZS_Change.SetCompanion(id, type, old, neu);
+		DZS_Change t254 = DZS_Change.SetCompanion(id, type, old, fresh);
 		m_Op.AddChange(t254);
-		e.m_Companions.Set(type, neu);
+		e.m_Companions.Set(type, fresh);
 		return true;
 	}
 
@@ -666,7 +666,7 @@ class DZS_Instance : DZS_ProjectState
 	}
 
 	// Save state beyond the history: "" normal, "new" (never saved, shows
-	// "Noch nicht gespeichert"), "opened" ("Gespeichert" without clock), "restored" (from a backup, unsaved
+	// "Not saved yet"), "opened" ("Saved" without clock), "restored" (from a backup, unsaved
 	// until saved), "manifest" (project file missing: one extra unsaved change).
 	void SetSaveMode(string mode)
 	{
@@ -937,7 +937,7 @@ class DZS_Instance : DZS_ProjectState
 		int tf = root.GetInt("textform");
 		if (tf > DZS_TEXTFORM_VERSION)
 		{
-			error = "Textform-Version " + tf + " ist neuer als " + DZS_TEXTFORM_VERSION;
+			error = "text form version " + tf + " is newer than " + DZS_TEXTFORM_VERSION;
 			return null;
 		}
 		DZS_Json st = root.Get("state");

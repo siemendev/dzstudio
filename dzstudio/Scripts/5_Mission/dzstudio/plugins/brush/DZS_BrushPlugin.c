@@ -1,6 +1,6 @@
 // Brush: sets many objects with one stroke, or erases objects of the set's kinds. A stroke is one
-// operation with fixed values; everything else here (on/off, mode, set, radius, density, Untergrund) is view or
-// a Merkwert of the user. Uses only the public interface: kernel, scene, selection and catalog services.
+// operation with fixed values; everything else here (on/off, mode, set, radius, density, surface) is view or
+// a remembered value of the user. Uses only the public interface: kernel, scene, selection and catalog services.
 class DZS_BrushActions : DZS_ActionHandler
 {
 	DZS_BrushPlugin m_P;
@@ -333,7 +333,15 @@ class DZS_BrushPlugin : DZS_Plugin
 		for (int i = 0; i < m_Sets.Count(); i++)
 		{
 			if (m_Sets[i].Key() == key)
+			{
 				m_SetIdx = i;
+				return;
+			}
+		}
+		for (int j = 0; j < m_Sets.Count(); j++)
+		{
+			if (m_Sets[j].LegacyKey() == key)
+				m_SetIdx = j;
 		}
 	}
 
@@ -344,7 +352,7 @@ class DZS_BrushPlugin : DZS_Plugin
 		return m_Sets[Math.Clamp(m_SetIdx, 0, m_Sets.Count() - 1)];
 	}
 
-	// ---- view and Merkwerte ----
+	// ---- view and remembered values ----
 
 	static float Snap(float v, float lo, float hi)
 	{
@@ -438,7 +446,7 @@ class DZS_BrushPlugin : DZS_Plugin
 		m_Kernel.GetSettings().Set("brush.onObjects", DZS_Json.Boolean(on));
 	}
 
-	// Game names of the kinds of the set (tooltip of the name): ten at most, then "+ n weitere".
+	// Game names of the kinds of the set (tooltip of the name): ten at most, then "+ n more".
 	string KindsTip()
 	{
 		DZS_BrushSet s = CurrentSet();
@@ -1088,7 +1096,7 @@ class DZS_BrushPlugin : DZS_Plugin
 		return CurrentSet();
 	}
 
-	// Point under the pointer: the terrain (objects are passed through) or, with Untergrund "Gelände und Bauwerke", the first surface
+	// Point under the pointer: the terrain (objects are passed through) or, with surface "Terrain and structures", the first surface
 	// that is not one of the stroke's or the set's objects. Water does not count.
 	protected bool FindHit(out vector hit)
 	{

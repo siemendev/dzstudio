@@ -1,6 +1,6 @@
-// Section "Loot-Eintrag" of the project bar during loot editing:
-// head with state, Geltung, Höchstzahl, usages and values, containers (the active one opened
-// with name, Höchstzahl, categories and tags), preserved parts, hints, the selected points and the buttons. Rebuilt
+// Section "Loot entry" of the project bar during loot editing:
+// head with state, scope, maximum, usages and values, containers (the active one opened
+// with name, maximum, categories and tags), preserved parts, hints, the selected points and the buttons. Rebuilt
 // whenever the entry or the point selection changes.
 class DZS_LootRowHit : DZS_HitListener
 {
@@ -40,7 +40,7 @@ class DZS_LootEntryPanel : DZS_PanelContent
 	protected float m_Y;
 	protected float m_Scroll;
 	protected float m_ViewH;
-	// what a "+ hinzufügen" menu adds to: "usage", "value", "category", "tag"
+	// what a "+ add" menu adds to: "usage", "value", "category", "tag"
 	protected string m_AddKind;
 
 	void DZS_LootEntryPanel(DZS_LootEditor e)
@@ -232,7 +232,7 @@ class DZS_LootEntryPanel : DZS_PanelContent
 		m_Y += DZS_Scale.Px(4);
 	}
 
-	// Höchstzahl: integer 0–9999, empty = Standard; container index -1 = the entry.
+	// Maximum: integer 0–9999, empty = default; container index -1 = the entry.
 	protected void BuildLootmax(string tag, string value, int def, string label)
 	{
 		TextWidget l = DZS_W.Text(m_Root, DZS_Font.READ, 13, DZS_Color.Get("textMuted"));
@@ -304,7 +304,7 @@ class DZS_LootEntryPanel : DZS_PanelContent
 		return true;
 	}
 
-	// A list of names with "×" and "+ hinzufügen"; container -1 = the entry's list.
+	// A list of names with "×" and "+ add"; container -1 = the entry's list.
 	protected void NameList(string kind, string title, array<string> names, int container)
 	{
 		float x0 = Pad();

@@ -150,7 +150,7 @@ class DZS_PlaceObj : Managed
 		return o;
 	}
 
-	// For display only: the pose a plugin set in the kernel (Lage in der Darstellung) instead of the state's.
+	// For display only: the pose a plugin set in the kernel (display pose) instead of the state's.
 	void UseViewPose()
 	{
 		vector p, y;

@@ -12,7 +12,7 @@ class DZS_SpawnerPlugin : DZS_Plugin
 	}
 }
 
-// „Schreibweise korrigieren“: a model path refused only because of the
+// "Correct spelling": a model path refused only because of the
 // spelling of its folder gets that spelling; the rest of the path stays.
 class DZS_SpawnerFix : DZS_IssueFix
 {

@@ -1,4 +1,4 @@
-// Doppelte aufräumen: one row per set of twins with „Zeigen“, the dialog stays open.
+// Clean up duplicates: one row per set of twins with "Show", the dialog stays open.
 class DZS_DupesDialog : DZS_Dialog
 {
 	protected ref array<string> m_Labels;

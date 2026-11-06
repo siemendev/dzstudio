@@ -1,7 +1,7 @@
 // Loot: switch per project, setting per object derived from
 // mapgrouppos.xml, own entries as elements "loot:entry" of the project state (one per type, its content as text),
 // rows and entries written back on every save, the files followed after writing instead of read again, preview of the
-// points of one selected object. The Ausgangsstand is the vanilla state fetched into the profile folder, else the
+// points of one selected object. The base state is the vanilla state fetched into the profile folder, else the
 // working state as read when loot was switched on or the project opened.
 class DZS_LootActions : DZS_ActionHandler
 {
@@ -167,7 +167,7 @@ class DZS_LootPlugin : DZS_Plugin
 	static const string SETTING = "loot:setting";
 	static const string KIND = "loot:entry";
 	static const string NONE = "none";
-	// "wie vorher": the points of the Ausgangsstand
+	// "as before": the points of the base state
 	static const string VANILLA = "base";
 	static const string OWN = "own";
 
@@ -175,7 +175,7 @@ class DZS_LootPlugin : DZS_Plugin
 	protected ref DZS_LootSave m_Save;
 	protected ref DZS_LootRowUi m_Row;
 	ref DZS_LootFiles m_Files;
-	// the vanilla state, only for comparing and "Auf Vanilla setzen"
+	// the vanilla state, only for comparing and "Set to vanilla"
 	ref DZS_LootFiles m_Base;
 	string m_BaseFrom;
 	protected DZS_Issues m_BaseIssuesFor;
@@ -600,7 +600,7 @@ class DZS_LootPlugin : DZS_Plugin
 		DZS_Log.Info("loot: " + dropped + " written type(s) without the mark dropped, " + unknown.Count() + " marked without original text");
 	}
 
-	// With a storage provider the project's entries are the ones its delta adds, their Ausgangsstand is the
+	// With a storage provider the project's entries are the ones its delta adds, their base state is the
 	// provider's base; part of the load, not a step.
 	protected void ProviderWritten(DZS_Instance inst, DZS_LootOrigin lo)
 	{
@@ -663,7 +663,7 @@ class DZS_LootPlugin : DZS_Plugin
 		return true;
 	}
 
-	// The open project's read list (Prüfliste zum Lesen), while it is being opened.
+	// The open project's read list (check list for reading), while it is being opened.
 	protected DZS_Issues OpenIssues()
 	{
 		DZS_ProjectsPlugin pp = DZS_ProjectsPlugin.Cast(m_Kernel.GetPlugin("projects"));
@@ -689,11 +689,14 @@ class DZS_LootPlugin : DZS_Plugin
 			{
 				m_Base = hand;
 				m_BaseFrom = "vanilla\\";
-				string src = DZS_LocalStore.Path(folder, "vanilla/quelle.json");
+				string srcName = DZS_LootVanilla.SOURCE_FILE;
+				if (!FileExist(DZS_LocalStore.Path(folder, "vanilla/" + srcName)) && FileExist(DZS_LocalStore.Path(folder, "vanilla/" + DZS_LegacyNames.VANILLA_SOURCE)))
+					srcName = DZS_LegacyNames.VANILLA_SOURCE;
+				string src = DZS_LocalStore.Path(folder, "vanilla/" + srcName);
 				if (issues && FileExist(src) && !DZS_LootVanilla.ValidSource(src))
 				{
-					DZS_Issue bad = issues.Add(DZS_Issue.HINT, "vanilla\\quelle.json ist nicht gültig und wird übergangen — die Vanilla-Dateien daneben gelten", "vanilla\\quelle.json is not valid and is skipped — the vanilla files next to it apply");
-					bad.m_File = "vanilla\\quelle.json";
+					DZS_Issue bad = issues.Add(DZS_Issue.HINT, "vanilla\\" + srcName + " ist nicht gültig und wird übergangen — die Vanilla-Dateien daneben gelten", "vanilla\\" + srcName + " is not valid and is skipped — the vanilla files next to it apply");
+					bad.m_File = "vanilla\\" + srcName;
 				}
 				DZS_Log.Info("loot: vanilla state from the project's vanilla\\, companion file " + DZS_Str.Bool(FileExist(src)));
 				return;
@@ -705,7 +708,7 @@ class DZS_LootPlugin : DZS_Plugin
 				unr.m_File = "vanilla\\" + DZS_LootFiles.PROTO;
 			}
 		}
-		else if (folder != "" && issues && (FileExist(DZS_LocalStore.Path(folder, "vanilla/" + DZS_LootFiles.POS)) || FileExist(DZS_LocalStore.Path(folder, "vanilla/" + DZS_LootFiles.LIMITS)) || FileExist(DZS_LocalStore.Path(folder, "vanilla/quelle.json"))))
+		else if (folder != "" && issues && (FileExist(DZS_LocalStore.Path(folder, "vanilla/" + DZS_LootFiles.POS)) || FileExist(DZS_LocalStore.Path(folder, "vanilla/" + DZS_LootFiles.LIMITS)) || FileExist(DZS_LocalStore.Path(folder, "vanilla/" + DZS_LootVanilla.SOURCE_FILE)) || FileExist(DZS_LocalStore.Path(folder, "vanilla/" + DZS_LegacyNames.VANILLA_SOURCE))))
 		{
 			DZS_Issue miss = issues.Add(DZS_Issue.WARNING, "vanilla\\" + DZS_LootFiles.PROTO + " fehlt — Dateien in vanilla\\ gelten nicht als Vanilla-Stand", "vanilla\\" + DZS_LootFiles.PROTO + " is missing — the files in vanilla\\ do not count as the vanilla state");
 			miss.m_File = "vanilla\\" + DZS_LootFiles.PROTO;
@@ -786,7 +789,7 @@ class DZS_LootPlugin : DZS_Plugin
 		return m_WName.Contains(key);
 	}
 
-	// The Ausgangsstand of a type: the original text of a written type, else the
+	// The base state of a type: the original text of a written type, else the
 	// working state as read. Returns false when the type had no entry before the project.
 	bool StartText(string type, out string text)
 	{
@@ -806,7 +809,7 @@ class DZS_LootPlugin : DZS_Plugin
 		return true;
 	}
 
-	// Value of dzstudio at the Ausgangsstand's group element.
+	// Value of dzstudio at the base state's group element.
 	bool StartMark(string type, out string mark)
 	{
 		mark = "";
@@ -967,14 +970,14 @@ class DZS_LootPlugin : DZS_Plugin
 		return DZS_LootEEntry.FromNode(d, d.m_Root);
 	}
 
-	// Whether the Ausgangsstand has an entry for the type.
+	// Whether the base state has an entry for the type.
 	bool HasBase(string type)
 	{
 		string text;
 		return StartText(type, text);
 	}
 
-	// The Ausgangsstand's entry (a copy), or null.
+	// The base state's entry (a copy), or null.
 	DZS_LootEEntry BaseEntry(string type)
 	{
 		DZS_Instance inst = m_Kernel.GetShown();
@@ -1042,8 +1045,8 @@ class DZS_LootPlugin : DZS_Plugin
 		return s;
 	}
 
-	// "base" (gleich dem Ausgangsstand), "own" (von diesem Projekt), "new" (von diesem Projekt, nicht im
-	// Ausgangsstand), "missing" (fehlt)
+	// "base" (equal to the base state), "own" (from this project), "new" (from this project, not in the
+	// base state), "missing"
 	string Status(DZS_Instance inst, string type)
 	{
 		DZS_LootEEntry e = Effective(inst, type);
@@ -1060,7 +1063,7 @@ class DZS_LootPlugin : DZS_Plugin
 	}
 
 	// The shown origin: "project", "new", "before", "vanilla", "there", "missing";
-	// foreign is set when the Ausgangsstand carries the mark of another project.
+	// foreign is set when the base state carries the mark of another project.
 	string Origin(DZS_Instance inst, string type, out bool foreign)
 	{
 		foreign = false;
@@ -1100,7 +1103,7 @@ class DZS_LootPlugin : DZS_Plugin
 	}
 
 	// A new content for a type's entry as one operation (a builder may be handed in to join a larger one); src
-	// "vanilla" writes the vanilla element's text (Auf Vanilla setzen).
+	// "vanilla" writes the vanilla element's text (Set to vanilla).
 	void SetEntry(DZS_OpBuilder b, DZS_Instance inst, string type, DZS_LootEEntry e, bool reset = false, string src = "")
 	{
 		string id = ElementOf(inst, type);
@@ -1130,7 +1133,7 @@ class DZS_LootPlugin : DZS_Plugin
 		b.SetField(id, "src", src);
 	}
 
-	// Own points start with a copy of the Ausgangsstand (without one: an entry with an empty lootFloor).
+	// Own points start with a copy of the base state (without one: an entry with an empty lootFloor).
 	DZS_LootEEntry StartOwn(string type)
 	{
 		DZS_LootEEntry b = BaseEntry(type);
@@ -1185,7 +1188,7 @@ class DZS_LootPlugin : DZS_Plugin
 		return VANILLA;
 	}
 
-	// Default for newly placed objects: own if the type has own points, vanilla if the Ausgangsstand has an entry.
+	// Default for newly placed objects: own if the type has own points, vanilla if the base state has an entry.
 	string DefaultFor(DZS_Instance inst, string type)
 	{
 		if (!m_Files)
@@ -1465,7 +1468,7 @@ class DZS_LootPlugin : DZS_Plugin
 		if (!m_Fetch.Start(mk))
 		{
 			m_Fetch = null;
-			VanillaFailed("kein Netz");
+			VanillaFailed("no network");
 			return;
 		}
 		m_Kernel.GetScreen().ShowBanner("loot.vanilla", 20, "info", DZS_Texts.Fmt("loot.vanillaLoading", MapName(mk)));
@@ -1932,7 +1935,7 @@ class DZS_LootPlugin : DZS_Plugin
 	}
 
 	// Entries the project touched: an entry that differs from its
-	// Ausgangsstand is written with the mark and remembered with its original text; one equal to it (reset, undone,
+	// base state is written with the mark and remembered with its original text; one equal to it (reset, undone,
 	// loot off) gets the original text back, or is removed when there was none.
 	protected void EntryPatches(DZS_Instance inst, bool on, string mark, array<ref DZS_XmlPatch> out2, DZS_Issues issues)
 	{
@@ -2037,7 +2040,7 @@ class DZS_LootPlugin : DZS_Plugin
 				AddWritten(tname, orig);
 				continue;
 			}
-			// equal to the Ausgangsstand, removed or loot off: back to the text before the project
+			// equal to the base state, removed or loot off: back to the text before the project
 			if (startHas)
 			{
 				string want = ToEol(startText, doc.m_Eol);
@@ -2353,7 +2356,7 @@ class DZS_LootPlugin : DZS_Plugin
 	}
 
 	// Click on a type of the loot group: the nearest building of the type to the camera, first among the project's
-	// objects with loot, else among the map buildings with a row; the camera turns to it like Fokus.
+	// objects with loot, else among the map buildings with a row; the camera turns to it like Focus.
 	bool EditType(DZS_Instance inst, string type)
 	{
 		string rd, re;
@@ -2667,7 +2670,7 @@ class DZS_LootPlugin : DZS_Plugin
 	}
 }
 
-// Row "Loot" in the properties part: keiner · wie Vanilla · eigene Punkte, "Bearbeiten", warnings and counts.
+// Row "Loot" in the properties part: none · as vanilla · own points, "Edit", warnings and counts.
 class DZS_LootRowUi : DZS_PropertyRow
 {
 	DZS_LootPlugin m_P;

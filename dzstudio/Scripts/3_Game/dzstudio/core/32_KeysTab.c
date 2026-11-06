@@ -1,4 +1,4 @@
-// Tab "Tastenbelegung".
+// Tab "Key bindings".
 class DZS_KeyField : DZS_HitListener
 {
 	DZS_KeysTab m_Tab;
@@ -727,7 +727,7 @@ class DZS_KeysTab : DZS_HitListener
 			Offer(ModsPrefix() + pressed);
 	}
 
-	// A modifier alone counts only for hold actions, as exactly this key ("Umschalt rechts").
+	// A modifier alone counts only for hold actions, as exactly this key ("Right Shift").
 	protected bool TryModifierAlone(string key)
 	{
 		DZS_Action a = DZS_Kernel.Get().GetUi().GetAction(m_RecField.m_Action);

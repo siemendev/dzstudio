@@ -285,7 +285,7 @@ class DZS_HomeMenu : DZS_HitListener
 		return Math.Ceil(m_H / DZS_Scale.Px(ROW));
 	}
 
-	// Colour of a row: gradient Fläche erhöht (top) → Fläche (bottom), darkened from the bottom
+	// Colour of a row: gradient raised surface (top) → surface (bottom), darkened from the bottom
 	// (80 % at the bottom to 0 % at half height; pressed 15 points more); unavailable 60 % darker.
 	protected int RowColor(float t, bool pressed, bool available)
 	{
@@ -500,7 +500,7 @@ class DZS_HomeMenu : DZS_HitListener
 		m_PressStrip = -1;
 	}
 
-	// Click on a strip: the map with its last opened project, else "Neues Projekt" for it.
+	// Click on a strip: the map with its last opened project, else "New project" for it.
 	void Activate(int i)
 	{
 		DZS_HomeStrip s = m_Strips[i];

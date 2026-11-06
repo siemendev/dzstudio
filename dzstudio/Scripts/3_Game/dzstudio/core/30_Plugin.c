@@ -4,7 +4,7 @@ class DZS_Plugin : DZS_EventListener
 {
 	protected DZS_Kernel m_Kernel;
 
-	// Fixed name, the same on every installation; prefixes its types ("name:typ"), settings and actions ("name.x").
+	// Fixed name, the same on every installation; prefixes its types ("name:type"), settings and actions ("name.x").
 	string GetName() { return ""; }
 	int GetVersion() { return 1; }
 	int GetRequiredApiVersion() { return DZS_API_VERSION; }

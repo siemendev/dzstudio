@@ -478,14 +478,14 @@ class DZS_SelfTestPlugin : DZS_Plugin
 		string g = a.GetGroupIds()[0];
 		string big = "";
 		while (big.Length() < 10240)
-			big += "Quelltext mit Umlauten äöüß und € \"zitiert\" \\ ";
+			big += "Source text with umlauts äöüß and € \"quoted\" \\ ";
 		DZS_OpBuilder b = a.BeginOperation("selftest:edit");
 		map<string, string> f = new map<string, string>();
 		f.Set("name", "Land_Test");
 		f.Set("pos", "500 5 500");
 		f.Set("unknown", big);
 		string id = b.Create(DZS_KIND_OBJECT, g, DZS_END, f, true, true);
-		b.SetCompanion(id, "fremd:daten", 3, "{\"keep\":\"ä\"}");
+		b.SetCompanion(id, "foreign:data", 3, "{\"keep\":\"ä\"}");
 		b.Commit("Land_Test platzieren", "Place Land_Test");
 		array<string> text = a.ExportState();
 		bool sizes = true;
@@ -510,7 +510,7 @@ class DZS_SelfTestPlugin : DZS_Plugin
 		Check("10 KB field survives byte for byte", back == big && back.Length() == big.Length(), "len " + back.Length());
 		int ver;
 		string data;
-		Check("unknown companion kept", c.GetCompanion(id, "fremd:daten", ver, data) && ver == 3 && data == "{\"keep\":\"ä\"}");
+		Check("unknown companion kept", c.GetCompanion(id, "foreign:data", ver, data) && ver == 3 && data == "{\"keep\":\"ä\"}");
 		m_Kernel.CloseInstance(c);
 		DZS_OpBuilder d = a.BeginOperation("selftest:edit");
 		d.Delete(id);

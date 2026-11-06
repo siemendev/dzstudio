@@ -1,7 +1,7 @@
 // Loot files of a dzbot mod: the plugin's own delta per
 // target path (at most one delete and one merge_add), the base before it, the working state the editor edits
 // (base minus the delete plus the merge_add), and the comparison form of the composed state for merged (Format ›
-// Vergleichsform).
+// comparison form).
 
 // A file of the mod after the own delta on the same path.
 class DZS_DzbotAfter : Managed
@@ -439,7 +439,7 @@ class DZS_DzbotLootState : Managed
 		return null;
 	}
 
-	// The key handed to "Basis abrufen": the first own file on the path (the delete stands before the merge_add).
+	// The key handed to "Fetch base": the first own file on the path (the delete stands before the merge_add).
 	string BaseKey(string path)
 	{
 		DZS_DzbotLootFile d = Own(path, "delete");

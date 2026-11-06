@@ -1,5 +1,5 @@
 // Properties: a bundled plugin on the public interface only. It fills the properties part of the
-// project bar, adds "Physik" and "Details …" to the object toolbar and the context menu, and submits every change as
+// project bar, adds "Physics" and "Details …" to the object toolbar and the context menu, and submits every change as
 // an operation "properties:edit".
 class DZS_PropService : DZS_PropertiesApi
 {
@@ -273,7 +273,7 @@ class DZS_PropertiesPlugin : DZS_Plugin
 		return Math.AbsFloat(a[0] - b[0]) > eps || Math.AbsFloat(a[1] - b[1]) > eps || Math.AbsFloat(a[2] - b[2]) > eps;
 	}
 
-	// A value from the properties part: one operation, named "‹Spielname›: ‹Wert› ändern".
+	// A value from the properties part: one operation, named "‹game name›: change ‹value›".
 	bool ApplyValue(string id, int f, float v, string mergeKey = "")
 	{
 		DZS_PropObj o = DZS_PropObj.Read(Inst(), id);
@@ -388,7 +388,7 @@ class DZS_PropertiesPlugin : DZS_Plugin
 		DZS_Log.Info("properties: details open " + o.m_Id + " " + o.m_Name);
 	}
 
-	// "Austauschen" from the dialog: this object alone, then the catalog picks the new class.
+	// "Swap" from the dialog: this object alone, then the catalog picks the new class.
 	void StartSwapFor(string id)
 	{
 		DZS_SelectionApi sel = DZS_SelectionApi.Get();

@@ -1,5 +1,5 @@
 // Search field of the catalog: a click empties it for typing and
-// keeps the text before as placeholder (and as the search) until something is typed; Strg+F keeps the text;
+// keeps the text before as placeholder (and as the search) until something is typed; Ctrl+F keeps the text;
 // Esc brings the text before back; "×" and a right click empty it for good.
 class DZS_CatSearchField : DZS_SearchField
 {
@@ -277,7 +277,7 @@ class DZS_CatPanelTiles : DZS_CatTileOwner
 }
 
 // Catalog bar: search, recent row, category buttons, the list (only visible rows are built),
-// foot with "Alle Objekte im Vollbild".
+// foot with "All objects in full screen".
 class DZS_CatalogPanel : DZS_PanelContent
 {
 	DZS_CatalogPlugin m_P;
@@ -358,7 +358,7 @@ class DZS_CatalogPanel : DZS_PanelContent
 
 	void OnEmptyButton2(DZS_Button b)
 	{
-		m_P.SetCategory("alle");
+		m_P.SetCategory("all");
 	}
 
 	void RebuildChips()

@@ -1,4 +1,4 @@
-// A plugin shows its own building blocks on the Musterseite (DZS_SheetParts.Add(MyPart) in OnRegister).
+// A plugin shows its own building blocks on the sample sheet (DZS_SheetParts.Add(MyPart) in OnRegister).
 class DZS_SheetPart : Managed
 {
 	string TitleDe() { return ""; }

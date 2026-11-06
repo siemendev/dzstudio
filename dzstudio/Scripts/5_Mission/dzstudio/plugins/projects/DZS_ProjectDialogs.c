@@ -1,4 +1,4 @@
-// Project dialogs: Neues Projekt, Projekt-Browser, Umbenennen, Speichern unter, Sicherungen.
+// Project dialogs: New project, project browser, Rename, Save as, backups.
 
 // A small dialog with one name field: empty with the placeholder; empty confirmed counts as the placeholder.
 class DZS_NameDialog : DZS_Dialog
@@ -102,7 +102,7 @@ class DZS_SaveAsDialog : DZS_NameDialog
 {
 	protected DZS_ProjectsPlugin m_P;
 	protected bool m_Copy;
-	// Ziel: "" = Lokal, else the id of a target of DZS_SaveTargets
+	// Target: "" = local, else the id of a target of DZS_SaveTargets
 	protected ref array<string> m_TargetIds = new array<string>();
 	protected ref array<ref DZS_Chip> m_TargetChips = new array<ref DZS_Chip>();
 	protected TextWidget m_TargetLabel;
@@ -149,7 +149,7 @@ class DZS_SaveAsDialog : DZS_NameDialog
 		super.BuildContent(inner);
 	}
 
-	// Rows of servers wait for their project/list ("Wird geladen …"); a failed list stays grey, a server that lets this
+	// Rows of servers wait for their project/list ("Loading …"); a failed list stays grey, a server that lets this
 	// user create nothing goes.
 	protected void UpdateTargets()
 	{
@@ -203,7 +203,7 @@ class DZS_SaveAsDialog : DZS_NameDialog
 			m_Info.SetText(DZS_Texts.Pick("Neues Projekt beim Server, offen in einer Sitzung", "New project at the server, open in a session"));
 	}
 
-	// As wide as the longest target row, so "‹Server› · Server nicht erreichbar" is never cut.
+	// As wide as the longest target row, so "‹Server› · Server not reachable" is never cut.
 	override float BoxWidth()
 	{
 		float w = super.BoxWidth();
@@ -833,7 +833,7 @@ class DZS_BrowserDialog : DZS_Dialog
 	}
 }
 
-// Start: "Nicht gespeicherte Arbeit gefunden" — one line per backup, newest first.
+// Start: "Unsaved work found" — one line per backup, newest first.
 class DZS_RestoreDialog : DZS_Dialog
 {
 	protected DZS_ProjectsPlugin m_P;
@@ -911,7 +911,7 @@ class DZS_RestoreDialog : DZS_Dialog
 		AddFootFocus();
 	}
 
-	// As wide as the longest line next to its knobs, so "Dateien seitdem geändert" is never cut.
+	// As wide as the longest line next to its knobs, so "Files changed since" is never cut.
 	override float BoxWidth()
 	{
 		float w = super.BoxWidth();

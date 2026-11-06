@@ -1,6 +1,6 @@
 // dzbot friends: the own friends list over the editor
 // endpoints /editor/friends and /editor/friends/set, shown in the plugin's settings tab and, in a session on the dzbot
-// server, in the dialog "Freunde" with "Zum Freund machen".
+// server, in the dialog "Friends" with "Add as friend".
 class DZS_DzbotFriend : Managed
 {
 	int m_Id;
@@ -39,7 +39,7 @@ class DZS_DzbotFriends : Managed
 	// line under the list after a failed change
 	string m_Note;
 	ref map<int, bool> m_Adding = new map<int, bool>();
-	// "Wird hinzugefügt …" stays at least this long; earlier answers wait in m_Held
+	// "Adding …" stays at least this long; earlier answers wait in m_Held
 	static const int ADD_MIN_MS = 400;
 	ref array<ref DZS_DzbotHeldSet> m_Held = new array<ref DZS_DzbotHeldSet>();
 	int m_Rev;
@@ -361,7 +361,7 @@ class DZS_DzbotWrap : Managed
 	}
 }
 
-// One row of the friends list in the settings tab: name, switch "darf immer beitreten".
+// One row of the friends list in the settings tab: name, switch "may always join".
 class DZS_DzbotFriendRow : DZS_HitListener
 {
 	DZS_DzbotFriends m_F;
@@ -400,7 +400,7 @@ class DZS_DzbotFriendRow : DZS_HitListener
 	}
 }
 
-// Settings › dzbot: connection line, then "Freunde für gemeinsames Bearbeiten".
+// Settings › dzbot: connection line, then "Friends for editing together".
 class DZS_DzbotPage : DZS_SettingsPage
 {
 	DZS_DzbotPlugin m_P;
@@ -601,7 +601,7 @@ class DZS_DzbotPage : DZS_SettingsPage
 	}
 }
 
-// One participant in the dialog "Freunde".
+// One participant in the dialog "Friends".
 class DZS_DzbotPeerRow : DZS_HitListener
 {
 	DZS_DzbotFriendsDialog m_D;
@@ -636,7 +636,7 @@ class DZS_DzbotPeerRow : DZS_HitListener
 	}
 }
 
-// "Freunde …" in a session on the dzbot server: the other participants with "Zum Freund machen" or the switch.
+// "Friends …" in a session on the dzbot server: the other participants with "Add as friend" or the switch.
 class DZS_DzbotFriendsDialog : DZS_Dialog
 {
 	DZS_DzbotPlugin m_P;

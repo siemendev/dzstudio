@@ -119,6 +119,7 @@ class DZS_Kernel : DZS_ActionHandler
 		DZS_CoreTexts.Register();
 		m_Settings.Define("core.protocol", DZS_Json.Boolean(false));
 		m_Settings.DefineToggle("core.pointerHints", "ui", "Hinweise am Zeiger", "Hints at the pointer", "Zeilen mit Tasten im Hinweis neben dem Mauszeiger", "Lines with keys in the hint next to the pointer", true);
+		DZS_LegacyNames.Run();
 		m_Settings.Load();
 		InitAuthor();
 		string cli;

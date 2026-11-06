@@ -1,4 +1,4 @@
-# dzstudio pinsel-sets 1 · DayZ 1.30 · built by tools/brush/build_sets.py
+# dzstudio brush-sets 1 · DayZ 1.30 · built by tools/brush/build_sets.py
 # set<TAB>German name<TAB>English name, then entries: name share randomYaw tilt slope slopeMax heightOffset scaleMin scaleMax
 set	Bäume: Ahorn (Sommer)	Trees: Maple (summer)
 DZ\plants_bliss\Tree\t_acer_2s_summer.p3d	1	1	3	0	15	-0.25	0.9	1.1

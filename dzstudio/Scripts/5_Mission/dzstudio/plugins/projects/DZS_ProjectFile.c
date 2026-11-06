@@ -1,4 +1,4 @@
-// projekt.dzstudio.json: provider part, project part and view part.
+// project.dzstudio.json: provider part, project part and view part.
 class DZS_Maps
 {
 	static array<string> Keys()
@@ -194,8 +194,14 @@ class DZS_PFData : Managed
 
 class DZS_ProjectFile
 {
-	static const string NAME = "projekt.dzstudio.json";
+	static const string NAME = "project.dzstudio.json";
 	static const int VERSION = 1;
+
+	// A project folder copied in from an older version still has its file under the old name.
+	static void Adopt(string dir)
+	{
+		DZS_LegacyNames.MoveFile(dir + "\\" + DZS_LegacyNames.PROJECT_FILE, dir + "\\" + NAME);
+	}
 
 	static bool IsNeverGroup(string relPath)
 	{
@@ -205,7 +211,7 @@ class DZS_ProjectFile
 		string leaf = low.Substring(slash + 1, low.Length() - slash - 1);
 		if (low.IndexOf("vanilla/") == 0)
 			return true;
-		return leaf == "projekt.dzstudio.json" || leaf == "cfggameplay.json" || leaf == "mapgroupproto.xml" || leaf == "mapgrouppos.xml" || leaf == "cfglimitsdefinition.xml";
+		return leaf == NAME || leaf == DZS_LegacyNames.PROJECT_FILE || leaf == "cfggameplay.json" || leaf == "mapgroupproto.xml" || leaf == "mapgrouppos.xml" || leaf == "cfglimitsdefinition.xml";
 	}
 
 	// ---- reading ----

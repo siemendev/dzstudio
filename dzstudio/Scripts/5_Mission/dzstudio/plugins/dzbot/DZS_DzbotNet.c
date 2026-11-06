@@ -166,14 +166,14 @@ class DZS_DzbotFrame
 		int nl = data.IndexOf("\n");
 		if (nl < 0)
 		{
-			r.m_Fail = "keine Kennzeile";
+			r.m_Fail = "no status line";
 			return r;
 		}
 		string first = data.Substring(0, nl);
 		string magic = MAGIC + " ";
 		if (first.IndexOf(magic) != 0)
 		{
-			r.m_Fail = "keine Kennzeile";
+			r.m_Fail = "no status line";
 			return r;
 		}
 		// same major version only (answers to section 11): "dzstudio 1" and "dzstudio 1.4" pass, "dzstudio 2" not
@@ -194,13 +194,13 @@ class DZS_DzbotFrame
 		{
 			if (pos >= total)
 			{
-				r.m_Fail = "Rahmen unvollständig";
+				r.m_Fail = "frame incomplete";
 				return r;
 			}
 			int hl = data.IndexOfFrom(pos, "\n");
 			if (hl < 0)
 			{
-				r.m_Fail = "Rahmen unvollständig";
+				r.m_Fail = "frame incomplete";
 				return r;
 			}
 			string head = data.Substring(pos, hl - pos);
@@ -215,13 +215,13 @@ class DZS_DzbotFrame
 			string lenText = len.ToString();
 			if (len < 0 || lenText != f[3])
 			{
-				r.m_Fail = "Länge unlesbar: " + head;
+				r.m_Fail = "length unreadable: " + head;
 				return r;
 			}
 			int start = hl + 1;
 			if (start + len > total)
 			{
-				r.m_Fail = "Rahmen kürzer als angekündigt";
+				r.m_Fail = "frame shorter than announced";
 				return r;
 			}
 			if (f[0] == "end")
@@ -304,7 +304,7 @@ class DZS_DzbotCall : RestCallback
 	override void OnError(int errorCode)
 	{
 		if (m_C)
-			m_C.Answer(this, "", 0, "Fehler " + errorCode);
+			m_C.Answer(this, "", 0, "error " + errorCode);
 	}
 
 	override void OnTimeout()

@@ -302,7 +302,7 @@ class DZS_Screen : DZS_EventListener
 		HoldKeysUntilRelease();
 		string probe;
 		if (on && GetCLIParam("dzsHomeMsg", probe))
-			ShowMessage("probe", "", "Prüfmeldung im Hauptmenü", 30.0);
+			ShowMessage("probe", "", "Test message in the main menu", 30.0);
 	}
 	Widget GetDialogLayer() { return m_DialogLayer; }
 	Widget GetPopupLayer() { return m_PopupLayer; }
@@ -1232,7 +1232,7 @@ class DZS_Screen : DZS_EventListener
 		}
 	}
 
-	// Aufklappen durch ein Plugin: "ok", "hidden" (section not shown) or "" (no such section).
+	// Unfolding by a plugin: "ok", "hidden" (section not shown) or "" (no such section).
 	string UnfoldPanel(string panelId)
 	{
 		string r = m_LeftBar.Unfold(panelId);
@@ -1258,7 +1258,7 @@ class DZS_Screen : DZS_EventListener
 		ShowMessageWithButton(kind, tone, markup, seconds, "", null);
 	}
 
-	// A message with a knob ("Anzeigen", "Speichern …"); it takes clicks.
+	// A message with a knob ("Show", "Save …"); it takes clicks.
 	void ShowMessageWithButton(string kind, string tone, string markup, float seconds, string buttonLabel, DZS_MessageListener listener)
 	{
 		HideMessage(kind);

@@ -1,9 +1,9 @@
 // The entries of the catalog: the console list checked against the running game, plus the templates.
-// Loading runs in slices over several frames; until it is done the catalog shows "Katalog wird geladen …".
+// Loading runs in slices over several frames; until it is done the catalog shows "Loading catalog …".
 class DZS_CatalogStore : Managed
 {
-	static const string LIST_IN_MOD = "dzstudio/data/konsolenliste.txt";
-	static const string LIST_IN_PROFILE = "$profile:dzstudio\\konsolenliste.txt";
+	static const string LIST_IN_MOD = "dzstudio/data/console-list.txt";
+	static const string LIST_IN_PROFILE = "$profile:dzstudio\\console-list.txt";
 	static const int SLICE = 500;
 	protected int m_Slice = SLICE;
 
@@ -250,7 +250,7 @@ class DZS_CatalogStore : Managed
 		return id;
 	}
 
-	// Order without search text: Spielname (folded), then class name.
+	// Order without search text: game name (folded), then class name.
 	void Reorder()
 	{
 		m_All.Clear();
@@ -280,7 +280,7 @@ class DZS_CatalogStore : Managed
 	protected ref map<string, int> m_NameCounts;
 	protected string m_NameCountsSig;
 
-	// Objects (not templates) per Spielname; counted again when the list or a name changed.
+	// Objects (not templates) per game name; counted again when the list or a name changed.
 	int NameCount(string name)
 	{
 		int nObj = m_Objects.Count();
@@ -313,7 +313,7 @@ class DZS_CatalogStore : Managed
 		e.m_TplId = id;
 		e.m_Key = "tpl:" + id;
 		e.m_Low = e.m_Key;
-		e.m_Cat = "vorlagen";
+		e.m_Cat = "templates";
 		e.m_Name = name;
 		e.m_TplCount = count;
 		e.m_TplMissing = missing;
@@ -376,7 +376,7 @@ class DZS_CatalogStore : Managed
 		return r;
 	}
 
-	// Entries of a scope ("alle", "favoriten", "zuletzt", or a category key) matching the text, in the order
+	// Entries of a scope ("all", "favorites", "recent", or a category key) matching the text, in the order
 	// of the search (weakest word counts, then the order without search text).
 	DZS_CatResult Search(string text, array<DZS_CatEntry> scope, bool keepScopeOrder)
 	{

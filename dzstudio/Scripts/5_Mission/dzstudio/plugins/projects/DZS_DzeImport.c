@@ -645,11 +645,11 @@ class DZS_DzeImport : Managed
 			what = "#" + (i + 1);
 		DZS_Json warns = DZS_Json.Arr();
 		if (o.m_BadPos)
-			Warn(issues, warns, "Position", what);
+			Warn(issues, warns, "Position", "Position", what);
 		if (o.m_BadYpr)
-			Warn(issues, warns, "Drehung", what);
+			Warn(issues, warns, "Drehung", "Rotation", what);
 		if (o.m_BadScale)
-			Warn(issues, warns, "Größe", what);
+			Warn(issues, warns, "Größe", "Scale", what);
 		if (o.m_ScaleZero)
 		{
 			issues.Add(DZS_Issue.WARNING, "Größe 0 — durch 1 ersetzt", "Size 0 — replaced by 1", what);
@@ -710,10 +710,10 @@ class DZS_DzeImport : Managed
 		DZS_Log.Info(l1 + l2 + l3);
 	}
 
-	protected void Warn(DZS_Issues issues, DZS_Json warns, string field, string what)
+	protected void Warn(DZS_Issues issues, DZS_Json warns, string fieldDe, string fieldEn, string what)
 	{
-		string de = field + ": keine endliche Zahl — durch den Standardwert ersetzt";
-		string en = field + ": not a finite number — replaced by the default";
+		string de = fieldDe + ": keine endliche Zahl — durch den Standardwert ersetzt";
+		string en = fieldEn + ": not a finite number — replaced by the default";
 		issues.Add(DZS_Issue.WARNING, de, en, what);
 		warns.Add(DZS_Json.Str(de + "\n" + en));
 	}
@@ -729,7 +729,7 @@ class DZS_DzeImport : Managed
 	}
 }
 
-// Dialog ".dze importieren": every .dze under $saves: and its subfolders (not the project folders), path and size,
+// Dialog "Import .dze": every .dze under $saves: and its subfolders (not the project folders), path and size,
 // a search field; the sentence above names the folder actually used.
 class DZS_DzeFileDialog : DZS_Dialog
 {
@@ -758,7 +758,7 @@ class DZS_DzeFileDialog : DZS_Dialog
 		{
 			string low = f;
 			low.ToLower();
-			if (low.IndexOf("dzstudio/projekte/") == 0)
+			if (low.IndexOf("dzstudio/projects/") == 0)
 				continue;
 			int n = low.Length();
 			if (n > 4 && low.Substring(n - 4, 4) == ".dze")
@@ -774,7 +774,7 @@ class DZS_DzeFileDialog : DZS_Dialog
 	static string SavesShown()
 	{
 		string root = DZS_LocalStore.ShownRoot();
-		string tail = "\\dzstudio\\Projekte";
+		string tail = "\\dzstudio\\Projects";
 		int at = root.IndexOf(tail);
 		if (at > 0)
 			return root.Substring(0, at);

@@ -592,7 +592,7 @@ class DZS_ProjectBar : DZS_PanelContent
 		return fw - DZS_Scale.Px(6);
 	}
 
-	// Rows of kinds whose Spielname other catalog objects share carry the class name below.
+	// Rows of kinds whose game name other catalog objects share carry the class name below.
 	protected ref map<string, ref DZS_BarLayout> m_Layouts = new map<string, ref DZS_BarLayout>();
 
 	// rows of a group's objects, rebuilt when the state changes; tops again only when a kind's row height changes
@@ -1145,7 +1145,7 @@ class DZS_ProjectBar : DZS_PanelContent
 	protected int m_DblAt;
 
 	// Name of another participant holding objects of this group ("" = none).
-	// Folded group: " · 2 bei Ben" per holder, in the order first met.
+	// Folded group: " · 2 with Ben" per holder, in the order first met.
 	protected string HeldBy(DZS_Instance inst, string gid)
 	{
 		DZS_SelectGuard g = DZS_SelectGuard.Get();

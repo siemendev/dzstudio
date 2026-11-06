@@ -1,4 +1,4 @@
-// "Details …": everything until "Übernehmen" is the dialog's own value; "Übernehmen" submits all
+// "Details …": everything until "Apply" is the dialog's own value; "Apply" submits all
 // changed values as one operation with the values seen at opening as precondition.
 class DZS_DetailsDialog : DZS_Dialog
 {
@@ -272,7 +272,7 @@ class DZS_DetailsDialog : DZS_Dialog
 			m_NoteIcon.Show(false);
 			m_Note.Show(false);
 		}
-		// facts: class name with "Austauschen", then group, size, height offset (and unknown fields) in two columns
+		// facts: class name with "Swap", then group, size, height offset (and unknown fields) in two columns
 		DZS_W.Place(m_FactLabels[0], 0, y, width, DZS_Scale.Px(14));
 		y += lh;
 		float cw = DZS_W.TextWidth(m_ClassText) + DZS_Scale.Px(12);
@@ -362,8 +362,8 @@ class DZS_DetailsDialog : DZS_Dialog
 		UpdateViewOnly(inst);
 	}
 
-	// Session switched to "Nur ansehen": the dialog stays, fields grey, "Übernehmen" off with the
-	// reason; the intermediate values stay until "Abbrechen" or until the connection is back.
+	// Session switched to "View only": the dialog stays, fields grey, "Apply" off with the
+	// reason; the intermediate values stay until "Cancel" or until the connection is back.
 	protected bool m_ViewOnly;
 
 	protected void UpdateViewOnly(DZS_Instance inst)

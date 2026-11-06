@@ -1,5 +1,5 @@
-// Storage provider "Lokaler Ordner": one folder per project
-// under $saves:dzstudio\Projekte\, one file per group, the project file beside them.
+// Storage provider "Local folder": one folder per project
+// under $saves:dzstudio\Projects\, one file per group, the project file beside them.
 class DZS_ProjectInfo : Managed
 {
 	string m_Folder;
@@ -58,7 +58,7 @@ class DZS_SaveFile : Managed
 
 class DZS_LocalStore
 {
-	static const string ROOT = "$saves:dzstudio\\Projekte";
+	static const string ROOT = "$saves:dzstudio\\Projects";
 	static const string GROUP_PLUGINS = "projects:plugins";
 	static const string GROUP_ENTRY = "projects:entry";
 
@@ -84,7 +84,7 @@ class DZS_LocalStore
 	{
 		if (s_Shown != "")
 			return s_Shown;
-		s_Shown = "Documents\\DayZ\\dzstudio\\Projekte";
+		s_Shown = "Documents\\DayZ\\dzstudio\\Projects";
 		string prof;
 		if (!GetCLIParam("profiles", prof) || prof == "")
 			return s_Shown;
@@ -98,7 +98,7 @@ class DZS_LocalStore
 		{
 			if (folders[i] && DZS_Files.IsFolder("$profile:Users\\" + users[i] + "\\dzstudio"))
 			{
-				s_Shown = prof + "\\Users\\" + users[i] + "\\dzstudio\\Projekte";
+				s_Shown = prof + "\\Users\\" + users[i] + "\\dzstudio\\Projects";
 				DZS_Log.Info("projects shown under " + s_Shown);
 				break;
 			}
@@ -145,6 +145,7 @@ class DZS_LocalStore
 		DZS_ProjectInfo info = new DZS_ProjectInfo();
 		info.m_Folder = folder;
 		info.m_Name = folder;
+		DZS_ProjectFile.Adopt(Dir(folder));
 		DZS_PFData pf = DZS_ProjectFile.Read(DZS_Files.Read(Path(folder, DZS_ProjectFile.NAME)));
 		info.m_Status = pf.m_Status;
 		if (pf.m_Status == "ok")
@@ -217,7 +218,7 @@ class DZS_LocalStore
 
 	// ---- create ----
 
-	static string NewProject(string name, string mapKey, string viewPart, string groupFile = "objekte.json", string groupName = "Objekte")
+	static string NewProject(string name, string mapKey, string viewPart, string groupFile, string groupName)
 	{
 		EnsureRoot();
 		string folder = FolderFor(name);
@@ -256,10 +257,10 @@ class DZS_LocalStore
 			view = pf.m_RawView;
 		}
 		array<string> chunks = DZS_ProjectFile.Compose(newName, mapKey, proj, view);
-		if (!DZS_Files.Write(path + ".neu", chunks))
+		if (!DZS_Files.Write(path + ".new", chunks))
 			return false;
-		bool ok = DZS_Files.Copy(path + ".neu", path);
-		DZS_Files.Delete(path + ".neu");
+		bool ok = DZS_Files.Copy(path + ".new", path);
+		DZS_Files.Delete(path + ".new");
 		if (ok)
 			newSum = DZS_Files.Checksum(chunks);
 		return ok;
@@ -413,10 +414,10 @@ class DZS_LocalStore
 			string p = Path(folder, f.m_Rel);
 			bool ok = failWrite == "" || f.m_Rel != failWrite;
 			if (ok)
-				ok = DZS_Files.Write(p + ".neu", f.m_Chunks);
+				ok = DZS_Files.Write(p + ".new", f.m_Chunks);
 			if (ok)
 			{
-				array<string> back = DZS_Files.Read(p + ".neu");
+				array<string> back = DZS_Files.Read(p + ".new");
 				ok = DZS_Files.SameContent(back, f.m_Chunks);
 			}
 			if (!ok)
@@ -428,7 +429,7 @@ class DZS_LocalStore
 		return ReplaceAll(folder, files);
 	}
 
-	// Every file written as ‹Datei›.neu and read back: keep the old ones as .alt, replace, clean up.
+	// Every file written as ‹file›.new and read back: keep the old ones as .old, replace, clean up.
 	static string ReplaceAll(string folder, array<ref DZS_SaveFile> files)
 	{
 		int failAt = -1;
@@ -439,7 +440,7 @@ class DZS_LocalStore
 		{
 			string gp = Path(folder, g.m_Rel);
 			g.m_HadOld = DZS_Files.Exists(gp);
-			if (g.m_HadOld && !DZS_Files.Copy(gp, gp + ".alt"))
+			if (g.m_HadOld && !DZS_Files.Copy(gp, gp + ".old"))
 			{
 				Cleanup(folder, files);
 				return DZS_Texts.Pick("Rückfall für " + g.m_Rel + " lässt sich nicht anlegen", "Fallback for " + g.m_Rel + " cannot be made");
@@ -453,7 +454,7 @@ class DZS_LocalStore
 			if (replaced && r.m_Delete)
 				replaced = !DZS_Files.Exists(rp) || DZS_Files.Delete(rp);
 			else if (replaced)
-				replaced = DZS_Files.Copy(rp + ".neu", rp);
+				replaced = DZS_Files.Copy(rp + ".new", rp);
 			if (!replaced)
 			{
 				DZS_Log.Warn("save: replacing " + r.m_Rel + " failed, restoring");
@@ -465,18 +466,18 @@ class DZS_LocalStore
 					string up = Path(folder, u.m_Rel);
 					bool restored;
 					if (u.m_HadOld)
-						restored = DZS_Files.Copy(up + ".alt", up);
+						restored = DZS_Files.Copy(up + ".old", up);
 					else
 						restored = DZS_Files.Delete(up);
 					if (!restored)
-						bad += " " + u.m_Rel + " (neu)";
+						bad += " " + u.m_Rel + " (new)";
 				}
 				if (bad != "")
 				{
 					foreach (DZS_SaveFile s : files)
 					{
 						if (!s.m_Replaced && bad.IndexOf(" " + s.m_Rel + " ") < 0)
-							bad += " " + s.m_Rel + " (alt)";
+							bad += " " + s.m_Rel + " (old)";
 					}
 					return "incomplete:" + bad;
 				}
@@ -494,15 +495,15 @@ class DZS_LocalStore
 		foreach (DZS_SaveFile f : files)
 		{
 			string p = Path(folder, f.m_Rel);
-			if (DZS_Files.Exists(p + ".neu"))
-				DZS_Files.Delete(p + ".neu");
-			if (DZS_Files.Exists(p + ".alt"))
-				DZS_Files.Delete(p + ".alt");
+			if (DZS_Files.Exists(p + ".new"))
+				DZS_Files.Delete(p + ".new");
+			if (DZS_Files.Exists(p + ".old"))
+				DZS_Files.Delete(p + ".old");
 		}
 	}
 }
 
-// WriteAll in slices: each ‹Datei›.neu written and read back over several frames, then replaced in one go.
+// WriteAll in slices: each ‹file›.new written and read back over several frames, then replaced in one go.
 class DZS_LocalWrite : Managed
 {
 	protected string m_Folder;
@@ -569,7 +570,7 @@ class DZS_LocalWrite : Managed
 				m_File++;
 				continue;
 			}
-			string p = DZS_LocalStore.Path(m_Folder, f.m_Rel) + ".neu";
+			string p = DZS_LocalStore.Path(m_Folder, f.m_Rel) + ".new";
 			if (!m_Fh)
 			{
 				if (m_FailWrite != "" && f.m_Rel == m_FailWrite)

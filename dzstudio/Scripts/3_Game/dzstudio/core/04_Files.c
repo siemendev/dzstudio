@@ -225,7 +225,7 @@ class DZS_Files
 		return false;
 	}
 
-	// "Ordner löschen": every file, then the folders from inside out.
+	// "Delete folder": every file, then the folders from inside out.
 	static bool DeleteTree(string dir)
 	{
 		array<string> names;

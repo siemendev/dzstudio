@@ -376,7 +376,7 @@ class DZS_XmlDoc : Managed
 
 	string ErrorText()
 	{
-		return m_Error + " (Zeile " + m_ErrLine + ", Spalte " + m_ErrCol + ")";
+		return m_Error + " (line " + m_ErrLine + ", column " + m_ErrCol + ")";
 	}
 }
 
@@ -418,12 +418,12 @@ class DZS_Xml
 				doc.m_Root = c;
 			else
 			{
-				Fail("mehr als ein Wurzelelement", c.m_Start);
+				Fail("more than one root element", c.m_Start);
 				return;
 			}
 		}
 		if (!doc.m_Root)
-			Fail("kein Wurzelelement", m_N);
+			Fail("no root element", m_N);
 	}
 
 	protected string Ch(int i)
@@ -470,7 +470,7 @@ class DZS_Xml
 			{
 				if (parent.m_Name != "")
 				{
-					Fail("</" + parent.m_Name + "> fehlt", m_N);
+					Fail("</" + parent.m_Name + "> missing", m_N);
 					return false;
 				}
 				m_P = m_N;
@@ -482,7 +482,7 @@ class DZS_Xml
 				int ce = m_Doc.FindStr(m_P + 4, "-->");
 				if (ce < 0)
 				{
-					Fail("Kommentar ohne Ende", m_P);
+					Fail("unterminated comment", m_P);
 					return false;
 				}
 				m_P = ce + 3;
@@ -494,7 +494,7 @@ class DZS_Xml
 				int de = m_Doc.FindStr(m_P, "]]>");
 				if (de < 0)
 				{
-					Fail("CDATA ohne Ende", m_P);
+					Fail("unterminated CDATA", m_P);
 					return false;
 				}
 				m_P = de + 3;
@@ -506,7 +506,7 @@ class DZS_Xml
 				int pe = m_Doc.Find(m_P, ">");
 				if (pe < 0)
 				{
-					Fail("unvollständige Angabe", m_P);
+					Fail("incomplete declaration", m_P);
 					return false;
 				}
 				m_P = pe + 1;
@@ -518,14 +518,14 @@ class DZS_Xml
 				int ee = m_Doc.Find(m_P, ">");
 				if (ee < 0)
 				{
-					Fail("unvollständiges End-Tag", m_P);
+					Fail("incomplete end tag", m_P);
 					return false;
 				}
 				string endName = m_Doc.Slice(m_P + 2, ee);
 				endName.TrimInPlace();
 				if (parent.m_Name == "" || endName != parent.m_Name)
 				{
-					Fail("</" + endName + "> passt nicht", m_P);
+					Fail("</" + endName + "> does not match", m_P);
 					return false;
 				}
 				m_P = ee + 1;
@@ -552,7 +552,7 @@ class DZS_Xml
 		n.m_Name = m_Doc.Slice(m_P + 1, i);
 		if (n.m_Name == "")
 		{
-			Fail("Elementname fehlt", m_P);
+			Fail("element name missing", m_P);
 			return null;
 		}
 		m_P = i;
@@ -563,7 +563,7 @@ class DZS_Xml
 				m_P++;
 			if (m_P >= m_N)
 			{
-				Fail("Tag ohne Ende", n.m_Start);
+				Fail("unterminated tag", n.m_Start);
 				return null;
 			}
 			string c = Ch(m_P);
@@ -579,7 +579,7 @@ class DZS_Xml
 			{
 				if (Ch(m_P + 1) != ">")
 				{
-					Fail("„/>“ erwartet", m_P);
+					Fail("\"/>\" expected", m_P);
 					return null;
 				}
 				m_P += 2;
@@ -590,7 +590,7 @@ class DZS_Xml
 			}
 			if (ws == m_P)
 			{
-				Fail("Leerzeichen vor dem Attribut erwartet", m_P);
+				Fail("space expected before the attribute", m_P);
 				return null;
 			}
 			int ns = m_P;
@@ -603,7 +603,7 @@ class DZS_Xml
 				m_P++;
 			if (Ch(m_P) != "=")
 			{
-				Fail("„=“ erwartet", m_P);
+				Fail("\"=\" expected", m_P);
 				return null;
 			}
 			m_P++;
@@ -612,13 +612,13 @@ class DZS_Xml
 			string q = Ch(m_P);
 			if (q != "\"" && q != "'")
 			{
-				Fail("Anführungszeichen erwartet", m_P);
+				Fail("quotation mark expected", m_P);
 				return null;
 			}
 			int qe = m_Doc.Find(m_P + 1, q);
 			if (qe < 0)
 			{
-				Fail("Wert ohne Ende", m_P);
+				Fail("unterminated value", m_P);
 				return null;
 			}
 			a.m_ValueStart = m_P + 1;

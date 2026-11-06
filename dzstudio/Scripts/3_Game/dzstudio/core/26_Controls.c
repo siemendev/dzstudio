@@ -126,7 +126,7 @@ class DZS_HitRegistry
 	}
 }
 
-// Knob: kinds main, side, danger, ghost, alone (only "Speichern" in the top bar).
+// Knob: kinds main, side, danger, ghost, alone (only "Save" in the top bar).
 class DZS_Button : DZS_HitListener
 {
 	ref DZS_Hit m_Hit;

@@ -118,8 +118,8 @@ class DZS_EnvPlugin : DZS_Plugin
 			m_Panel.OnShown();
 	}
 
-	// Every newly shown project starts with the start values (Neues Projekt, Öffnen, Import as a new project);
-	// "Speichern unter" keeps the instance and the values.
+	// Every newly shown project starts with the start values (New project, Open, Import as a new project);
+	// "Save as" keeps the instance and the values.
 	override void OnShownInstanceChanged(DZS_Instance inst)
 	{
 		if (!inst || inst == m_For)

@@ -23,7 +23,7 @@ class DZS_PropertiesApi : Managed
 	}
 
 	void AddRow(DZS_PropertyRow row) {}
-	// Label of a row in the look of the part (Beschriftungsschrift, Text leise).
+	// Label of a row in the look of the part (label font, muted text).
 	static TextWidget RowLabel(Widget parent, string text)
 	{
 		TextWidget t = DZS_W.Text(parent, DZS_Font.LABEL, 10, DZS_Color.Get("textQuiet"));

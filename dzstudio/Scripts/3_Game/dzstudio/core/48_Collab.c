@@ -1,7 +1,7 @@
 // Public parts a sync plugin needs besides the sync slot.
 // One plugin at a time installs each of them; without one everything works as alone.
 
-// Speicher-Regeln: who may save, what the status bar says about saving, and whether question and backup happen.
+// Save rules: who may save, what the status bar says about saving, and whether question and backup happen.
 class DZS_SaveRules : Managed
 {
 	protected static ref DZS_SaveRules s_Rules;
@@ -11,7 +11,7 @@ class DZS_SaveRules : Managed
 
 	// Replaces the save state at the left of the status bar; lamp "" or a tone.
 	bool StatusText(DZS_Instance inst, out string text, out string lamp) { return false; }
-	// Save (Strg+S, knob, autosave) off with a reason.
+	// Save (Ctrl+S, knob, autosave) off with a reason.
 	bool SaveBlocked(DZS_Instance inst, out string de, out string en) { return false; }
 	bool SaveAsBlocked(DZS_Instance inst, out string de, out string en) { return false; }
 	// No question about unsaved changes and no backup (the work lies elsewhere).
@@ -31,7 +31,7 @@ class DZS_SaveRules : Managed
 	void Saving(DZS_Instance inst) {}
 }
 
-// Auswahl-Filter: objects others hold cannot be selected; their frames and the pointer hint name the holder.
+// Selection filter: objects others hold cannot be selected; their frames and the pointer hint name the holder.
 class DZS_SelectGuard : Managed
 {
 	protected static ref DZS_SelectGuard s_Guard;
@@ -69,7 +69,7 @@ class DZS_SelectGuard : Managed
 }
 
 // Controls off while a change has to wait: the kernel asks the guard once per frame about the
-// selection; every action, field and object-toolbar knob registered as "ändert die Auswahl" is off with this reason.
+// selection; every action, field and object-toolbar knob registered as "changes the selection" is off with this reason.
 class DZS_ChangeWait
 {
 	protected static string s_Reason;
@@ -94,7 +94,7 @@ class DZS_ChangeWait
 	static string Reason() { return s_Reason; }
 }
 
-// Änderungs-Freigabe while nothing may change (connection lost): actions and local operations off with a reason.
+// Change gate while nothing may change (connection lost): actions and local operations off with a reason.
 class DZS_EditGate : Managed
 {
 	protected static ref DZS_EditGate s_Gate;
@@ -119,7 +119,7 @@ class DZS_EditGate : Managed
 
 	bool ActionBlocked(string actionId, out string de, out string en) { return false; }
 	bool ViewOnly(DZS_Instance inst, out string de, out string en) { return false; }
-	// Größe eines Schritts: > 0 = the text form of a new step is measured before it happens, and a larger one is
+	// Step size: > 0 = the text form of a new step is measured before it happens, and a larger one is
 	// refused (the gate says why to the user).
 	int MaxStepBytes(DZS_Instance inst) { return 0; }
 	void StepRefused(DZS_Instance inst, int bytes, int limit) {}
@@ -149,7 +149,7 @@ class DZS_LiveFeed : Managed
 	void OnEnd(bool commit) {}
 }
 
-// Knobs of plugins in the top bar of the main menu, left of "Einstellungen"; a click
+// Knobs of plugins in the top bar of the main menu, left of "Settings"; a click
 // triggers the action.
 class DZS_HomeButton : Managed
 {
@@ -369,7 +369,7 @@ class DZS_SyncServers
 	}
 }
 
-// Targets of "Speichern unter" besides "Lokal": the sync plugin names its
+// Targets of "Save as" besides "Local": the sync plugin names its
 // servers and takes the save to one of them.
 class DZS_SaveTarget : Managed
 {

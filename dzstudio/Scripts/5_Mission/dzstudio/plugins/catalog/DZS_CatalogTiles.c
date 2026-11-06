@@ -1,5 +1,5 @@
 // Local entities of classes, made like the game's own item preview (at 0 0 0, no physics, no simulation), a few
-// per frame: they give the size of a model (Maße). The game draws its 3D preview widget only as a top-level
+// per frame: they give the size of a model (dimensions). The game draws its 3D preview widget only as a top-level
 // widget and then under every surface of the editor, so tiles show the placeholder instead (see the build plan).
 class DZS_CatPreviews : Managed
 {

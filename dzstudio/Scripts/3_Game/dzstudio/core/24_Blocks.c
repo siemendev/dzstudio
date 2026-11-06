@@ -201,7 +201,7 @@ class DZS_Border : Managed
 	}
 }
 
-// One line of text with key caps: "Freie Sicht — [SPACE] zum Beenden". [..] holds a binding by position
+// One line of text with key caps: "Free view — [SPACE] to end". [..] holds a binding by position
 // ("SPACE", "Ctrl+C") and is drawn as caps of the UI language.
 class DZS_RichLine : Managed
 {
@@ -609,7 +609,7 @@ class DZS_NumberField : DZS_StatusItem
 		m_Grip.m_Hit.SetTip(tip);
 	}
 
-	// Ghost knob "Pfeil zurück" at the right end; its place stays free while it is hidden.
+	// Ghost knob "arrow back" at the right end; its place stays free while it is hidden.
 	void EnableReset(string tip)
 	{
 		if (m_Reset || !m_Frame)

@@ -1,5 +1,5 @@
 // Vanilla state from Bohemia's DayZ-Central-Economy repository (build plan, answers to section 9 (1)): only on
-// "Vanilla-Stand holen …", fetched with the game's RestApi (GET; the whole answer arrives as one string, 1.2 MB in
+// "Fetch vanilla state …", fetched with the game's RestApi (GET; the whole answer arrives as one string, 1.2 MB in
 // 0.2 s on the test PC; FILE() wrote empty files in DayZ 1.30) and written to $profile:dzstudio\vanilla\<map>\
 // with a small companion file (date, source). Not part of the project.
 class DZS_LootVanillaCall : RestCallback
@@ -9,12 +9,12 @@ class DZS_LootVanillaCall : RestCallback
 
 	override void OnError(int errorCode)
 	{
-		m_V.Done(m_File, false, "Fehler " + errorCode, 0);
+		m_V.Done(m_File, false, "error " + errorCode, 0);
 	}
 
 	override void OnTimeout()
 	{
-		m_V.Done(m_File, false, "Zeitüberschreitung", 0);
+		m_V.Done(m_File, false, "timeout", 0);
 	}
 
 	override void OnSuccess(string data, int dataSize)
@@ -24,7 +24,7 @@ class DZS_LootVanillaCall : RestCallback
 
 	override void OnFileCreated(string fileName, int dataSize)
 	{
-		m_V.Done(m_File, false, "Datei nicht angelegt", dataSize);
+		m_V.Done(m_File, false, "file not created", dataSize);
 	}
 
 }
@@ -34,6 +34,7 @@ class DZS_LootVanilla : Managed
 	static const string HOST = "https://raw.githubusercontent.com/";
 	static const string REPO = "BohemiaInteractive/DayZ-Central-Economy/master/";
 	static const string SOURCE = "https://github.com/BohemiaInteractive/DayZ-Central-Economy";
+	static const string SOURCE_FILE = "source.json";
 
 	string m_Map;
 	ref array<string> m_Files = new array<string>();
@@ -102,7 +103,7 @@ class DZS_LootVanilla : Managed
 
 	protected static bool Complete(string dir)
 	{
-		return FileExist(dir + "\\" + DZS_LootFiles.PROTO) && ValidSource(dir + "\\quelle.json");
+		return FileExist(dir + "\\" + DZS_LootFiles.PROTO) && ValidSource(dir + "\\" + SOURCE_FILE);
 	}
 
 	static string NewPathOf(string mapKey, string file)
@@ -119,7 +120,7 @@ class DZS_LootVanilla : Managed
 	static bool Have(string mapKey)
 	{
 		string a = PathOf(mapKey, DZS_LootFiles.PROTO);
-		string b = PathOf(mapKey, "quelle.json");
+		string b = PathOf(mapKey, SOURCE_FILE);
 		return FileExist(a) && ValidSource(b);
 	}
 
@@ -171,7 +172,7 @@ class DZS_LootVanilla : Managed
 		}
 		string why = "";
 		if (!ok)
-			why = "Antwort unvollständig (" + len + " von " + size + " Byte)";
+			why = "answer incomplete (" + len + " of " + size + " bytes)";
 		Done(file, ok, why, size);
 	}
 
@@ -188,7 +189,7 @@ class DZS_LootVanilla : Managed
 			if (have < 100 || (size > 0 && have != size))
 			{
 				ok = false;
-				why = "Datei unvollständig (" + have + " von " + size + " Byte)";
+				why = "file incomplete (" + have + " of " + size + " bytes)";
 			}
 		}
 		DZS_Log.Info("loot: vanilla " + file + " ok " + DZS_Str.Bool(ok) + " size " + size + " on disk " + have + " after " + secs + " s " + why);
@@ -231,7 +232,7 @@ class DZS_LootVanilla : Managed
 		}
 		text += "    ],\n    \"fetchedAt\": \"" + at + "\"\n}\n";
 		array<string> chunks = DZS_Files.Chunk(text);
-		DZS_Files.Write(NewPathOf(m_Map, "quelle.json"), chunks);
+		DZS_Files.Write(NewPathOf(m_Map, SOURCE_FILE), chunks);
 	}
 
 	// Source of a fetched vanilla state: version (1), source (addresses), fetchedAt (UTC, ISO 8601).
@@ -268,7 +269,7 @@ class DZS_LootVanilla : Managed
 	// "YYYY-MM-DD hh:mm" of fetchedAt (UTC), "" without a valid companion file
 	static string FetchedDate(string mapKey)
 	{
-		DZS_SrcNode root = Source(PathOf(mapKey, "quelle.json"));
+		DZS_SrcNode root = Source(PathOf(mapKey, SOURCE_FILE));
 		if (!root)
 			return "";
 		DZS_SrcNode at = root.Get("fetchedAt");

@@ -13,9 +13,9 @@ class DZS_DzbotCatEntry : Managed
 class DZS_DzbotCatalog : DZS_ImageSource
 {
 	static const string DIR = "$profile:dzstudio\\dzbot";
-	static const string DATA = "$profile:dzstudio\\dzbot\\katalog.jsonl";
-	static const string REV = "$profile:dzstudio\\dzbot\\katalog-revision.txt";
-	static const string IMAGES = "$profile:dzstudio\\dzbot\\bilder";
+	static const string DATA = "$profile:dzstudio\\dzbot\\catalog.jsonl";
+	static const string REV = "$profile:dzstudio\\dzbot\\catalog-revision.txt";
+	static const string IMAGES = "$profile:dzstudio\\dzbot\\images";
 
 	DZS_DzbotPlugin m_P;
 	string m_Revision;

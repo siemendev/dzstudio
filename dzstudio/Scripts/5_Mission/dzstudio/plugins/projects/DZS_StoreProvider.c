@@ -1,10 +1,10 @@
-// Loot in a provider project: the provider keeps the Ausgangsstand
+// Loot in a provider project: the provider keeps the base state
 // and knows which entries and rows are the project's; the working state lies in the mirror folder as usual.
 class DZS_LootOrigin : Managed
 {
 	// rows of the project: "name" + "\n" + "pos", both as raw attribute text
 	ref map<string, bool> m_OwnRows = new map<string, bool>();
-	// entries of the project (type as in the file) and their text in the Ausgangsstand ("" = none there)
+	// entries of the project (type as in the file) and their text in the base state ("" = none there)
 	ref array<string> m_OwnTypes = new array<string>();
 	ref array<string> m_Origs = new array<string>();
 	// why loot cannot be switched on ("" = it can)
@@ -40,7 +40,7 @@ class DZS_StoreProvider : Managed
 
 	string Id() { return ""; }
 	bool Owns(string folder) { return false; }
-	// Meta text before map and groups, e.g. "dzbot-Platzierung".
+	// Meta text before map and groups, e.g. "dzbot placement".
 	string Label(string folder) { return ""; }
 	// Fetch the current state into the folder, then call DZS_ProjectsPlugin.Fetched.
 	void Fetch(string folder) {}
@@ -64,7 +64,7 @@ class DZS_StoreProvider : Managed
 	string RowsEmptyText() { return ""; }
 	void Rows(array<ref DZS_ProjectInfo> into) {}
 	string RowMeta(DZS_ProjectInfo p) { return ""; }
-	// Mark at the end of a row ("Sitzung"), and rows that cannot be opened with the reason.
+	// Mark at the end of a row ("Session"), and rows that cannot be opened with the reason.
 	string RowMark(DZS_ProjectInfo p) { return ""; }
 	bool RowOff(DZS_ProjectInfo p, out string de, out string en) { return false; }
 	// Renaming and deleting are not offered for this tab: the reason.

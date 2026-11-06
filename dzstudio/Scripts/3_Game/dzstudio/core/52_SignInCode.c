@@ -1,5 +1,5 @@
 // Content of a sign-in by code: the code large,
-// the address short, "Code kopieren" / "Link kopieren", the state line with block indicator and the browser hint.
+// the address short, "Copy code" / "Copy link", the state line with block indicator and the browser hint.
 class DZS_SignInCode : Managed
 {
 	protected TextWidget m_Lead;

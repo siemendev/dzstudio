@@ -213,7 +213,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 	protected float m_KeyPitch;
 	protected float m_KeyFactor;
 
-	// pick a target (Auf Höhe von, Gleich ausrichten)
+	// pick a target (Match height, Align alike)
 	protected string m_PickFor;
 
 	protected ref DZS_PlaceCanvas m_Canvas;
@@ -649,7 +649,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 			RemoveFromSelection(gone);
 	}
 
-	// Treffbar in the scene: drawn, not locked (itself or group).
+	// Hittable in the scene: drawn, not locked (itself or group).
 	protected bool Selectable(DZS_Instance inst, string id)
 	{
 		if (id == "" || !inst.Has(id))
@@ -1024,7 +1024,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		return list[i];
 	}
 
-	// "· Fläche 2/3" while not the first surface is chosen.
+	// "· surface 2/3" while not the first surface is chosen.
 	protected string SurfSuffix()
 	{
 		if (m_SurfLevel == 0 || m_SurfCount < 2)
@@ -1134,7 +1134,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 	bool HandFull() { return m_Hand != ""; }
 	bool HandTemplate() { return m_Hand.IndexOf("tpl:") == 0; }
 
-	// Auf der Karte platzieren: foot on the terrain only (no roofs), hand turns and height offset, no slope tilt.
+	// Place on the map: foot on the terrain only (no roofs), hand turns and height offset, no slope tilt.
 	bool PlaceOnGround(float x, float z)
 	{
 		DZS_Instance inst = m_Kernel.GetShown();
@@ -1350,7 +1350,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 			Release(inst, mx, my);
 	}
 
-	// Hits of the pointer ray on placed, selectable objects, front to back (Durchsteigen).
+	// Hits of the pointer ray on placed, selectable objects, front to back (click-through).
 	protected void UpdateHover(DZS_Instance inst, int mx, int my, bool inScene)
 	{
 		m_HandleHover = -1;
@@ -1575,7 +1575,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		return true;
 	}
 
-	// ---- moving a selection (Ziehen) ----
+	// ---- moving a selection (drag) ----
 
 	protected void Snapshot(DZS_Instance inst)
 	{
@@ -1607,7 +1607,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		return null;
 	}
 
-	// Leitobjekt for moving: the lead unless locked, then the last added free one.
+	// Lead object for moving: the lead unless locked, then the last added free one.
 	protected DZS_PlaceObj WorkLead()
 	{
 		DZS_PlaceObj l = WorkOf(m_Lead);
@@ -1933,7 +1933,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		}
 	}
 
-	// „Wird belegt …“: the step of a gesture on objects whose claim is still
+	// "Claiming …": the step of a gesture on objects whose claim is still
 	// unconfirmed waits; the result stays as a view until the claim comes or the objects fall out of the selection.
 	protected bool m_CommitWait;
 
@@ -2108,7 +2108,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		m_GestureKind = "";
 	}
 
-	// ---- Auswahl aufziehen ----
+	// ---- drag-select ----
 
 	bool BoxKindRect()
 	{
@@ -3363,7 +3363,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		m_PosSeen = null;
 	}
 
-	// ---- Doppelte aufräumen ----
+	// ---- Clean up duplicates ----
 
 	protected ref array<string> m_Surplus;
 	protected ref array<ref array<string>> m_Twins;
@@ -3627,7 +3627,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		m_Kernel.GetUi().Trigger(it.m_ActionId);
 	}
 
-	// Context menu of a map object: "Davon eins in die Hand" (Pipette), then what other plugins add (loot).
+	// Context menu of a map object: "Take one into the hand" (eyedropper), then what other plugins add (loot).
 	protected void OpenMapObjectMenu(Object o)
 	{
 		m_MenuMapObj = o;
@@ -3810,7 +3810,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		return order;
 	}
 
-	// force: -1 toggles, 0 clears the flag on all (Strg+L / Strg+H).
+	// force: -1 toggles, 0 clears the flag on all (Ctrl+L / Ctrl+H).
 	protected void ToggleFlags(DZS_Instance inst, string id, int force = -1)
 	{
 		bool locking = id == "placement.lock" || id == "placement.unlock";
@@ -3922,7 +3922,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		return ex;
 	}
 
-	// Fallen lassen: down without tilting until the first bottom touches the ground.
+	// Drop: down without tilting until the first bottom touches the ground.
 	protected void DropToGround(DZS_Instance inst)
 	{
 		array<ref DZS_PlaceObj> list = FreeSelection(inst);
@@ -4014,7 +4014,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		return b1 * vector.Dot(v, a1) + b2 * vector.Dot(v, a2) + b3 * vector.Dot(v, a3);
 	}
 
-	// An Oberfläche: tilt as a whole so that the lead's up axis stands on the plane through the ground below
+	// Settle on ground: tilt as a whole so that the lead's up axis stands on the plane through the ground below
 	// the four lower corners.
 	protected void ToSurface(DZS_Instance inst)
 	{
@@ -5271,7 +5271,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 	}
 
 	// Wheel in the hand: turn around the active axis (Shift fine); with Ctrl the height offset.
-	// ---- Versetzen ----
+	// ---- Offset ----
 
 	protected vector m_CarryRef;
 	protected float m_CarryTurn;

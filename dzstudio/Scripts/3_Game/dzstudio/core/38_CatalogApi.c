@@ -49,7 +49,7 @@ class DZS_CatalogApi : Managed
 	bool InCatalog(string name) { return false; }
 	// Name shown in the catalog (game name, list name or readable class name).
 	string ShownName(string name) { return name; }
-	// Whether another object of the catalog carries the same Spielname.
+	// Whether another object of the catalog carries the same game name.
 	bool NameShared(string name) { return false; }
 	// Symbol of the catalog category of a name (object tile without a picture).
 	string IconOf(string name) { return "package"; }
@@ -59,7 +59,7 @@ class DZS_CatalogApi : Managed
 	string GetHand() { return ""; }
 	void TakeInHand(string entry) {}
 	void DropHand() {}
-	// Placing counts for "Zuletzt benutzt" (from the hand, not duplicating, pasting or brushes).
+	// Placing counts for "Recently used" (from the hand, not duplicating, pasting or brushes).
 	void NoteUsed(string entry) {}
 
 	// ---- templates ----

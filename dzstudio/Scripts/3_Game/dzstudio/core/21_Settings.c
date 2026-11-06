@@ -42,14 +42,14 @@ class DZS_SettingTab : Managed
 	string Name() { return DZS_Texts.Pick(m_NameDe, m_NameEn); }
 }
 
-// $profile:dzstudio\einstellungen.json: only values that differ from their default, plus
+// $profile:dzstudio\settings.json: only values that differ from their default, plus
 // remembered values; unknown entries (plugin not loaded) stay untouched.
 class DZS_Settings : Managed
 {
 	static const string DIR = "$profile:dzstudio";
-	static const string FILE = "$profile:dzstudio\\einstellungen.json";
-	static const string FILE_NEW = "$profile:dzstudio\\einstellungen.neu.json";
-	static const string FILE_BROKEN = "$profile:dzstudio\\einstellungen.defekt.json";
+	static const string FILE = "$profile:dzstudio\\settings.json";
+	static const string FILE_NEW = "$profile:dzstudio\\settings.new.json";
+	static const string FILE_BROKEN = "$profile:dzstudio\\settings.broken.json";
 
 	protected ref DZS_Json m_Root;
 	protected ref map<string, ref DZS_Json> m_Defaults;
@@ -291,7 +291,7 @@ class DZS_Settings : Managed
 		return d;
 	}
 
-	// More switches in the same row (Gerade stellen with three switches).
+	// More switches in the same row (Straighten with three switches).
 	void AddRowToggle(string rowKey, string key, string nameDe, string nameEn, bool def)
 	{
 		DZS_SettingDef d = m_Defs.Get(rowKey);
@@ -495,7 +495,7 @@ class DZS_Settings : Managed
 			Flush();
 	}
 
-	// Written completely as .neu.json, copied over the old file, then the copy is removed.
+	// Written completely as .new.json, copied over the old file, then the copy is removed.
 	void Flush()
 	{
 		if (!m_Dirty)

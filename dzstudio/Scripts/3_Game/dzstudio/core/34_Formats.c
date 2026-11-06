@@ -24,7 +24,7 @@ class DZS_Issue : Managed
 	string m_En;
 	bool m_Blocking;
 	bool m_Confirmable;
-	// a fix the list offers as a knob (e.g. „Schreibweise korrigieren“)
+	// a fix the list offers as a knob (e.g. "Correct spelling")
 	ref DZS_IssueFix m_Fix;
 
 	int Rank()
@@ -130,7 +130,7 @@ class DZS_Issues : Managed
 		return r;
 	}
 
-	// "1 Fehler · 3 Warnungen · 2 Hinweise"
+	// "1 error · 3 warnings · 2 hints"
 	string Title()
 	{
 		array<string> parts = new array<string>();

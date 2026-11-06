@@ -1,5 +1,5 @@
-// "Gemeinsam bearbeiten": sessions on a server that speaks the collaboration protocol,
-// through the sync slot of the kernel. The plugin sits in the slot Abgleich; the server decides the
+// "Edit together": sessions on a server that speaks the collaboration protocol,
+// through the sync slot of the kernel. The plugin sits in the sync slot; the server decides the
 // order of operations, the locks and the colours.
 class DZS_CollabLink : DZS_CollabListener
 {
@@ -282,7 +282,7 @@ class DZS_CollabPlugin : DZS_Plugin
 			EndLocally("world");
 	}
 
-	// ---- servers and sign-in (Server und Anmeldung) ----
+	// ---- servers and sign-in ----
 
 	protected void LoadServers()
 	{
@@ -413,7 +413,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		return s && DefaultServer() == s;
 	}
 
-	// "Server entfernen": only entries added by hand; the token goes with it, no question.
+	// "Remove server": only entries added by hand; the token goes with it, no question.
 	void RemoveServer(DZS_CollabServer s)
 	{
 		if (!s || s.m_Fixed != "")
@@ -482,7 +482,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		n.Info("info", s);
 	}
 
-	// "Server hinzufügen …": the server is taken only if it speaks protocol version 1.
+	// "Add server …": the server is taken only if it speaks protocol version 1.
 	string m_AddUrl;
 	string m_AddResult;
 
@@ -643,7 +643,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		return s.m_Fixed != "" && s.m_State == "ok" && !s.m_AuthProvider;
 	}
 
-	// "Anmelden": the first way the server names that dzStudio speaks (code, else name).
+	// "Sign in": the first way the server names that dzStudio speaks (code, else name).
 	void SignIn(DZS_CollabServer s)
 	{
 		if (NoSignIn(s) || VersionStop(s))
@@ -890,7 +890,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		return true;
 	}
 
-	// Läuft schon eine Sitzung, steht „Gemeinsam bearbeiten …“ nicht da; an seiner Stelle stehen die Einträge der Sitzung.
+	// While a session runs, "Edit together …" is not shown; the session's entries stand in its place.
 	bool ActionListed(string id)
 	{
 		if (id == "collab.start")
@@ -952,7 +952,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		m_Kernel.GetScreen().ShowMessage(kind, tone, DZS_W.Literal(t), seconds);
 	}
 
-	// ---- starting a session of a local project (Sitzung starten) ----
+	// ---- starting a session of a local project ----
 
 	void StartLocal(DZS_CollabServer s)
 	{
@@ -1582,7 +1582,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		m_S.m_InFlightUnits.Clear();
 	}
 
-	// Unsent own changes (for „‹n› Änderungen gehen verloren“).
+	// Unsent own changes (for "‹n› changes will be lost").
 	int Unsent()
 	{
 		if (!m_S)
@@ -1992,7 +1992,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		}
 	}
 
-	// ---- locks (Belegung) ----
+	// ---- locks (claims) ----
 
 	static const int MAX_LOCKS = 20000;
 
@@ -2182,7 +2182,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		}
 	}
 
-	// ---- connection (Verbindung) ----
+	// ---- connection ----
 
 	protected void Down(float since = -1)
 	{
@@ -2214,7 +2214,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		}
 	}
 
-	// Zurückkehren: after 30 s or more, session/join with resume before anything collected goes out.
+	// Returning: after 30 s or more, session/join with resume before anything collected goes out.
 	protected void Resume()
 	{
 		if (!m_S || m_S.m_Resuming)
@@ -2281,7 +2281,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		Msg("success", "Verbindung wieder da", "Connection is back", 2);
 	}
 
-	// „Die Verbindung war zu lange weg“: the server does not have the connection any more.
+	// "The connection was gone too long": the server does not have the connection any more.
 	protected void TooLong()
 	{
 		if (!m_S || m_S.m_TooLong)
@@ -2294,7 +2294,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		d.Open();
 	}
 
-	// „Neu beitreten“ after „zu lange weg“: leave under the old participant, join anew.
+	// "Rejoin" after "gone too long": leave under the old participant, join anew.
 	void Rejoin()
 	{
 		if (!m_S)
@@ -2387,7 +2387,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		}
 	}
 
-	// „Als eigene Kopie speichern …“ out of a lost connection: leave the session, keep the own state (with the
+	// "Save as own copy …" out of a lost connection: leave the session, keep the own state (with the
 	// unsent changes) as a local project.
 	void OwnCopy()
 	{
@@ -2400,11 +2400,11 @@ class DZS_CollabPlugin : DZS_Plugin
 		EndCopy();
 	}
 
-	// ---- view only and claims (Belegung, Verbindung) ----
+	// ---- view only and claims (claims, connection) ----
 
 	bool IsLost() { return m_S && m_S.m_Lost; }
 
-	// Sehr große Schritte: at most maxChainOps × maxOpBytes (56 MB) in the text form; -dzsCollabMaxStep=BYTES for tests.
+	// Very large steps: at most maxChainOps × maxOpBytes (56 MB) in the text form; -dzsCollabMaxStep=BYTES for tests.
 	int MaxStep(DZS_Instance inst)
 	{
 		if (!m_S || inst != Shown())
@@ -2499,7 +2499,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		return "";
 	}
 
-	// Rückgängig und Wiederholen: claim every existing object the step changes first.
+	// Undo and redo: claim every existing object the step changes first.
 	protected bool m_StepClaim;
 	protected bool m_StepRedo;
 	protected int m_StepSeq;
@@ -2723,7 +2723,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		m_Net.Send("live", "live/put", body);
 	}
 
-	// Bei mehr als 100 Objekten als Ganzes: pivot = middle of the north/east/up box around the objects as the gesture
+	// More than 100 objects as a whole: pivot = middle of the north/east/up box around the objects as the gesture
 	// began (fixed for the gesture); false if the gesture does not move all of them alike.
 	protected string m_LivePivotFor;
 	protected vector m_LivePivot;
@@ -2968,7 +2968,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		m_Kernel.GetScreen().UnfoldPanel(PANEL);
 	}
 
-	// ---- session end, leave (Ende einer Sitzung, Verlassen) ----
+	// ---- session end, leave ----
 
 	protected void HandleGone(DZS_CollabReply r)
 	{
@@ -3079,7 +3079,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		pp.OpenSaveAsDialog();
 	}
 
-	// „Verwerfen“ (mit Rückfrage): Abbrechen and Esc lead back to the dialog it came from.
+	// "Discard" (with a question): Cancel and Esc lead back to the dialog it came from.
 	protected string m_EndTitle;
 
 	protected bool m_EndReopen;
@@ -3111,7 +3111,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		back.Open();
 	}
 
-	// „Neu beitreten“: with unsent changes first „‹n› Änderungen gehen verloren“.
+	// "Rejoin": with unsent changes first "‹n› changes will be lost".
 	void AskRejoin()
 	{
 		int n = Unsent();
@@ -3141,7 +3141,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		back.Open();
 	}
 
-	// „Neu öffnen“: the server's project again from its store (joins a running session or starts a new one).
+	// "Reopen": the server's project again from its store (joins a running session or starts a new one).
 	string m_ReopenFolder;
 
 	void Reopen()
@@ -3155,7 +3155,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		pp.RequestOpen(folder);
 	}
 
-	// Projekt › „Ungespeicherte Änderungen verwerfen …“ (server project, for those allowed to manage it).
+	// Project › "Discard unsaved changes …" (server project, for those allowed to manage it).
 	void AskDiscardHosted()
 	{
 		if (!m_S || !m_S.IsHosted() || !m_S.m_CanManage)
@@ -3265,7 +3265,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		pp.ShowHome(true);
 	}
 
-	// ---- joining (Beitreten) ----
+	// ---- joining ----
 
 	ref DZS_CollabJoinDialog m_JoinDialog;
 	string m_JoinHint;
@@ -3720,7 +3720,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		ContinueLeave();
 	}
 
-	// Verlassen: unsent own changes go out first (at most 10 s, knob „Verlässt …“), else the question.
+	// Leave: unsent own changes go out first (at most 10 s, knob "Leaving …"), else the question.
 	float m_LeaveWaitT = -1;
 
 	void LeaveSession()
@@ -3862,7 +3862,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		m_Slot = null;
 	}
 
-	// „Als eigene Kopie speichern …“ cannot fetch a missing loot text any more once the session is over.
+	// "Save as own copy …" cannot fetch a missing loot text any more once the session is over.
 	protected bool m_CopyNoLoot;
 
 	protected void EndLocally(string why)
@@ -3898,7 +3898,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		DZS_Log.Info("collab: session over (" + why + ")");
 	}
 
-	// ---- invite (Einladen) ----
+	// ---- invite ----
 
 	void OpenInvite()
 	{
@@ -3981,7 +3981,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		m_Net.Send("participant/remove", "participant/remove", body);
 	}
 
-	// ---- save rules (Speichern) ----
+	// ---- save rules ----
 
 	bool IsHostOf(DZS_Instance inst) { return m_S && m_S.m_Ready && m_S.IsHost() && inst == Shown(); }
 	bool IsGuestOf(DZS_Instance inst) { return m_S && m_S.IsGuest() && inst == Shown(); }
@@ -3995,7 +3995,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		return true;
 	}
 
-	// Server-Projekt: everyone shows the same count — the operations after the last save, whoever made them.
+	// Server project: everyone shows the same count — the operations after the last save, whoever made them.
 	protected bool HostedStatus(DZS_Instance inst, out string text, out string lamp)
 	{
 		lamp = "";
@@ -4269,7 +4269,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		m_Segment.SetLamp(lamp);
 	}
 
-	// Auf der Karte: every other participant as a mark at the place the list names; a ring without connection.
+	// On the map: every other participant as a mark at the place the list names; a ring without connection.
 	protected ref DZS_CollabMapOwner m_MapOwner;
 	protected string m_MarkSig;
 

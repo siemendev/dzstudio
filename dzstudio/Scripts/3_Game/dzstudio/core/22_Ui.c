@@ -101,7 +101,7 @@ class DZS_KeyGroup : Managed
 }
 
 // Receives action triggers; a plugin answers for the actions it registered.
-// A mode that takes over actions of other plugins while it runs (the loot editor: Entf deletes points, Strg+V does
+// A mode that takes over actions of other plugins while it runs (the loot editor: Del deletes points, Ctrl+V does
 // nothing); Claims decides which.
 class DZS_ActionOverride : Managed
 {
@@ -116,9 +116,9 @@ class DZS_ActionHandler : Managed
 	void OnAction(string actionId) {}
 	// Check mark in menus and "on" state of switches in the toolbar.
 	bool IsActionChecked(string actionId) { return false; }
-	// Optional text a menu tooltip shows instead of the name ("Rückgängig: Holzkiste verschieben").
+	// Optional text a menu tooltip shows instead of the name ("Undo: Move wooden crate").
 	string GetActionTip(string actionId) { return ""; }
-	// Optional name that follows the state ("Sperren" / "Entsperren"); "" = the registered name.
+	// Optional name that follows the state ("Lock" / "Unlock"); "" = the registered name.
 	string GetActionLabel(string actionId) { return ""; }
 	// false = the entry is left out of menus for now (not just greyed out).
 	bool IsActionListed(string actionId) { return true; }
@@ -275,7 +275,7 @@ class DZS_UiRegistry : Managed
 			a.m_Hold = true;
 	}
 
-	// The speed keys ("Schneller", "Langsamer"): never modifiers of a hold action.
+	// The speed keys ("Faster", "Slower"): never modifiers of a hold action.
 	void SetTempo(string id)
 	{
 		DZS_Action a = m_Actions.Get(id);
@@ -849,7 +849,7 @@ class DZS_UiRegistry : Managed
 		return false;
 	}
 
-	// The action changes the selected objects at once (Entf, H, L …): off while their change has to wait.
+	// The action changes the selected objects at once (Del, H, L …): off while their change has to wait.
 	void SetChangesSelection(string id)
 	{
 		DZS_Action a = m_Actions.Get(id);

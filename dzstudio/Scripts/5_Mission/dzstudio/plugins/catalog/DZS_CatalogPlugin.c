@@ -93,7 +93,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 	protected ref DZS_CatalogEsc m_EscHand;
 	protected ref DZS_CatalogEsc m_EscFull;
 	DZS_CatEntry m_Hand;
-	string m_Cat = "alle";
+	string m_Cat = "all";
 	protected string m_Query = "";
 	protected ref DZS_CatResult m_List;
 	protected bool m_Dirty = true;
@@ -252,7 +252,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 	array<DZS_CatEntry> Scope(string cat)
 	{
 		array<DZS_CatEntry> r = new array<DZS_CatEntry>();
-		if (cat == "zuletzt")
+		if (cat == "recent")
 		{
 			foreach (string k : m_Recent)
 			{
@@ -264,7 +264,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 		}
 		foreach (DZS_CatEntry e : m_Store.m_All)
 		{
-			if (cat == "alle" || (cat == "favoriten" && m_Favs.Contains(e.m_Low)) || e.m_Cat == cat)
+			if (cat == "all" || (cat == "favorites" && m_Favs.Contains(e.m_Low)) || e.m_Cat == cat)
 				r.Insert(e);
 		}
 		return r;
@@ -273,7 +273,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 	protected void Recompute()
 	{
 		int t0 = TickCount(0);
-		m_List = m_Store.Search(m_Query, Scope(m_Cat), m_Cat == "zuletzt");
+		m_List = m_Store.Search(m_Query, Scope(m_Cat), m_Cat == "recent");
 		m_LastSearchMs = (TickCount(0) - t0) / 10000.0;
 		m_Dirty = false;
 		DZS_Log.Info("catalog: search '" + m_Query + "' in " + m_Cat + ": " + m_List.m_Items.Count() + " hit(s) in " + m_LastSearchMs + " ms");
@@ -305,7 +305,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 			loading = true;
 			return;
 		}
-		if (m_Cat == "favoriten" && m_Query == "")
+		if (m_Cat == "favorites" && m_Query == "")
 		{
 			icon = "star";
 			title = DZS_Texts.Get("catalog.nofav.title");
@@ -316,21 +316,21 @@ class DZS_CatalogPlugin : DZS_Plugin
 		title = DZS_Texts.Get("catalog.none.title");
 		text = DZS_Texts.Fmt("catalog.none.text", m_Query);
 		b1 = DZS_Texts.Get("catalog.none.clear");
-		if (m_Cat != "alle")
+		if (m_Cat != "all")
 			b2 = DZS_Texts.Get("catalog.none.all");
 	}
 
 	array<string> ChipKeys()
 	{
-		array<string> r = {"alle", "favoriten", "gebaeude", "militaer", "mauern", "einrichtung", "wracks", "gegenstaende", "licht", "pflanzen", "felsen", "sonstiges"};
+		array<string> r = {"all", "favorites", "buildings", "military", "walls", "furniture", "wrecks", "items", "lights", "plants", "rocks", "other"};
 		if (m_Store.m_Templates.Count() > 0)
-			r.Insert("vorlagen");
+			r.Insert("templates");
 		return r;
 	}
 
 	static array<string> Categories()
 	{
-		array<string> r = {"gebaeude", "militaer", "mauern", "einrichtung", "wracks", "gegenstaende", "licht", "pflanzen", "felsen", "sonstiges", "vorlagen"};
+		array<string> r = {"buildings", "military", "walls", "furniture", "wrecks", "items", "lights", "plants", "rocks", "other", "templates"};
 		return r;
 	}
 
@@ -341,16 +341,16 @@ class DZS_CatalogPlugin : DZS_Plugin
 
 	static string CategoryIcon(string key)
 	{
-		if (key == "gebaeude") return "house";
-		if (key == "militaer") return "shield";
-		if (key == "mauern") return "brick-wall";
-		if (key == "einrichtung") return "armchair";
-		if (key == "wracks") return "car";
-		if (key == "gegenstaende") return "package";
-		if (key == "licht") return "lamp";
-		if (key == "pflanzen") return "tree-pine";
-		if (key == "felsen") return "mountain";
-		if (key == "vorlagen") return "layout-template";
+		if (key == "buildings") return "house";
+		if (key == "military") return "shield";
+		if (key == "walls") return "brick-wall";
+		if (key == "furniture") return "armchair";
+		if (key == "wrecks") return "car";
+		if (key == "items") return "package";
+		if (key == "lights") return "lamp";
+		if (key == "plants") return "tree-pine";
+		if (key == "rocks") return "mountain";
+		if (key == "templates") return "layout-template";
 		return "shapes";
 	}
 
@@ -447,7 +447,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 		while (m_Recent.Count() > RECENT_MAX)
 			m_Recent.Remove(m_Recent.Count() - 1);
 		SaveRecent();
-		if (m_Cat == "zuletzt")
+		if (m_Cat == "recent")
 			m_Dirty = true;
 	}
 
@@ -525,7 +525,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 			m_Kernel.GetScreen().SetHint("catalog", 10, "");
 	}
 
-	// ↓/Bild↓ and ↑/Bild↑ with an entry in the hand.
+	// ↓/PgDn and ↑/PgUp with an entry in the hand.
 	void StepHand(int dir)
 	{
 		array<DZS_CatEntry> list = ListItems();
@@ -678,7 +678,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 		return it;
 	}
 
-	// Als Vorlage speichern: the selected objects as the project holds them.
+	// Save as template: the selected objects as the project holds them.
 	protected void SaveSelectionAsTemplate()
 	{
 		DZS_SelectionApi sel = DZS_SelectionApi.Get();
@@ -870,20 +870,20 @@ class DZS_CatalogPlugin : DZS_Plugin
 		DZS_Texts.Add("catalog.inHand", "in der Hand", "in hand");
 		DZS_Texts.Add("catalog.fav.tip", "Favorit", "Favourite");
 		DZS_Texts.Add("catalog.swap.noTemplate", "Austauschen geht nur mit einzelnen Objekten", "Swapping works with single objects only");
-		DZS_Texts.Add("catalog.cat.alle", "Alle", "All");
-		DZS_Texts.Add("catalog.cat.favoriten", "Favoriten", "Favourites");
-		DZS_Texts.Add("catalog.cat.zuletzt", "Zuletzt benutzt", "Recently used");
-		DZS_Texts.Add("catalog.cat.gebaeude", "Gebäude", "Buildings");
-		DZS_Texts.Add("catalog.cat.militaer", "Militär", "Military");
-		DZS_Texts.Add("catalog.cat.mauern", "Mauern und Zäune", "Walls and fences");
-		DZS_Texts.Add("catalog.cat.einrichtung", "Einrichtung", "Furnishing");
-		DZS_Texts.Add("catalog.cat.wracks", "Wracks und Trümmer", "Wrecks and debris");
-		DZS_Texts.Add("catalog.cat.gegenstaende", "Gegenstände", "Items");
-		DZS_Texts.Add("catalog.cat.licht", "Licht", "Light");
-		DZS_Texts.Add("catalog.cat.pflanzen", "Pflanzen", "Plants");
-		DZS_Texts.Add("catalog.cat.felsen", "Felsen", "Rocks");
-		DZS_Texts.Add("catalog.cat.sonstiges", "Sonstiges", "Other");
-		DZS_Texts.Add("catalog.cat.vorlagen", "Vorlagen", "Templates");
+		DZS_Texts.Add("catalog.cat.all", "Alle", "All");
+		DZS_Texts.Add("catalog.cat.favorites", "Favoriten", "Favourites");
+		DZS_Texts.Add("catalog.cat.recent", "Zuletzt benutzt", "Recently used");
+		DZS_Texts.Add("catalog.cat.buildings", "Gebäude", "Buildings");
+		DZS_Texts.Add("catalog.cat.military", "Militär", "Military");
+		DZS_Texts.Add("catalog.cat.walls", "Mauern und Zäune", "Walls and fences");
+		DZS_Texts.Add("catalog.cat.furniture", "Einrichtung", "Furnishing");
+		DZS_Texts.Add("catalog.cat.wrecks", "Wracks und Trümmer", "Wrecks and debris");
+		DZS_Texts.Add("catalog.cat.items", "Gegenstände", "Items");
+		DZS_Texts.Add("catalog.cat.lights", "Licht", "Light");
+		DZS_Texts.Add("catalog.cat.plants", "Pflanzen", "Plants");
+		DZS_Texts.Add("catalog.cat.rocks", "Felsen", "Rocks");
+		DZS_Texts.Add("catalog.cat.other", "Sonstiges", "Other");
+		DZS_Texts.Add("catalog.cat.templates", "Vorlagen", "Templates");
 		DZS_Texts.Add("catalog.objects", "%1 Objekte", "%1 objects");
 		DZS_Texts.Add("catalog.objects.one", "1 Objekt", "1 object");
 		DZS_Texts.Add("catalog.loading.title", "Katalog wird geladen …", "Loading catalogue …");

@@ -60,7 +60,7 @@ class DZS_CatFilterRow : DZS_HitListener
 	}
 }
 
-// Surface of the grid: the wheel rolls it, Strg + wheel changes the tile size.
+// Surface of the grid: the wheel rolls it, Ctrl + wheel changes the tile size.
 class DZS_CatGridHit : DZS_HitListener
 {
 	DZS_CatalogFull m_F;
@@ -115,7 +115,7 @@ class DZS_CatalogFull : Managed
 	protected ref array<TextWidget> m_FactLabels;
 	protected ref array<TextWidget> m_FactValues;
 	protected ref DZS_Button m_Place;
-	protected string m_Filter = "alle";
+	protected string m_Filter = "all";
 	protected ref DZS_CatResult m_All;
 	protected ref array<DZS_CatEntry> m_Shown;
 	protected ref map<string, int> m_Counts;
@@ -155,7 +155,7 @@ class DZS_CatalogFull : Managed
 		m_KindHead = DZS_W.Text(r, DZS_Font.LABEL, 10, DZS_Color.Get("textQuiet"));
 		m_KindHead.SetText(DZS_Texts.Upper(DZS_Texts.Get("catalog.full.kind")));
 		m_Filters = new array<ref DZS_CatFilterRow>();
-		array<string> keys = {"alle", "favoriten", "zuletzt"};
+		array<string> keys = {"all", "favorites", "recent"};
 		array<string> cats = DZS_CatalogPlugin.Categories();
 		foreach (string c : cats)
 			keys.Insert(c);
@@ -216,8 +216,8 @@ class DZS_CatalogFull : Managed
 		m_Text = text;
 		m_Edit.SetText(text);
 		m_Root.m_W.Show(true);
-		m_Filter = "alle";
-		if (m_P.m_Cat != "alle")
+		m_Filter = "all";
+		if (m_P.m_Cat != "all")
 			m_Filter = m_P.m_Cat;
 		m_Dirty = true;
 		m_Marked = null;
@@ -260,7 +260,7 @@ class DZS_CatalogFull : Managed
 
 	void OnEmptyAll(DZS_Button b)
 	{
-		SetFilter("alle");
+		SetFilter("all");
 	}
 
 	void Mark(DZS_CatEntry e)
@@ -275,7 +275,7 @@ class DZS_CatalogFull : Managed
 			PlaceEntry(m_Marked);
 	}
 
-	// Platzieren: in the hand, search closed, the text goes back to the bar.
+	// Place: in the hand, search closed, the text goes back to the bar.
 	void PlaceEntry(DZS_CatEntry e)
 	{
 		if (!e)
@@ -315,7 +315,7 @@ class DZS_CatalogFull : Managed
 		int t0 = TickCount(0);
 		m_All = m_P.m_Store.Search(m_Text, m_P.m_Store.m_All, false);
 		m_Counts.Clear();
-		m_Counts.Set("alle", m_All.m_Items.Count());
+		m_Counts.Set("all", m_All.m_Items.Count());
 		int favs = 0;
 		map<DZS_CatEntry, bool> hit = new map<DZS_CatEntry, bool>();
 		foreach (DZS_CatEntry e : m_All.m_Items)
@@ -325,7 +325,7 @@ class DZS_CatalogFull : Managed
 			if (m_P.IsFavourite(e))
 				favs++;
 		}
-		m_Counts.Set("favoriten", favs);
+		m_Counts.Set("favorites", favs);
 		array<DZS_CatEntry> recent = m_P.RecentEntries(DZS_CatalogPlugin.RECENT_MAX);
 		array<DZS_CatEntry> recentHits = new array<DZS_CatEntry>();
 		foreach (DZS_CatEntry r : recent)
@@ -333,9 +333,9 @@ class DZS_CatalogFull : Managed
 			if (hit.Contains(r))
 				recentHits.Insert(r);
 		}
-		m_Counts.Set("zuletzt", recentHits.Count());
+		m_Counts.Set("recent", recentHits.Count());
 		m_Shown.Clear();
-		if (m_Filter == "zuletzt")
+		if (m_Filter == "recent")
 		{
 			foreach (DZS_CatEntry rh : recentHits)
 				m_Shown.Insert(rh);
@@ -344,7 +344,7 @@ class DZS_CatalogFull : Managed
 		{
 			foreach (DZS_CatEntry a : m_All.m_Items)
 			{
-				if (m_Filter == "alle" || (m_Filter == "favoriten" && m_P.IsFavourite(a)) || a.m_Cat == m_Filter)
+				if (m_Filter == "all" || (m_Filter == "favorites" && m_P.IsFavourite(a)) || a.m_Cat == m_Filter)
 					m_Shown.Insert(a);
 			}
 		}
@@ -451,7 +451,7 @@ class DZS_CatalogFull : Managed
 		DZS_W.Place(m_Bg, 0, 0, sw, h);
 		DZS_W.Place(m_Bg2, 0, 0, sw, h);
 		float pad = DZS_Scale.Px(16);
-		// top line: big field, hits, "Esc schließen"
+		// top line: big field, hits, "Esc close"
 		float fh = DZS_Scale.Px(40);
 		float fw = Math.Min(sw * 0.5, DZS_Scale.Px(720));
 		DZS_W.Place(m_FieldBg, pad, pad, fw, fh);
@@ -482,7 +482,7 @@ class DZS_CatalogFull : Managed
 				DZS_W.Place(m_KindHead, fx, y, fwid, DZS_Scale.Px(18));
 				y += DZS_Scale.Px(22);
 			}
-			bool show = fr.m_Key != "vorlagen" || hasTemplates;
+			bool show = fr.m_Key != "templates" || hasTemplates;
 			fr.Show(show);
 			if (!show)
 				continue;
@@ -529,7 +529,7 @@ class DZS_CatalogFull : Managed
 				text = DZS_Texts.Get("catalog.loading.text");
 				loading = true;
 			}
-			else if (m_Filter == "favoriten" && m_Text == "")
+			else if (m_Filter == "favorites" && m_Text == "")
 			{
 				icon = "star";
 				title = DZS_Texts.Get("catalog.nofav.title");
@@ -541,7 +541,7 @@ class DZS_CatalogFull : Managed
 				title = DZS_Texts.Get("catalog.none.title");
 				text = DZS_Texts.Fmt("catalog.none.text", m_Text);
 				b1 = DZS_Texts.Get("catalog.none.clear");
-				if (m_Filter != "alle")
+				if (m_Filter != "all")
 					b2 = DZS_Texts.Get("catalog.none.all");
 			}
 			m_Empty.Set(icon, title, text, b1, b2, loading);
@@ -735,7 +735,7 @@ class DZS_CatalogFull : Managed
 		}
 		else
 		{
-			if (e.m_Cat == "licht")
+			if (e.m_Cat == "lights")
 				values.Insert(DZS_Texts.Get("catalog.fact.light"));
 			else
 				values.Insert(DZS_Texts.Get("catalog.fact.spawns"));

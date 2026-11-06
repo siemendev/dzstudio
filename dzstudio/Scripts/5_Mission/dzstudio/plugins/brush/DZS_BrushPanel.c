@@ -1,4 +1,4 @@
-// Brush section: Setzen · Radieren, set drop-down, kinds, radius and density, Untergrund.
+// Brush section: paint · erase, set drop-down, kinds, radius and density, surface.
 class DZS_BrushPanel : DZS_PanelContent
 {
 	DZS_BrushPlugin m_P;

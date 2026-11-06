@@ -1,4 +1,4 @@
-// The Objekt-Kachel on the Musterseite: row, small and card, each normal, in the hand, marked; a template with missing objects.
+// The object tile on the sample sheet: row, small and card, each normal, in the hand, marked; a template with missing objects.
 class DZS_CatSheetOwner : DZS_CatTileOwner {}
 
 class DZS_CatSheetPart : DZS_SheetPart
@@ -23,7 +23,7 @@ class DZS_CatSheetPart : DZS_SheetPart
 		m_Tpl = new DZS_CatEntry();
 		m_Tpl.m_Key = "tpl:sheet";
 		m_Tpl.m_Low = "tpl:sheet";
-		m_Tpl.m_Cat = "vorlagen";
+		m_Tpl.m_Cat = "templates";
 		m_Tpl.m_Name = DZS_Texts.Pick("Lager am Fluss", "Camp by the river");
 		m_Tpl.m_IsTemplate = true;
 		m_Tpl.m_TplCount = 12;

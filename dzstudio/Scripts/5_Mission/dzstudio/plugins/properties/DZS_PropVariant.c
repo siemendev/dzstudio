@@ -1,4 +1,4 @@
-// The variant row: "Flagge" at flag poles, "Trigger-Kennung" at the silo parts.
+// The variant row: "Flag" at flag poles, "Trigger id" at the silo parts.
 // In the properties part a change is an operation at once; in "Details …" it only changes the dialog's value.
 class DZS_PropVariantRow : Managed
 {
@@ -340,7 +340,7 @@ class DZS_PropVariantRow : Managed
 		d.Open();
 	}
 
-	// From the flag dialog: the flag's class name (or "" for "Keine Flagge") replaces the whole text.
+	// From the flag dialog: the flag's class name (or "" for "No flag") replaces the whole text.
 	void ChooseFlag(string flag)
 	{
 		DZS_Log.Info("properties: flag chosen '" + flag + "'");
@@ -354,7 +354,7 @@ class DZS_PropVariantRow : Managed
 	}
 }
 
-// "Flagge wählen": search field and tiles, "Keine Flagge" first.
+// "Choose flag": search field and tiles, "No flag" first.
 class DZS_FlagDialog : DZS_Dialog
 {
 	protected DZS_PropVariantRow m_Row;

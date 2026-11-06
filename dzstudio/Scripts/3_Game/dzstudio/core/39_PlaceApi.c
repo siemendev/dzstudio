@@ -68,19 +68,19 @@ class DZS_SelectionApi : Managed
 	// The group new objects go into.
 	string GetActiveGroup() { return ""; }
 	void SetActiveGroup(string groupId) {}
-	// Esc stage "Objekt wählen" (Ausrichten, Austauschen) and the swap state of the catalog.
+	// Esc stage "Pick object" (align, swap) and the swap state of the catalog.
 	bool IsSwapping() { return false; }
 	void SwapTo(string name) {}
-	// Starts "Austauschen" for the selection.
+	// Starts "Swap" for the selection.
 	void StartSwap() {}
 	// A knob in the object toolbar for an action of any plugin; order decides
-	// the place (bundled: 10 Gerade stellen … 80 Details …, plugins from 100). An action that is checked shows as on.
+	// the place (bundled: 10 Straighten … 80 Details …, plugins from 100). An action that is checked shows as on.
 	void AddBarButton(string actionId, string icon, string labelDe, string labelEn, int order, bool singleOnly = false) {}
 	// Height offset: foot point above the first surface below it.
 	bool MeasureHeightOffset(string id, out float offset) { return false; }
 	// Common bounding box (world axes) of the model boxes of these objects, as placing uses it.
 	bool GetBounds(array<string> ids, out vector boxMin, out vector boxMax) { return false; }
-	// Auf der Karte platzieren: whether an object is in the hand, and setting it on the terrain at a map point (with
+	// Place on the map: whether an object is in the hand, and setting it on the terrain at a map point (with
 	// the hand's turns and height offset; Shift keeps the series as in the scene).
 	bool HasHand() { return false; }
 	bool HandIsTemplate() { return false; }

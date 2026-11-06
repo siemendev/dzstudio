@@ -156,7 +156,7 @@ class DZS_SrcDoc : Managed
 
 	string ErrorText()
 	{
-		return m_Error + " (Zeile " + m_Line + ", Spalte " + m_Col + ")";
+		return m_Error + " (line " + m_Line + ", column " + m_Col + ")";
 	}
 }
 
@@ -215,7 +215,7 @@ class DZS_SrcJson
 		{
 			SkipWs();
 			if (!AtEnd())
-				Fail("Zeichen nach dem Ende");
+				Fail("characters after the end");
 		}
 		if (m_Error != "")
 		{
@@ -352,13 +352,13 @@ class DZS_SrcJson
 	{
 		if (depth > 200)
 		{
-			Fail("zu tief verschachtelt");
+			Fail("nested too deeply");
 			return null;
 		}
 		SkipWs();
 		if (AtEnd())
 		{
-			Fail("unerwartetes Dateiende");
+			Fail("unexpected end of file");
 			return null;
 		}
 		DZS_SrcNode n = new DZS_SrcNode();
@@ -382,7 +382,7 @@ class DZS_SrcJson
 				SkipWs();
 				if (Byte() != 34)
 				{
-					Fail("Feldname erwartet");
+					Fail("field name expected");
 					return null;
 				}
 				int keyStart = m_Offset;
@@ -393,7 +393,7 @@ class DZS_SrcJson
 				SkipWs();
 				if (Byte() != 58)
 				{
-					Fail("„:“ erwartet");
+					Fail("\":\" expected");
 					return null;
 				}
 				Skip(1);
@@ -416,7 +416,7 @@ class DZS_SrcJson
 					Skip(1);
 					break;
 				}
-				Fail("„,“ oder „}“ erwartet");
+				Fail("\",\" or \"}\" expected");
 				return null;
 			}
 			n.m_End = m_Offset;
@@ -452,7 +452,7 @@ class DZS_SrcJson
 					Skip(1);
 					break;
 				}
-				Fail("„,“ oder „]“ erwartet");
+				Fail("\",\" or \"]\" expected");
 				return null;
 			}
 			n.m_End = m_Offset;
@@ -490,7 +490,7 @@ class DZS_SrcJson
 				n.m_Type = DZS_SrcNode.NUL;
 			else
 			{
-				Fail("unbekanntes Wort „" + word + "“");
+				Fail("unknown word \"" + word + "\"");
 				return null;
 			}
 			n.m_End = m_Offset;
@@ -506,7 +506,7 @@ class DZS_SrcJson
 			n.m_End = m_Offset;
 			return n;
 		}
-		Fail("unerwartetes Zeichen");
+		Fail("unexpected character");
 		return null;
 	}
 
@@ -540,13 +540,13 @@ class DZS_SrcJson
 			int nb = Byte();
 			if (nb >= 48 && nb <= 57)
 			{
-				Fail("führende Null");
+				Fail("leading zero");
 				return false;
 			}
 		}
 		else if (!Digits(s))
 		{
-			Fail("Zahl erwartet");
+			Fail("number expected");
 			return false;
 		}
 		if (Byte() == 46)
@@ -555,7 +555,7 @@ class DZS_SrcJson
 			Skip(1);
 			if (!Digits(s))
 			{
-				Fail("Ziffer nach „.“ erwartet");
+				Fail("digit expected after \".\"");
 				return false;
 			}
 		}
@@ -572,14 +572,14 @@ class DZS_SrcJson
 			}
 			if (!Digits(s))
 			{
-				Fail("Ziffer im Exponenten erwartet");
+				Fail("digit expected in the exponent");
 				return false;
 			}
 		}
 		int after = Byte();
 		if ((after >= 97 && after <= 122) || (after >= 65 && after <= 90))
 		{
-			Fail("ungültige Zahl");
+			Fail("invalid number");
 			return false;
 		}
 		return true;
@@ -600,7 +600,7 @@ class DZS_SrcJson
 				d = b - 55;
 			if (d < 0)
 			{
-				Fail("ungültige \\u-Folge");
+				Fail("invalid \\u sequence");
 				return -1;
 			}
 			v = v * 16 + d;
@@ -618,7 +618,7 @@ class DZS_SrcJson
 		{
 			if (AtEnd())
 			{
-				Fail("Text ohne Ende");
+				Fail("unterminated string");
 				return false;
 			}
 			int start = m_Pos;
@@ -650,7 +650,7 @@ class DZS_SrcJson
 			}
 			if (stop < 32)
 			{
-				Fail("Steuerzeichen im Text");
+				Fail("control character in a string");
 				return false;
 			}
 			Skip(1);
@@ -689,7 +689,7 @@ class DZS_SrcJson
 			}
 			else
 			{
-				Fail("ungültige Escape-Folge");
+				Fail("invalid escape sequence");
 				return false;
 			}
 		}
@@ -792,12 +792,12 @@ class DZS_SrcJsonSteps : DZS_SrcJson
 		{
 			SkipWs();
 			if (!AtEnd())
-				Fail("Zeichen nach dem Ende");
+				Fail("characters after the end");
 		}
 		if (m_Error != "" || !root)
 		{
 			if (m_Error == "")
-				Fail("unerwartetes Dateiende");
+				Fail("unexpected end of file");
 			m_Doc.m_Error = m_Error;
 			m_Doc.m_Line = m_ErrLine;
 			m_Doc.m_Col = m_ErrCol;
@@ -827,7 +827,7 @@ class DZS_SrcJsonSteps : DZS_SrcJson
 		SkipWs();
 		if (AtEnd())
 		{
-			Fail("unerwartetes Dateiende");
+			Fail("unexpected end of file");
 			return false;
 		}
 		int b = Byte();
@@ -845,9 +845,9 @@ class DZS_SrcJsonSteps : DZS_SrcJson
 				return true;
 			}
 			if (n.IsObj())
-				Fail("„,“ oder „}“ erwartet");
+				Fail("\",\" or \"}\" expected");
 			else
-				Fail("„,“ oder „]“ erwartet");
+				Fail("\",\" or \"]\" expected");
 			return false;
 		}
 		if (state == 0 && ((n.IsObj() && b == 125) || (n.IsArr() && b == 93)))
@@ -862,7 +862,7 @@ class DZS_SrcJsonSteps : DZS_SrcJson
 		{
 			if (b != 34)
 			{
-				Fail("Feldname erwartet");
+				Fail("field name expected");
 				return false;
 			}
 			keyStart = m_Offset;
@@ -872,7 +872,7 @@ class DZS_SrcJsonSteps : DZS_SrcJson
 			SkipWs();
 			if (Byte() != 58)
 			{
-				Fail("„:“ erwartet");
+				Fail("\":\" expected");
 				return false;
 			}
 			Skip(1);

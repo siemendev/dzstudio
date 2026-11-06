@@ -40,7 +40,7 @@ is on its way.
 | Path | What |
 |---|---|
 | `dzstudio/` | The mod as it is packed into `@dzstudio`: `config.cpp`, `Scripts/`, `gui/`, `data/`, `licenses/` |
-| `tools/brush/` | The script that builds the shipped brush sets (`dzstudio/data/pinsel-sets.txt`) from the game's own model list |
+| `tools/brush/` | The script that builds the shipped brush sets (`dzstudio/data/brush-sets.txt`) from the game's own model list |
 
 ## Build it yourself
 

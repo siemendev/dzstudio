@@ -105,11 +105,11 @@ class DZS_TemplateNameDialog : DZS_Dialog
 	}
 }
 
-// Templates on disk: one file per template in $profile:dzstudio\vorlagen\,
+// Templates on disk: one file per template in $profile:dzstudio\templates\,
 // named by a random 16-character id; written to <id>.tmp first, then copied over and the .tmp deleted.
 class DZS_CatalogTemplates : Managed
 {
-	static const string DIR = "$profile:dzstudio\\vorlagen";
+	static const string DIR = "$profile:dzstudio\\templates";
 	static const int VERSION = 1;
 	static const int MAX_OBJECTS = 2000;
 

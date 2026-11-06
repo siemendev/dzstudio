@@ -1,9 +1,9 @@
 // Test items at loot points: the bundled test list (five classes per
 // category by nominal in the vanilla types.xml of Chernarus, made by editor/mod-tools/loot/build_testlist.py), the
-// dialog "Testgegenstand" with category chips, tiles and a class search.
+// dialog "Test item" with category chips, tiles and a class search.
 class DZS_LootTestList
 {
-	static const string IN_MOD = "dzstudio/data/testliste.txt";
+	static const string IN_MOD = "dzstudio/data/testlist.txt";
 	protected static ref array<string> s_Cats;
 	protected static ref map<string, ref array<string>> s_Classes;
 

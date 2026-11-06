@@ -5,7 +5,7 @@ class DZS_KindInfo : Managed
 	ref array<string> m_ParentKinds;
 }
 
-// Every operation type, element kind and companion type is named "plugin:typ" and carries a version.
+// Every operation type, element kind and companion type is named "plugin:type" and carries a version.
 class DZS_TypeRegistry : Managed
 {
 	protected ref map<string, int> m_OpTypes;

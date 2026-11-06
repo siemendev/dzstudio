@@ -202,7 +202,7 @@ class DZS_Sha256 : Managed
 		string e0 = OfText("");
 		string e1 = OfText("abc");
 		string e2 = OfText("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq");
-		string e3 = OfText("Größe ä über die Grenze");
+		string e3 = OfText("Size ä over the limit");
 		DZS_Log.Info("sha256 '' " + e0 + " ok " + Ok(e0, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
 		DZS_Log.Info("sha256 abc " + e1 + " ok " + Ok(e1, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"));
 		DZS_Log.Info("sha256 448 bits " + e2 + " ok " + Ok(e2, "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"));

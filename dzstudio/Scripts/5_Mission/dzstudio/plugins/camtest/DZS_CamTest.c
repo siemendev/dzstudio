@@ -301,7 +301,7 @@ class DZS_CamTest : DZS_Plugin
 			{
 				DZS_StatusText seg = new DZS_StatusText("camtest.seg" + j, DZS_Font.LABEL, 160);
 				m_Kernel.GetScreen().AddStatusLeft(seg);
-				seg.SetText("Test-Segment " + j + " mit einem recht langen Namen");
+				seg.SetText("Test segment " + j + " with a fairly long name");
 			}
 		}
 		else if (c == "group")

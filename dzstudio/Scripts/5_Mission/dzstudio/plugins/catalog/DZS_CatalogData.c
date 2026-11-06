@@ -2,10 +2,10 @@
 class DZS_CatEntry : Managed
 {
 	string m_Key;          // class name or model path as written into a file; "tpl:<id>" for templates
-	string m_Low;          // m_Key in lower case: favourites, recent and "steht im Katalog" use it
+	string m_Low;          // m_Key in lower case: favourites, recent and "in the catalog" use it
 	string m_Root;         // config root of a class, "" for model paths and templates
 	string m_Cat;          // category key
-	string m_Name;         // Spielname
+	string m_Name;         // game name
 	string m_BaseName;     // name without image sources
 	string m_Model;        // model path of the class (for loadability and the preview)
 	bool m_IsTemplate;
@@ -199,7 +199,7 @@ class DZS_CatTypo
 	}
 }
 
-// Result of one search: entries in order and, per entry, where the first search word hit the Spielname.
+// Result of one search: entries in order and, per entry, where the first search word hit the game name.
 class DZS_CatResult : Managed
 {
 	ref array<DZS_CatEntry> m_Items;
@@ -264,7 +264,7 @@ class DZS_CatSearch
 		return Level(e, q, null) < LEVEL_TYPO;
 	}
 
-	// Splits the search text into words to find and words to exclude ("-holz"); a lone "-" is skipped.
+	// Splits the search text into words to find and words to exclude ("-wood"); a lone "-" is skipped.
 	static void Parse(string text, array<string> want, array<string> skip)
 	{
 		array<string> parts = new array<string>();

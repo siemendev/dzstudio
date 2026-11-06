@@ -1,7 +1,7 @@
 // Loot editing at a building of the scene: banner, other objects
-// locked, point selection, setting, dragging, deleting and duplicating points, the section "Loot-Eintrag". Every
-// change is one operation "Loot ‹Typ› ändern" on the type's element; the first change of an entry "wie Vanilla"
-// asks first (Erster Eingriff). Entering, leaving, selecting points and the active container are view.
+// locked, point selection, setting, dragging, deleting and duplicating points, the section "Loot entry". Every
+// change is one operation "Change loot ‹type›" on the type's element; the first change of an entry "as vanilla"
+// asks first (first intervention). Entering, leaving, selecting points and the active container are view.
 class DZS_LootEsc : DZS_EscHandler
 {
 	DZS_LootEditor m_E;
@@ -781,7 +781,7 @@ class DZS_LootEditor : Managed
 		foreach (string k : keys)
 			m_Sel.Set(k, true);
 		m_Gen++;
-		DZS_Log.Info("loot: points selected " + m_Sel.Count() + " (Zeigen)");
+		DZS_Log.Info("loot: points selected " + m_Sel.Count() + " (Show)");
 	}
 
 	void SelectAllPoints()
@@ -819,7 +819,7 @@ class DZS_LootEditor : Managed
 
 	// ---- changes ----
 
-	// Commits a new entry: first change of an entry "wie Vanilla" asks (Erster Eingriff); selKeys select afterwards.
+	// Commits a new entry: first change of an entry "as vanilla" asks (first intervention); selKeys select afterwards.
 	void Change(DZS_LootEEntry e, string selKeys = "")
 	{
 		DZS_Instance inst = m_Kernel.GetShown();
@@ -1222,7 +1222,7 @@ class DZS_LootEditor : Managed
 		DZS_Log.Info("loot: rectangle " + x0 + "," + y0 + " - " + x1 + "," + y1 + ": " + n + " point(s), selected " + m_Sel.Count());
 	}
 
-	// Arrow keys and Bild↑/↓ move the selected points along the building's axes, Punkt/Komma change their radius;
+	// Arrow keys and PgUp/PgDn move the selected points along the building's axes, period/comma change their radius;
 	// one step until all are released.
 	protected void KeyGesture(float dt)
 	{

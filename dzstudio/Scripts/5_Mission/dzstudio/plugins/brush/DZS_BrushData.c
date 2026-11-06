@@ -22,8 +22,16 @@ class DZS_BrushSet : Managed
 
 	string Name() { return DZS_Texts.Pick(m_NameDe, m_NameEn); }
 
-	// Merkwert key: the German name stays the same in both languages; own sets by their file id.
+	// Remembered-value key: the English name stays the same in both languages; own sets by their file id.
 	string Key()
+	{
+		if (!m_Bundled)
+			return "own:" + m_Id;
+		return m_NameEn;
+	}
+
+	// Keys written before the rename: "eigen:<id>" and the German name of a bundled set.
+	string LegacyKey()
 	{
 		if (!m_Bundled)
 			return "eigen:" + m_Id;
@@ -99,8 +107,8 @@ class DZS_BrushSet : Managed
 // folder replaces it (test version for the acceptance checks).
 class DZS_BrushStore
 {
-	static const string IN_MOD = "dzstudio/data/pinsel-sets.txt";
-	static const string IN_PROFILE = "$profile:dzstudio\\pinsel-sets.txt";
+	static const string IN_MOD = "dzstudio/data/brush-sets.txt";
+	static const string IN_PROFILE = "$profile:dzstudio\\brush-sets.txt";
 
 	static array<ref DZS_BrushSet> LoadBundled()
 	{
@@ -153,11 +161,11 @@ class DZS_BrushStore
 	}
 }
 
-// Own sets: one file per set in $profile:dzstudio\pinsel\, named by a random
+// Own sets: one file per set in $profile:dzstudio\brushes\, named by a random
 // 16-character id; written to <id>.tmp, copied over and the .tmp deleted, like the templates.
 class DZS_BrushOwnStore
 {
-	static const string DIR = "$profile:dzstudio\\pinsel";
+	static const string DIR = "$profile:dzstudio\\brushes";
 	static const int VERSION = 1;
 	static const int MAX_ENTRIES = 50;
 

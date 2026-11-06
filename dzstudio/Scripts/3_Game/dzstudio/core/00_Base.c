@@ -83,7 +83,7 @@ class DZS_Str
 		return "false";
 	}
 
-	// Splits "plugin:typ" into plugin name; empty if malformed.
+	// Splits "plugin:type" into plugin name; empty if malformed.
 	static string PluginOfType(string typeName)
 	{
 		int i = typeName.IndexOf(":");

@@ -1,0 +1,40 @@
+# Gear of the walking character on Chernarus. One line per item: where, class name, count.
+# where: wear (clothing, helmet, backpack, vest), hand (weapon in the hands), shoulder (second weapon on the body),
+# attach (onto the last item that is not an attachment), load (magazine or ammunition into the last weapon),
+# backpack, vest, anywhere (where there is room). A file $profile:dzstudio\loadouts\<map>.txt takes precedence.
+
+wear	GorkaEJacket_Summer
+wear	GorkaPants_Summer
+wear	MilitaryBoots_Black
+wear	TacticalGloves_Green
+wear	GorkaHelmet
+wear	Headtorch_Black
+wear	SmershVest
+wear	AssaultBag_Green
+
+hand	M4A1
+attach	M4_RISHndgrd
+attach	M4_OEBttstck
+attach	M68Optic
+load	Mag_STANAG_30Rnd
+shoulder	M79
+load	Ammo_40mm_Explosive
+vest	Mag_STANAG_30Rnd	2
+vest	FNX45
+vest	Mag_FNX45_15Rnd	2
+vest	M67Grenade	2
+vest	M18SmokeGrenade_White	2
+vest	FlashGrenade
+vest	Grenade_ChemGas
+backpack	Ammo_40mm_Explosive	3
+backpack	Ammo_40mm_Smoke_White	3
+backpack	Flashlight
+attach	Battery9V
+backpack	Binoculars
+backpack	OrienteeringCompass
+backpack	Shovel
+backpack	Pliers
+backpack	Hatchet
+backpack	BakedBeansCan	2
+backpack	Canteen
+backpack	BandageDressing	3

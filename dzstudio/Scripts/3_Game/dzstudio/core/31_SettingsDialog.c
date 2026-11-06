@@ -1,5 +1,5 @@
 // The settings dialog: a large tool dialog with tabs; changes work
-// at once, Esc or "Schließen" keep everything.
+// at once, Esc or "Close" keep everything.
 class DZS_TabButton : DZS_HitListener
 {
 	ref DZS_Hit m_Hit;
@@ -55,7 +55,7 @@ class DZS_TabButton : DZS_HitListener
 	}
 }
 
-// One row: name and explanation left, the control directly after them, "Auf Standard" at the end.
+// One row: name and explanation left, the control directly after them, "Reset to default" at the end.
 class DZS_SettingRow : DZS_HitListener
 {
 	DZS_SettingDef m_Def;

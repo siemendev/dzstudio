@@ -1,6 +1,6 @@
 // Transport of the collaboration protocol: at most two requests at a
 // time, the one poll and one send channel that sends everything else in order. Every answer starts with
-// "dzcollab 1"; without it, or with JSON that does not parse, it counts as "Server nicht erreichbar".
+// "dzcollab 1"; without it, or with JSON that does not parse, it counts as "Server not reachable".
 class DZS_CollabReply : Managed
 {
 	bool m_Framed;
@@ -331,7 +331,7 @@ class DZS_CollabNet : Managed
 		return c;
 	}
 
-	// Sends the same request again (Wiederholen: unchanged, same request id), at the earliest after a pause.
+	// Sends the same request again (retry: unchanged, same request id), at the earliest after a pause.
 	void Repeat(DZS_CollabCall c, float after = 0)
 	{
 		c.m_Answered = false;
@@ -388,14 +388,14 @@ class DZS_CollabNet : Managed
 		int nl = data.IndexOf("\n");
 		if (nl < 0)
 		{
-			r.m_Fail = "keine Kennzeile";
+			r.m_Fail = "no status line";
 			return r;
 		}
 		string first = data.Substring(0, nl);
 		first.TrimInPlace();
 		if (first != MAGIC)
 		{
-			r.m_Fail = "keine Kennzeile";
+			r.m_Fail = "no status line";
 			return r;
 		}
 		array<string> pieces = new array<string>();

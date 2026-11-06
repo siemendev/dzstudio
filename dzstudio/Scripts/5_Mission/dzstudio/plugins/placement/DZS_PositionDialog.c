@@ -1,4 +1,4 @@
-// Position der Auswahl: X, Y, Z of the pivot, "Drehen um" and "Größe ×" for several objects.
+// Position of the selection: X, Y, Z of the pivot, "Rotate by" and "Scale ×" for several objects.
 class DZS_PositionDialog : DZS_Dialog
 {
 	protected DZS_PlacementPlugin m_P;
