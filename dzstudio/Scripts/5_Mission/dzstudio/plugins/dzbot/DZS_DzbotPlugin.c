@@ -741,7 +741,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		}
 		if (tag == "catalog.image")
 		{
-			m_Catalog.OnImage(r);
+			m_Catalog.OnImage(call, r);
 			return;
 		}
 		if (!r.m_Framed && r.m_Fail == "version")

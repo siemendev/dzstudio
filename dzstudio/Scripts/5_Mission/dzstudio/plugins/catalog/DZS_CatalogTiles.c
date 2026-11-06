@@ -105,6 +105,7 @@ class DZS_CatTile : DZS_HitListener
 	protected Widget m_ImgBg;
 	protected ImageWidget m_Photo;
 	protected ImageWidget m_Place;
+	protected ref array<Widget> m_Wait;
 	protected ImageWidget m_Warn;
 	protected TextWidget m_Name;
 	protected TextWidget m_Sub;
@@ -116,6 +117,7 @@ class DZS_CatTile : DZS_HitListener
 	bool m_Marked;
 	bool m_Fav;
 	bool m_Off;
+	bool m_Loading;
 	protected string m_PhotoPath;
 	protected int m_PressX;
 	protected int m_PressY;
@@ -139,6 +141,9 @@ class DZS_CatTile : DZS_HitListener
 		m_ImgBg = DZS_W.Panel(f, DZS_Color.Get("imageBg"));
 		m_Photo = DZS_W.Icon(f, "image", ARGB(255, 255, 255, 255));
 		m_Place = DZS_W.Icon(f, "package", DZS_Color.Get("textQuiet"));
+		m_Wait = new array<Widget>();
+		for (int i = 0; i < 4; i++)
+			m_Wait.Insert(DZS_W.Panel(f, DZS_Color.Get("blockEmpty")));
 		m_Warn = DZS_W.Icon(f, "triangle-alert", DZS_Color.Get("warning"));
 		if (form != "small")
 		{
@@ -255,6 +260,11 @@ class DZS_CatTile : DZS_HitListener
 		DZS_W.Place(m_Photo, ix, iy, iw, ih);
 		float ps = Math.Min(iw, ih) * 0.5;
 		DZS_W.Place(m_Place, ix + (iw - ps) / 2, iy + (ih - ps) / 2, ps, ps);
+		float bs = Math.Max(DZS_Scale.Px(3), Math.Round(m_ImgSize * 0.12));
+		float bg = Math.Max(DZS_Scale.Px(2), Math.Round(bs * 0.4));
+		float bx = ix + (iw - 4 * bs - 3 * bg) / 2;
+		for (int b = 0; b < m_Wait.Count(); b++)
+			DZS_W.Place(m_Wait[b], bx + b * (bs + bg), iy + (ih - bs) / 2, bs, bs);
 		float ws = DZS_Scale.Px(14);
 		DZS_W.Place(m_Warn, ix + iw - ws - DZS_Scale.Px(2), iy + DZS_Scale.Px(2), ws, ws);
 		if (m_Form == "small")
@@ -358,9 +368,22 @@ class DZS_CatTile : DZS_HitListener
 		}
 		m_Warn.Show(e.m_IsTemplate && e.m_TplMissing > 0);
 		bool photo = m_PhotoPath != "";
+		bool wait = !photo && m_Loading;
 		m_Photo.Show(photo);
-		m_Place.Show(!photo);
+		m_Place.Show(!photo && !wait);
 		DZS_W.SetIcon(m_Place, DZS_CatalogPlugin.CategoryIcon(e.m_Cat));
+		int lit = Math.Floor(GetGame().GetTickTime() / 0.2);
+		lit = lit % 4;
+		for (int b = 0; b < m_Wait.Count(); b++)
+		{
+			m_Wait[b].Show(wait);
+			if (!wait)
+				continue;
+			if (b == lit)
+				m_Wait[b].SetColor(DZS_Color.Get("accent"));
+			else
+				m_Wait[b].SetColor(DZS_Color.Get("lineStrong"));
+		}
 		if (m_Down)
 		{
 			int mx, my;

@@ -267,6 +267,113 @@ class DZS_CatEmpty : Managed
 	}
 }
 
+// Pictures on their way: "LOADING PICTURES 12 / 30" over a thin bar, a running segment while there is no
+// count yet; when the last one is in, the full bar stays a moment.
+class DZS_CatPhotoBar : Managed
+{
+	static const float HOLD = 0.8;
+
+	protected Widget m_Root;
+	protected TextWidget m_Label;
+	protected TextWidget m_Count;
+	protected Widget m_Track;
+	protected Widget m_TrackBg;
+	protected Widget m_Fill;
+	protected bool m_Busy;
+	protected bool m_Known;
+	protected float m_Share;
+	protected float m_Shown;
+	protected float m_Hold;
+	protected float m_T;
+	protected string m_CountText;
+
+	void DZS_CatPhotoBar(Widget parent)
+	{
+		m_Root = DZS_W.Frame(parent);
+		m_Label = DZS_W.Text(m_Root, DZS_Font.LABEL, 10, DZS_Color.Get("textMuted"));
+		m_Count = DZS_W.Text(m_Root, DZS_Font.LABEL, 10, DZS_Color.Get("textMuted"), false, true);
+		m_Track = DZS_W.Frame(m_Root);
+		m_Track.SetFlags(WidgetFlags.CLIPCHILDREN);
+		m_TrackBg = DZS_W.Panel(m_Track, DZS_Color.Get("blockEmpty"));
+		m_Fill = DZS_W.Panel(m_Track, DZS_Color.Get("accent"));
+		m_Root.Show(false);
+	}
+
+	// Takes the state of the catalog's image sources; true while the bar is to be shown.
+	bool Update(DZS_CatalogPlugin p, float dt)
+	{
+		int done, total;
+		bool busy = p.PhotoProgress(done, total);
+		m_T += dt;
+		if (busy)
+		{
+			m_Busy = true;
+			m_Known = total > 0;
+			m_Hold = HOLD;
+			if (m_Known)
+			{
+				m_Share = done;
+				m_Share = m_Share / total;
+				string sd = done.ToString();
+				string st = total.ToString();
+				m_CountText = DZS_Texts.Fmt("catalog.photos.count", sd, st);
+			}
+		}
+		else if (m_Busy)
+		{
+			m_Busy = false;
+			m_Share = 1;
+			m_CountText = "";
+		}
+		if (!m_Busy)
+		{
+			m_Hold -= dt;
+			if (m_Hold <= 0)
+			{
+				m_Shown = 0;
+				m_Root.Show(false);
+				return false;
+			}
+		}
+		if (m_Shown > m_Share)
+			m_Shown = m_Share;
+		m_Shown += (m_Share - m_Shown) * Math.Min(1, dt * 10);
+		string label = "catalog.photos.loading";
+		if (!m_Known)
+			label = "catalog.photos.list";
+		if (!m_Busy)
+			label = "catalog.photos.done";
+		m_Label.SetText(DZS_Texts.Upper(DZS_Texts.Get(label)));
+		m_Count.SetText(m_CountText);
+		m_Root.Show(true);
+		return true;
+	}
+
+	float Height() { return DZS_Scale.Px(30); }
+
+	void Place(float x, float y, float w)
+	{
+		float h = Height();
+		DZS_W.Place(m_Root, x, y, w, h);
+		float lh = DZS_Scale.Px(16);
+		DZS_W.Place(m_Label, 0, DZS_Scale.Px(4), w * 0.7, lh);
+		DZS_W.Place(m_Count, w * 0.4, DZS_Scale.Px(4), w * 0.6, lh);
+		float th = DZS_Scale.Px(3);
+		float ty = DZS_Scale.Px(4) + lh + DZS_Scale.Px(4);
+		DZS_W.Place(m_Track, 0, ty, w, th);
+		DZS_W.Place(m_TrackBg, 0, 0, w, th);
+		if (m_Busy && !m_Known)
+		{
+			float seg = w * 0.25;
+			float run = m_T * 0.8;
+			run = run - Math.Floor(run);
+			DZS_W.Place(m_Fill, -seg + run * (w + seg), 0, seg, th);
+		}
+		else
+			DZS_W.Place(m_Fill, 0, 0, w * m_Shown, th);
+	}
+}
+
 class DZS_CatPanelTiles : DZS_CatTileOwner
 {
 	DZS_CatalogPanel m_Panel;
@@ -293,6 +400,7 @@ class DZS_CatalogPanel : DZS_PanelContent
 	protected ref array<ref DZS_CatTile> m_Rows;
 	protected Widget m_ScrollBar;
 	protected ref DZS_CatEmpty m_Empty;
+	protected ref DZS_CatPhotoBar m_PhotoBar;
 	protected Widget m_FootLine;
 	protected ref DZS_Button m_FullButton;
 	protected float m_W;
@@ -334,6 +442,7 @@ class DZS_CatalogPanel : DZS_PanelContent
 		m_Empty = new DZS_CatEmpty(m_ListClip);
 		m_Empty.m_B1.m_OnClick.Insert(OnEmptyButton1);
 		m_Empty.m_B2.m_OnClick.Insert(OnEmptyButton2);
+		m_PhotoBar = new DZS_CatPhotoBar(m_Root);
 		m_FootLine = DZS_W.Panel(m_Root, DZS_Color.Get("line"));
 		m_FullButton = new DZS_Button(m_Root, "side", DZS_Texts.Get("catalog.full.open"), "maximize-2");
 		m_FullButton.m_OnClick.Insert(OnFullClick);
@@ -469,8 +578,14 @@ class DZS_CatalogPanel : DZS_PanelContent
 		DZS_W.Place(m_ListLine, 0, y, m_W, 1);
 		y += 1;
 		float footH = DZS_Scale.Px(48);
+		float barH = 0;
+		if (m_PhotoBar.Update(m_P, dt))
+		{
+			barH = m_PhotoBar.Height() + DZS_Scale.Px(4);
+			m_PhotoBar.Place(pad, m_H - footH - barH, m_W - 2 * pad);
+		}
 		m_ListY = y;
-		m_ListH = Math.Max(0, m_H - y - footH);
+		m_ListH = Math.Max(0, m_H - y - footH - barH);
 		m_ListHit.Place(0, m_ListY, m_W, m_ListH);
 		DZS_W.Place(m_FootLine, 0, m_H - footH, m_W, 1);
 		m_FullButton.Place((m_W - m_FullButton.GetWidth()) / 2, m_H - footH + (footH - m_FullButton.GetHeight()) / 2);
@@ -514,6 +629,7 @@ class DZS_CatalogPanel : DZS_PanelContent
 			row.m_Fav = m_P.IsFavourite(e);
 			row.m_Off = m_P.IsOffNow(e);
 			row.SetPhoto(m_P.PhotoOf(e));
+			row.m_Loading = m_P.PhotoPending(e);
 			row.Place(0, idx * rowH - m_Scroll, m_W);
 			row.Refresh(m_P.SubText(e), dt);
 		}

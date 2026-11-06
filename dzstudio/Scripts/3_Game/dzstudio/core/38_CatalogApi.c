@@ -6,6 +6,11 @@
 class DZS_ImageSource : Managed
 {
 	string GetPhoto(string name) { return ""; }
+	// The photo is on its way: asked for, not there yet.
+	bool PhotoPending(string name) { return false; }
+	// Photos asked for since the source was last idle and how many of them have arrived; false when idle.
+	// Busy with a total of 0: no count yet (e.g. the source still loads its list).
+	bool PhotoProgress(out int done, out int total) { return false; }
 	string GetDescription(string name) { return ""; }
 	// Name in the game's language; "" if the source has none in that language.
 	string GetName(string name, bool german) { return ""; }

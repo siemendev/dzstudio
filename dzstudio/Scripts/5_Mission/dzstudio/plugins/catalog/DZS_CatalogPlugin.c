@@ -41,7 +41,12 @@ class DZS_CatalogService : DZS_CatalogApi
 	override void NoteUsed(string entry) { m_P.NoteUsed(entry); }
 	override string SaveTemplate(string name, array<ref DZS_TemplateObject> objects) { return m_P.m_Templates.Save(name, objects); }
 	override array<ref DZS_TemplateObject> TemplateObjects(string id) { return m_P.m_Templates.Objects(id); }
-	override void AddImageSource(DZS_ImageSource source) { m_P.m_Sources.Insert(source); m_P.SourcesChanged(); }
+	override void AddImageSource(DZS_ImageSource source)
+	{
+		if (m_P.m_Sources.Find(source) < 0)
+			m_P.m_Sources.Insert(source);
+		m_P.SourcesChanged();
+	}
 	override void SourcesChanged() { m_P.SourcesChanged(); }
 	override void PhotosChanged() { m_P.ForgetPhotos(); m_P.MarkDirty(); if (m_P.m_Full) m_P.m_Full.MarkDirty(); }
 	override void AddMenuSource(DZS_CatalogMenuSource source) { m_P.m_MenuSources.Insert(source); }
@@ -601,6 +606,35 @@ class DZS_CatalogPlugin : DZS_Plugin
 		return p;
 	}
 
+	bool PhotoPending(DZS_CatEntry e)
+	{
+		if (!e || e.m_IsTemplate)
+			return false;
+		foreach (DZS_ImageSource s : m_Sources)
+		{
+			if (s.PhotoPending(e.m_Key))
+				return true;
+		}
+		return false;
+	}
+
+	bool PhotoProgress(out int done, out int total)
+	{
+		done = 0;
+		total = 0;
+		bool busy = false;
+		foreach (DZS_ImageSource s : m_Sources)
+		{
+			int d, t;
+			if (!s.PhotoProgress(d, t))
+				continue;
+			busy = true;
+			done += d;
+			total += t;
+		}
+		return busy;
+	}
+
 	string DescriptionOf(DZS_CatEntry e)
 	{
 		if (!e || e.m_IsTemplate)
@@ -868,6 +902,10 @@ class DZS_CatalogPlugin : DZS_Plugin
 		DZS_Texts.Add("catalog.recent.empty", "Hier erscheint, was du zuletzt platziert hast", "What you placed last shows here");
 		DZS_Texts.Add("catalog.full.open", "Alle Objekte im Vollbild", "All objects full screen");
 		DZS_Texts.Add("catalog.inHand", "in der Hand", "in hand");
+		DZS_Texts.Add("catalog.photos.loading", "Bilder laden", "Loading pictures");
+		DZS_Texts.Add("catalog.photos.list", "Bildkatalog laden", "Loading picture catalogue");
+		DZS_Texts.Add("catalog.photos.done", "Bilder geladen", "Pictures loaded");
+		DZS_Texts.Add("catalog.photos.count", "%1 / %2", "%1 / %2");
 		DZS_Texts.Add("catalog.fav.tip", "Favorit", "Favourite");
 		DZS_Texts.Add("catalog.swap.noTemplate", "Austauschen geht nur mit einzelnen Objekten", "Swapping works with single objects only");
 		DZS_Texts.Add("catalog.cat.all", "Alle", "All");

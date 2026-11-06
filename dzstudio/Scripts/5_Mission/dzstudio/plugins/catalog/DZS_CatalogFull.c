@@ -92,6 +92,8 @@ class DZS_CatalogFull : Managed
 	protected ImageWidget m_Lens;
 	protected EditBoxWidget m_Edit;
 	protected TextWidget m_Hits;
+	protected ref DZS_CatPhotoBar m_PhotoBar;
+	protected string m_DetailPhotoPath;
 	protected ref DZS_RichLine m_EscText;
 	protected Widget m_Lines;
 	protected TextWidget m_RangeHead;
@@ -147,6 +149,7 @@ class DZS_CatalogFull : Managed
 		m_Edit = EditBoxWidget.Cast(DZS_W.FromTexts("edit_read", r));
 		m_Edit.SetColor(DZS_Color.Get("text"));
 		m_Hits = DZS_W.Text(r, DZS_Font.MONO, 12, DZS_Color.Get("textMuted"));
+		m_PhotoBar = new DZS_CatPhotoBar(r);
 		m_EscText = new DZS_RichLine(r, DZS_Font.READ, 13, DZS_Color.Get("textMuted"));
 		m_EscText.Set(DZS_Texts.Get("catalog.full.esc"));
 		m_Lines = DZS_W.Frame(r);
@@ -464,6 +467,12 @@ class DZS_CatalogFull : Managed
 		m_Hits.SetText(DZS_Texts.Fmt("catalog.full.hits", hits.ToString()));
 		DZS_W.Place(m_Hits, pad + fw + DZS_Scale.Px(16), pad, DZS_Scale.Px(200), fh);
 		m_EscText.Place(sw - pad - m_EscText.GetWidth(), pad + (fh - m_EscText.GetHeight()) / 2);
+		if (m_PhotoBar.Update(m_P, dt))
+		{
+			float bx = pad + fw + DZS_Scale.Px(150);
+			float bw = Math.Min(DZS_Scale.Px(260), sw - pad - m_EscText.GetWidth() - DZS_Scale.Px(24) - bx);
+			m_PhotoBar.Place(bx, pad + (fh - m_PhotoBar.Height()) / 2, bw);
+		}
 		float y0 = pad + fh + pad;
 		float colH = h - y0 - pad;
 		// filter list
@@ -566,6 +575,7 @@ class DZS_CatalogFull : Managed
 			c.m_Marked = e == m_Marked;
 			c.m_InHand = m_P.IsInHand(e);
 			c.SetPhoto(m_P.PhotoOf(e));
+			c.m_Loading = m_P.PhotoPending(e);
 			c.Place(col * (ts + gap), row * rowH - m_Scroll, ts);
 			c.Refresh(m_P.SubText(e), dt);
 			int at = -1;
@@ -678,6 +688,10 @@ class DZS_CatalogFull : Managed
 		{
 			m_DetailFor = e;
 			m_DetailEntity = null;
+		}
+		if (photo != m_DetailPhotoPath)
+		{
+			m_DetailPhotoPath = photo;
 			if (photo != "")
 			{
 				m_DetailPhoto.LoadImageFile(0, photo);
