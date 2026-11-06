@@ -5,7 +5,7 @@ modded class MissionGameplay
 	override void OnMissionStart()
 	{
 		super.OnMissionStart();
-		if (DZS_MapStart.IsEditorMission(GetGame().GetMissionPath()))
+		if (DZS_Conflicts.Found() == "" && DZS_MapStart.IsEditorMission(GetGame().GetMissionPath()))
 		{
 			m_DZS_Session = new DZS_Session();
 			m_DZS_Session.Start();
@@ -35,6 +35,11 @@ modded class MissionMainMenu
 
 	override void OnInit()
 	{
+		if (DZS_Conflicts.Found() != "")
+		{
+			super.OnInit();
+			return;
+		}
 		m_NoCutscene = true;
 		GetOnInputDeviceChanged().Insert(OnInputDeviceChanged);
 		DZS_Log.Info("main menu, api " + DZS_API_VERSION);
@@ -55,6 +60,7 @@ modded class MissionMainMenu
 	override void OnUpdate(float timeslice)
 	{
 		super.OnUpdate(timeslice);
+		DZS_Conflicts.Update(timeslice);
 		if (m_DZS_Kernel && DZS_Kernel.Get())
 			DZS_Kernel.Get().Update(timeslice);
 	}

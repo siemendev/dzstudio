@@ -21,6 +21,9 @@ your players' machines.
 Inspired by the awesome [DayZ Editor](https://github.com/InclementDab/DayZ-Editor). If you come from it, the keyboard
 shortcuts will feel familiar. DZSTUDIO is its own code base, written from scratch.
 
+DZSTUDIO and the DayZ Editor cannot run together: both take over the main menu and the same keys. With both
+enabled, DZSTUDIO stays off and says so; disable one of them in the DayZ Launcher.
+
 ## Everything is a plugin
 
 The core of DZSTUDIO only knows the scene (projects, groups, objects), operations as the one way to change it (which
