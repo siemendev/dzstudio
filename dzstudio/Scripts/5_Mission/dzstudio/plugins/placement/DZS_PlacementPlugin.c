@@ -1170,7 +1170,10 @@ class DZS_PlacementPlugin : DZS_Plugin
 		foreach (DZS_TemplateObject t2 : tobjs)
 		{
 			map<string, string> ef = new map<string, string>();
-			ef.Set(DZS_Obj.PERSIST, DZS_Str.Bool(t2.m_Persist));
+			string persist = "0";
+			if (t2.m_Persist)
+				persist = "1";
+			ef.Set(DZS_Obj.PERSIST, persist);
 			ef.Set(DZS_Obj.CUSTOM, t2.m_Custom);
 			extra.Insert(ef);
 		}

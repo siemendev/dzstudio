@@ -449,7 +449,7 @@ class DZS_ProjectState : Managed
 			DZS_ElementData parent = m_Elements.Get(snap.m_Parent);
 			if (!parent)
 			{
-				fail.Set(snap.m_Parent, "", "missing");
+				fail.Set(snap.m_Parent, DZS_KIND_GROUP, "missing");
 				return false;
 			}
 			if (!m_Types.AllowsParent(snap.m_Kind, parent.m_Kind))
@@ -529,7 +529,7 @@ class DZS_ProjectState : Managed
 			DZS_ElementData target = m_Elements.Get(c.GetToParent());
 			if (!target)
 			{
-				fail.Set(c.GetToParent(), "", "missing");
+				fail.Set(c.GetToParent(), DZS_KIND_GROUP, "missing");
 				return false;
 			}
 			if (!m_Types.AllowsParent(e.m_Kind, target.m_Kind) || FindAncestorOfKindId(c.GetToParent(), id))

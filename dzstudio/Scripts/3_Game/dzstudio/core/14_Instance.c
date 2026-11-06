@@ -575,7 +575,7 @@ class DZS_Instance : DZS_ProjectState
 		else
 		{
 			r.m_ReasonDe = "Änderung passt nicht mehr";
-			r.m_ReasonEn = "Change no longer applies";
+			r.m_ReasonEn = "Change no longer fits";
 		}
 	}
 

@@ -273,6 +273,7 @@ class DZS_SelfTestPlugin : DZS_Plugin
 		TestTwoInstances(a);
 		TestConflicts(a);
 		TestReloadDropsStep(a);
+		TestGroupDeletedStep(a);
 		TestAuthor(a);
 		Log("done: " + m_Pass + " passed, " + m_Fail + " failed");
 		BuildDemo(a);
@@ -705,6 +706,21 @@ class DZS_SelfTestPlugin : DZS_Plugin
 		m_Kernel.CloseInstance(c);
 		m_Kernel.CloseInstance(d);
 		a.Undo();
+	}
+
+	protected void TestGroupDeletedStep(DZS_Instance a)
+	{
+		string g = NewGroup(a, "Weg");
+		string p = Place(a, g, "Barrel_Blue", "952 5 950");
+		a.Undo();
+		DZS_OpBuilder rl = a.BeginOperation("selftest:edit");
+		rl.Delete(g);
+		a.SubmitSystem(rl.GetOperation(), false, true);
+		bool redone = a.Redo();
+		string en = "";
+		if (m_Notices.Count() > 0)
+			en = m_Notices[m_Notices.Count() - 1].m_En;
+		Check("redo into a deleted group names the group", !redone && !a.Has(p) && LastNotice() == "Schritt nicht mehr möglich: Gruppe wurde gelöscht" && en == "Step no longer possible: Group was deleted", LastNotice() + " / " + en);
 	}
 
 	protected void TestReloadDropsStep(DZS_Instance a)
