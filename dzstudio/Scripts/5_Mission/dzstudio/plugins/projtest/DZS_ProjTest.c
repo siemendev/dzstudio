@@ -503,6 +503,11 @@ class DZS_ProjTest : DZS_Plugin
 			pp0.StartSave(false, "");
 			return;
 		}
+		if (c == "action")
+		{
+			Log("action " + a[1] + " triggered " + m_Kernel.GetUi().Trigger(a[1]));
+			return;
+		}
 		if (c == "vanillamission")
 		{
 			// vanillamission MAP — fetch the whole vanilla mission of a map (a patch base)

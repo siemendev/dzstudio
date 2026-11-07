@@ -5,6 +5,22 @@
 //   -dzsPatchSmoke=<folder>  reads every file the patcher handles in each mission folder below and writes it back
 //   -dzsLootBlocksTest=<folder>  loot edits through today's writer and as building blocks, per mission folder below
 //   -dzsPatchQuit            ends the game afterwards
+class DZS_PatchActions : DZS_ActionHandler
+{
+	DZS_PatchApply m_A;
+
+	override bool IsActionEnabled(string actionId, out string reasonDe, out string reasonEn)
+	{
+		return m_A.CanApply(reasonDe, reasonEn);
+	}
+
+	override void OnAction(string actionId)
+	{
+		if (actionId == "patcher.apply")
+			m_A.Ask();
+	}
+}
+
 [DZS_RegisterPlugin(DZS_PatchPlugin)]
 class DZS_PatchPlugin : DZS_Plugin
 {
@@ -14,6 +30,8 @@ class DZS_PatchPlugin : DZS_Plugin
 	protected string m_LootTest;
 	protected bool m_Ran;
 	protected float m_Wait;
+	protected ref DZS_PatchApply m_Apply;
+	protected ref DZS_PatchActions m_Actions;
 
 	override string GetName() { return "patcher"; }
 
@@ -23,6 +41,19 @@ class DZS_PatchPlugin : DZS_Plugin
 		GetCLIParam("dzsPatchTest", m_Test);
 		GetCLIParam("dzsPatchSmoke", m_Smoke);
 		GetCLIParam("dzsLootBlocksTest", m_LootTest);
+		m_Apply = new DZS_PatchApply(m_Kernel);
+		m_Actions = new DZS_PatchActions();
+		m_Actions.m_A = m_Apply;
+		DZS_UiRegistry ui = m_Kernel.GetUi();
+		ui.RegisterAction("patcher", "patcher.apply", "Auf Missionsordner anwenden …", "Apply to mission folder …", null, m_Actions);
+		ui.AddMenuEntry("project", "patcher.apply", 455);
+		DZS_Json none = DZS_Json.Obj();
+		m_Kernel.GetSettings().Define(DZS_PatchApply.SETTING, none);
+	}
+
+	DZS_PatchApply Applier()
+	{
+		return m_Apply;
 	}
 
 	override void OnUpdate(float dt)
