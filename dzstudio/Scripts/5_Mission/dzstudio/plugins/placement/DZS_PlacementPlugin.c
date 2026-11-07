@@ -97,7 +97,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 	protected ref map<string, bool> m_SelSet = new map<string, bool>();
 	protected int m_SelSetFrame = -1;
 	protected int m_SelSetCount = -1;
-	static const int BIG_SELECTION = 20;
+	static const int BIG_SELECTION = 100;
+	static const int FINE_SELECTION = 20;
 	protected string m_BigSig;
 	protected ref array<vector> m_BigBox = new array<vector>();
 	protected ref array<vector> m_BigCenters = new array<vector>();
@@ -4592,9 +4593,11 @@ class DZS_PlacementPlugin : DZS_Plugin
 		int big = BIG_SELECTION;
 		if (world)
 		{
-			// selection: own frames up to 20 objects, from 21 one frame around all and a dot per object
+			// selection: own frames up to 100 objects (from 21 with corner-only depth checks), beyond that one frame
+			// around all and a dot per object
 			if (m_Sel.Count() <= big)
 			{
+				bool coarse = m_Sel.Count() > FINE_SELECTION;
 				foreach (string id : m_Sel)
 				{
 					if (m_Kernel.IsFrameTaken(id))
@@ -4604,7 +4607,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 					if (id == m_Lead)
 						w = w4;
 					bool dashed = inst.IsHidden(id) || inst.IsHidden(inst.GetParent(id));
-					DZS_WorldLines.Frame("s:" + id, c, w, accent, DashOf(dashed), DZS_WorldLines.PRIO_NEW);
+					DZS_WorldLines.Frame("s:" + id, c, w, accent, DashOf(dashed), DZS_WorldLines.PRIO_NEW, coarse);
 				}
 			}
 			else
@@ -4624,10 +4627,11 @@ class DZS_PlacementPlugin : DZS_Plugin
 			ForeignFrames(inst, c, w2);
 			if (m_LassoHits.Count() <= big)
 			{
+				bool lassoCoarse = m_LassoHits.Count() > FINE_SELECTION;
 				foreach (string lid : m_LassoHits)
 				{
 					CornersOf(inst, lid, c);
-					DZS_WorldLines.Frame("l:" + lid, c, w1, accentHalf, 0, DZS_WorldLines.PRIO_NEW);
+					DZS_WorldLines.Frame("l:" + lid, c, w1, accentHalf, 0, DZS_WorldLines.PRIO_NEW, lassoCoarse);
 				}
 			}
 			DZS_WorldLines.Flush(cv);

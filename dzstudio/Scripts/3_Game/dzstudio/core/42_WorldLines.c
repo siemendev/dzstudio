@@ -94,6 +94,22 @@ class DZS_FrameCache : Managed
 	ref array<int> m_B;
 	// colour of covered and not yet checked pieces (0 = left out)
 	int m_Cover;
+	// coarse: only the corners are checked (one ray each), an edge changes visibility at its middle
+	bool m_Coarse;
+	ref array<int> m_CornerVis;
+	ref array<int> m_CornerStamp;
+	int m_ResultGen;
+	// screen pieces of the last draw, reused while camera, geometry and results stay the same
+	ref array<float> m_Seg = new array<float>();
+	ref array<int> m_SegKind = new array<int>();
+	int m_SegCam = -1;
+	int m_SegGeom = -1;
+	int m_SegResult = -1;
+	int m_SegLook = -1;
+	float m_SegWidth;
+	int m_SegColor;
+	float m_SegDash;
+	int m_SegCover;
 
 	void DZS_FrameCache(int corners = 8, int edges = 12)
 	{
@@ -137,6 +153,8 @@ class DZS_WorldLines
 	static const float SAMPLE_PX = 8;
 	static const float EXACT_PX = 2;
 	static const int MAX_SAMPLES = 40;
+	// Coarse corners are probed this far above themselves: a box standing on the ground keeps its bottom edges.
+	static const float CORNER_LIFT = 0.08;
 	// Rays per frame for depth checks (ray budget).
 	static const int BUDGET = 1500;
 	// Frames to complete a full recheck of everything shown.
@@ -250,7 +268,7 @@ class DZS_WorldLines
 	}
 
 	// Registers a box frame (eight corners, bit 0 = x, 1 = y, 2 = z) for this frame. dashPx > 0: hidden object.
-	static void Frame(string key, array<vector> c, float width, int color, float dashPx = 0, int prio = 1)
+	static void Frame(string key, array<vector> c, float width, int color, float dashPx = 0, int prio = 1, bool coarse = false)
 	{
 		if (!s_Cache)
 			Begin();
@@ -281,6 +299,11 @@ class DZS_WorldLines
 		f.m_Color = color;
 		f.m_Dash = dashPx;
 		f.m_Prio = prio;
+		if (f.m_Coarse != coarse)
+		{
+			f.m_Coarse = coarse;
+			f.m_GeomGen++;
+		}
 		if (f.m_UsedFrame != s_Frame)
 		{
 			f.m_UsedFrame = s_Frame;
@@ -348,12 +371,17 @@ class DZS_WorldLines
 	{
 		if (!s_Cache)
 			return;
+		int sw, sh;
+		GetScreenSize(sw, sh);
+		int look = sw * 65536 + sh;
+		DZS_PlaceMath.HoldView(true);
 		Check();
 		foreach (DZS_FrameCache f : s_Pending)
 		{
 			if (f)
-				DrawFrame(cv, f);
+				DrawFrame(cv, f, look);
 		}
+		DZS_PlaceMath.HoldView(false);
 		s_Pending.Clear();
 	}
 
@@ -388,7 +416,7 @@ class DZS_WorldLines
 		float need = 0;
 		foreach (DZS_FrameCache f0 : s_Pending)
 		{
-			if (!f0)
+			if (!f0 || f0.m_Coarse)
 				continue;
 			for (int e0 = 0; e0 < f0.m_Edges.Count(); e0++)
 			{
@@ -509,6 +537,32 @@ class DZS_WorldLines
 		return t0 + (t1 - t0) * u;
 	}
 
+	// Visibility of a corner, at most one ray per corner and frame; ends clipped at the camera are probed on their own.
+	protected static bool CornerFree(DZS_FrameCache f, int corner, vector p, bool clipped)
+	{
+		if (clipped)
+			return Free(p);
+		if (!f.m_CornerVis)
+		{
+			f.m_CornerVis = new array<int>();
+			f.m_CornerStamp = new array<int>();
+			for (int i = 0; i < f.m_C.Count(); i++)
+			{
+				f.m_CornerVis.Insert(0);
+				f.m_CornerStamp.Insert(-1);
+			}
+		}
+		int stamp = s_Frame;
+		if (f.m_CornerStamp[corner] == stamp)
+			return f.m_CornerVis[corner] == 1;
+		bool v = Free(p + Vector(0, CORNER_LIFT, 0));
+		f.m_CornerStamp[corner] = stamp;
+		f.m_CornerVis[corner] = 0;
+		if (v)
+			f.m_CornerVis[corner] = 1;
+		return v;
+	}
+
 	protected static void CheckEdge(DZS_FrameCache f, int edge)
 	{
 		DZS_EdgeCache e = f.m_Edges[edge];
@@ -519,11 +573,27 @@ class DZS_WorldLines
 		e.m_LastFrame = s_Frame;
 		e.m_T.Clear();
 		e.m_Vis.Clear();
+		f.m_ResultGen++;
 		vector a = f.m_C[f.EA(edge)];
 		vector b = f.m_C[f.EB(edge)];
 		float t0, t1;
 		if (!Clip(a, b, t0, t1))
 			return;
+		if (f.m_Coarse)
+		{
+			bool va = CornerFree(f, f.EA(edge), a + (b - a) * t0, t0 > 0);
+			bool vb = CornerFree(f, f.EB(edge), a + (b - a) * t1, t1 < 1);
+			e.m_T.Insert(t0);
+			e.m_Vis.Insert(va);
+			if (va != vb)
+			{
+				e.m_T.Insert(ParamAt(a, b, t0, t1, 0.5));
+				e.m_Vis.Insert(vb);
+			}
+			e.m_T.Insert(t1);
+			e.m_Vis.Insert(vb);
+			return;
+		}
 		vector pa = a + (b - a) * t0;
 		vector pb = a + (b - a) * t1;
 		vector sa = DZS_PlaceMath.Project(pa);
@@ -569,8 +639,49 @@ class DZS_WorldLines
 		e.m_Vis.Insert(vPrev);
 	}
 
-	protected static void DrawFrame(CanvasWidget cv, DZS_FrameCache f)
+	protected static void DrawFrame(CanvasWidget cv, DZS_FrameCache f, int look)
 	{
+		if (f.m_SegCam != s_CamGen || f.m_SegGeom != f.m_GeomGen || f.m_SegResult != f.m_ResultGen || f.m_SegLook != look || f.m_SegWidth != f.m_Width || f.m_SegColor != f.m_Color || f.m_SegDash != f.m_Dash || f.m_SegCover != f.m_Cover)
+		{
+			BuildSegments(f);
+			f.m_SegCam = s_CamGen;
+			f.m_SegGeom = f.m_GeomGen;
+			f.m_SegResult = f.m_ResultGen;
+			f.m_SegLook = look;
+			f.m_SegWidth = f.m_Width;
+			f.m_SegColor = f.m_Color;
+			f.m_SegDash = f.m_Dash;
+			f.m_SegCover = f.m_Cover;
+		}
+		array<float> s = f.m_Seg;
+		for (int i = 0; i < f.m_SegKind.Count(); i++)
+		{
+			int o = 5 * i;
+			int kind = f.m_SegKind[i];
+			if (kind == 2)
+				Dashed(cv, s[o], s[o + 1], s[o + 2], s[o + 3], f.m_Width, f.m_Color, f.m_Dash, s[o + 4]);
+			else if (kind == 1)
+				DZS_Clip.Line(cv, s[o], s[o + 1], s[o + 2], s[o + 3], f.m_Width, f.m_Cover);
+			else
+				DZS_Clip.Line(cv, s[o], s[o + 1], s[o + 2], s[o + 3], f.m_Width, f.m_Color);
+		}
+	}
+
+	protected static void AddSeg(DZS_FrameCache f, int kind, float x1, float y1, float x2, float y2, float phase)
+	{
+		f.m_SegKind.Insert(kind);
+		f.m_Seg.Insert(x1);
+		f.m_Seg.Insert(y1);
+		f.m_Seg.Insert(x2);
+		f.m_Seg.Insert(y2);
+		f.m_Seg.Insert(phase);
+	}
+
+	// Screen pieces of a frame: 0 visible, 1 covered or not checked yet (cover colour), 2 dashed.
+	protected static void BuildSegments(DZS_FrameCache f)
+	{
+		f.m_Seg.Clear();
+		f.m_SegKind.Clear();
 		for (int edge = 0; edge < f.m_Edges.Count(); edge++)
 		{
 			DZS_EdgeCache e = f.m_Edges[edge];
@@ -585,7 +696,7 @@ class DZS_WorldLines
 				{
 					vector ua = DZS_PlaceMath.Project(a + (b - a) * c0);
 					vector ub = DZS_PlaceMath.Project(a + (b - a) * c1);
-					DZS_Clip.Line(cv, ua[0], ua[1], ub[0], ub[1], f.m_Width, f.m_Cover);
+					AddSeg(f, 1, ua[0], ua[1], ub[0], ub[1], 0);
 				}
 				continue;
 			}
@@ -614,14 +725,14 @@ class DZS_WorldLines
 					float dp = Math.Sqrt((sp[0] - sn[0]) * (sp[0] - sn[0]) + (sp[1] - sn[1]) * (sp[1] - sn[1]));
 					float dq = Math.Sqrt((sq[0] - sn[0]) * (sq[0] - sn[0]) + (sq[1] - sn[1]) * (sq[1] - sn[1]));
 					if (dq < dp)
-						Dashed(cv, sq[0], sq[1], sp[0], sp[1], f.m_Width, f.m_Color, f.m_Dash, dq);
+						AddSeg(f, 2, sq[0], sq[1], sp[0], sp[1], dq);
 					else
-						Dashed(cv, sp[0], sp[1], sq[0], sq[1], f.m_Width, f.m_Color, f.m_Dash, dp);
+						AddSeg(f, 2, sp[0], sp[1], sq[0], sq[1], dp);
 				}
 				else if (e.m_Vis[k])
-					DZS_Clip.Line(cv, sp[0], sp[1], sq[0], sq[1], f.m_Width, f.m_Color);
+					AddSeg(f, 0, sp[0], sp[1], sq[0], sq[1], 0);
 				else
-					DZS_Clip.Line(cv, sp[0], sp[1], sq[0], sq[1], f.m_Width, f.m_Cover);
+					AddSeg(f, 1, sp[0], sp[1], sq[0], sq[1], 0);
 			}
 		}
 	}

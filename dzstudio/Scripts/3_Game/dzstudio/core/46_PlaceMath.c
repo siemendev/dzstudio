@@ -137,8 +137,21 @@ class DZS_PlaceMath
 	protected static int s_VW = -1;
 	protected static int s_VH = -1;
 
+	protected static bool s_VHold;
+
+	// While held, projections reuse the view of the moment of holding (many projections in one frame).
+	static void HoldView(bool hold)
+	{
+		s_VHold = false;
+		if (hold)
+			UpdateView();
+		s_VHold = hold;
+	}
+
 	protected static void UpdateView()
 	{
+		if (s_VHold)
+			return;
 		vector cam = GetGame().GetCurrentCameraPosition();
 		vector fwd = GetGame().GetCurrentCameraDirection();
 		int sw, sh;
