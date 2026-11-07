@@ -283,6 +283,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 		Press(ui, "placement.hide", "Ausblenden umschalten", "Toggle hide", "H", "selection", "selection");
 		Press(ui, "placement.unlock", "Entsperren", "Unlock", "Ctrl+L", "selection", "selection");
 		Press(ui, "placement.unhide", "Einblenden", "Show", "Ctrl+H", "selection", "selection");
+		Press(ui, "placement.unlockAll", "Alle entsperren", "Unlock all", "Ctrl+Alt+L", "scene", "selection");
+		Press(ui, "placement.unhideAll", "Alle einblenden", "Show all", "Ctrl+Alt+H", "scene", "selection");
 		Press(ui, "placement.selectAll", "Alles auswählen", "Select all", "Ctrl+A", "scene", "selection");
 		Press(ui, "placement.invert", "Auswahl umkehren", "Invert selection", "Ctrl+I", "scene", "selection");
 		Press(ui, "placement.selectSame", "Gleiche auswählen", "Select same", "Ctrl+Shift+A", "selection", "selection");
@@ -331,10 +333,16 @@ class DZS_PlacementPlugin : DZS_Plugin
 		ui.AddMenuEntry("edit", "placement.deselect", 203);
 		ui.AddMenuEntry("edit", "placement.lock", 300);
 		ui.AddMenuEntry("edit", "placement.hide", 301);
+		ui.AddMenuEntry("edit", "placement.unlockAll", 302);
+		ui.AddMenuEntry("edit", "placement.unhideAll", 303);
 		ui.AddMenuEntry("edit", "placement.straighten", 900);
 		ui.AddMenuEntry("edit", "placement.dupes", 901);
 		ui.AddMenuEntry("view", "placement.followSlope", 330, true);
 		ui.RegisterTool("placement", "placement.followSlope", "Hang folgen", "Follow slope", "switches", "mountain", 30);
+		ui.RegisterTool("placement", "placement.unlockAll", "Alle entsperren", "Unlock all", "switches", "lock-open", 40);
+		ui.SetToolLabelled("placement.unlockAll");
+		ui.RegisterTool("placement", "placement.unhideAll", "Alle einblenden", "Show all", "switches", "eye", 41);
+		ui.SetToolLabelled("placement.unhideAll");
 
 		AddEsc("gesture", 40);
 		AddEsc("pick", 45);
@@ -453,7 +461,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 
 	override void OnSessionStart(string world)
 	{
-		array<string> changing = {"placement.cut", "placement.delete", "placement.lock", "placement.hide", "placement.unlock", "placement.unhide", "placement.straighten", "placement.surface", "placement.align", "placement.alignHeight", "placement.alignYaw", "placement.randomYaw", "placement.swap", "placement.drop", "placement.position"};
+		array<string> changing = {"placement.cut", "placement.delete", "placement.lock", "placement.hide", "placement.unlock", "placement.unhide", "placement.unlockAll", "placement.unhideAll", "placement.straighten", "placement.surface", "placement.align", "placement.alignHeight", "placement.alignYaw", "placement.randomYaw", "placement.swap", "placement.drop", "placement.position"};
 		foreach (string chg : changing)
 			m_Kernel.GetUi().SetChangesSelection(chg);
 		m_World = world != "";
@@ -544,7 +552,10 @@ class DZS_PlacementPlugin : DZS_Plugin
 		foreach (string id : so.m_Ids)
 		{
 			if (so.m_Inst.Has(id) && so.m_Inst.GetKind(id) == DZS_KIND_OBJECT)
-				now.Insert(id);
+			{
+				if (Selectable(so.m_Inst, id))
+					now.Insert(id);
+			}
 			else
 				gone.Insert(id);
 		}
@@ -2955,6 +2966,22 @@ class DZS_PlacementPlugin : DZS_Plugin
 				return false;
 			}
 		}
+		if (id == "placement.unlockAll" || id == "placement.unhideAll")
+		{
+			CountFlags(inst);
+			if (id == "placement.unlockAll" && m_LockedAll == 0)
+			{
+				de = "Nichts gesperrt";
+				en = "Nothing is locked";
+				return false;
+			}
+			if (id == "placement.unhideAll" && m_HiddenAll == 0)
+			{
+				de = "Nichts ausgeblendet";
+				en = "Nothing is hidden";
+				return false;
+			}
+		}
 		bool needSel = selOnly.Find(id) >= 0;
 		if (needSel && m_Sel.Count() == 0)
 		{
@@ -3015,6 +3042,18 @@ class DZS_PlacementPlugin : DZS_Plugin
 			if (AllFlag(inst, false) && m_Sel.Count() > 0)
 				return Txt("Einblenden", "Show");
 			return Txt("Ausblenden", "Hide");
+		}
+		if (id == "placement.unlockAll" && inst)
+		{
+			CountFlags(inst);
+			if (m_LockedAll > 0)
+				return Txt("Alle entsperren", "Unlock all") + " (" + m_LockedAll + ")";
+		}
+		if (id == "placement.unhideAll" && inst)
+		{
+			CountFlags(inst);
+			if (m_HiddenAll > 0)
+				return Txt("Alle einblenden", "Show all") + " (" + m_HiddenAll + ")";
 		}
 		return "";
 	}
@@ -3209,6 +3248,11 @@ class DZS_PlacementPlugin : DZS_Plugin
 		if (id == "placement.unlock" || id == "placement.unhide")
 		{
 			ToggleFlags(inst, id, 0);
+			return;
+		}
+		if (id == "placement.unlockAll" || id == "placement.unhideAll")
+		{
+			ClearAllFlags(inst, id == "placement.unlockAll");
 			return;
 		}
 		if (id == "placement.carry")
@@ -3865,6 +3909,76 @@ class DZS_PlacementPlugin : DZS_Plugin
 		}
 		b.Commit(de, en);
 		DZS_Log.Info("placement: " + en + " " + n + " object(s)");
+	}
+
+	protected DZS_Instance m_FlagInst;
+	protected int m_FlagVer = -1;
+	protected int m_LockedAll;
+	protected int m_HiddenAll;
+
+	// Locked and hidden objects of the shown project (own mark or their group's), counted once per change.
+	protected void CountFlags(DZS_Instance inst)
+	{
+		if (inst == m_FlagInst && m_FlagVer == m_GeomVer)
+			return;
+		m_FlagInst = inst;
+		m_FlagVer = m_GeomVer;
+		m_LockedAll = 0;
+		m_HiddenAll = 0;
+		array<string> groups = inst.GetChildren(DZS_PROJECT_ID);
+		foreach (string g : groups)
+		{
+			if (inst.GetKind(g) != DZS_KIND_GROUP)
+				continue;
+			bool gl = inst.IsLocked(g);
+			bool gh = inst.IsHidden(g);
+			array<string> ids = inst.GetChildren(g);
+			foreach (string id : ids)
+			{
+				if (gl || inst.IsLocked(id))
+					m_LockedAll++;
+				if (gh || inst.IsHidden(id))
+					m_HiddenAll++;
+			}
+		}
+	}
+
+	// Unlock or show every object and group of the project, one undo step.
+	protected void ClearAllFlags(DZS_Instance inst, bool locking)
+	{
+		DZS_OpBuilder b = inst.BeginOperation("placement:edit", 1);
+		DZS_SelectGuard guard = DZS_SelectGuard.Get();
+		int n = 0;
+		array<string> groups = inst.GetChildren(DZS_PROJECT_ID);
+		foreach (string g : groups)
+		{
+			if (inst.GetKind(g) != DZS_KIND_GROUP)
+				continue;
+			array<string> ids = inst.GetChildren(g);
+			ids.Insert(g);
+			foreach (string id : ids)
+			{
+				if (guard && guard.Blocks(id))
+					continue;
+				if (locking && inst.IsLocked(id))
+				{
+					b.SetLocked(id, false);
+					n++;
+				}
+				else if (!locking && inst.IsHidden(id))
+				{
+					b.SetHidden(id, false);
+					n++;
+				}
+			}
+		}
+		if (n == 0)
+			return;
+		if (locking)
+			b.Commit(Txt("Alle entsperren", "Unlock all"), "Unlock all");
+		else
+			b.Commit(Txt("Alle einblenden", "Show all"), "Show all");
+		DZS_Log.Info("placement: unlock/show all (lock " + locking + "), " + n + " mark(s) cleared");
 	}
 
 	protected void SelectSame(DZS_Instance inst)

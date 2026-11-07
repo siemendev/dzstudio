@@ -134,6 +134,9 @@ class DZS_ProjectBar : DZS_PanelContent
 	protected ref map<string, string> m_GroupCountKey = new map<string, string>();
 	protected ref map<string, int> m_GroupCount = new map<string, int>();
 	protected ref map<string, int> m_GroupSelected = new map<string, int>();
+	protected ref map<string, int> m_GroupLocked = new map<string, int>();
+	protected ref map<string, int> m_GroupHidden = new map<string, int>();
+	protected ref map<string, int> m_GroupFree = new map<string, int>();
 	protected ref map<string, int> m_GroupDups = new map<string, int>();
 	protected string m_DupSel;
 	protected ref DZS_SearchField m_Search;
@@ -233,13 +236,11 @@ class DZS_ProjectBar : DZS_PanelContent
 		DZS_Instance inst = m_P.Kernel().GetShown();
 		if (!inst || r.m_Type == "ext" || r.m_Type == "")
 			return;
-		array<string> targets = RowTargets(inst, r);
+		array<string> targets = RowTargets(inst, r, what);
 		bool target = false;
 		foreach (string t : targets)
 		{
-			if (what == "hide" && !inst.IsHidden(t))
-				target = true;
-			if (what == "lock" && !inst.IsLocked(t))
+			if (!Flag(inst, t, what))
 				target = true;
 		}
 		m_SweepCount++;
@@ -255,11 +256,23 @@ class DZS_ProjectBar : DZS_PanelContent
 		return r.m_Type + "|" + r.m_Group + "|" + r.m_Class + "|" + r.m_Obj;
 	}
 
-	protected array<string> RowTargets(DZS_Instance inst, DZS_GroupRow r)
+	protected bool Flag(DZS_Instance inst, string id, string what)
+	{
+		if (what == "hide")
+			return inst.IsHidden(id);
+		return inst.IsLocked(id);
+	}
+
+	// A group's knob acts on its objects; the group's own mark (older projects) only goes with them.
+	protected array<string> RowTargets(DZS_Instance inst, DZS_GroupRow r, string what)
 	{
 		array<string> targets = new array<string>();
 		if (r.m_Type == "group")
-			targets.Insert(r.m_Group);
+		{
+			targets = inst.GetChildren(r.m_Group);
+			if (Flag(inst, r.m_Group, what))
+				targets.Insert(r.m_Group);
+		}
 		else if (r.m_Obj != "")
 			targets.Insert(r.m_Obj);
 		return targets;
@@ -271,7 +284,7 @@ class DZS_ProjectBar : DZS_PanelContent
 		if (m_SweepDone.Contains(key))
 			return;
 		m_SweepDone.Set(key, true);
-		array<string> targets = RowTargets(inst, r);
+		array<string> targets = RowTargets(inst, r, m_SweepWhat);
 		bool hide = m_SweepWhat == "hide";
 		DZS_OpBuilder b = inst.BeginOperation("projects:edit", 1);
 		foreach (string t : targets)
@@ -517,16 +530,33 @@ class DZS_ProjectBar : DZS_PanelContent
 		int count = 0;
 		int selected = 0;
 		int dupCount = 0;
+		int lockedN = 0;
+		int hiddenN = 0;
+		int freeN = 0;
 		if (m_GroupCountKey.Get(gid) == countKey)
 		{
 			count = m_GroupCount.Get(gid);
 			selected = m_GroupSelected.Get(gid);
 			dupCount = m_GroupDups.Get(gid);
+			lockedN = m_GroupLocked.Get(gid);
+			hiddenN = m_GroupHidden.Get(gid);
+			freeN = m_GroupFree.Get(gid);
 		}
 		else
 		{
 			array<string> ids = inst.GetChildren(gid);
 			count = ids.Count();
+			foreach (string fid : ids)
+			{
+				bool fl = inst.IsLocked(fid);
+				bool fh = inst.IsHidden(fid);
+				if (fl)
+					lockedN++;
+				if (fh)
+					hiddenN++;
+				if (!fl && !fh)
+					freeN++;
+			}
 			if (sel && closed)
 			{
 				foreach (string id : ids)
@@ -541,9 +571,14 @@ class DZS_ProjectBar : DZS_PanelContent
 			m_GroupCount.Set(gid, count);
 			m_GroupSelected.Set(gid, selected);
 			m_GroupDups.Set(gid, dupCount);
+			m_GroupLocked.Set(gid, lockedN);
+			m_GroupHidden.Set(gid, hiddenN);
+			m_GroupFree.Set(gid, freeN);
 		}
-		bool hidden = inst.IsHidden(gid);
-		bool locked = inst.IsLocked(gid);
+		bool ownHidden = inst.IsHidden(gid);
+		bool ownLocked = inst.IsLocked(gid);
+		bool hidden = ownHidden || (count > 0 && hiddenN == count);
+		bool locked = ownLocked || (count > 0 && lockedN == count);
 		r.m_Tint.Show(isActive);
 		r.m_Lead.Show(isActive);
 		DZS_W.Place(r.m_Tint, 0, 0, width, rowH);
@@ -583,7 +618,9 @@ class DZS_ProjectBar : DZS_PanelContent
 		r.m_Mark.Show(true);
 		r.m_Sub.Show(true);
 		r.ShowHolder(false);
-		Knobs(r, width, rowH, true, hidden, locked, !hidden && !locked && unreadable != "1");
+		Knobs(r, width, rowH, true, hidden, locked, !ownHidden && !ownLocked && freeN > 0 && unreadable != "1");
+		GroupKnob(r.m_HideB, "hide", hidden, hiddenN, count);
+		GroupKnob(r.m_LockB, "lock", locked, lockedN, count);
 		string holder = GroupHolder(inst, gid);
 		if (holder != "")
 		{
@@ -591,6 +628,35 @@ class DZS_ProjectBar : DZS_PanelContent
 			r.m_HideB.SetEnabled(false, why);
 			r.m_LockB.SetEnabled(false, why);
 		}
+	}
+
+	// Some of the objects marked: the marked icon, but not lit.
+	protected void GroupKnob(DZS_Button b, string what, bool all, int marked, int count)
+	{
+		bool hide = what == "hide";
+		if (!all && marked > 0)
+		{
+			if (hide)
+				b.SetIcon("eye-off");
+			else
+				b.SetIcon("lock");
+		}
+		string n = count.ToString();
+		string m = marked.ToString();
+		string tip;
+		if (hide && all)
+			tip = DZS_Texts.Pick("Alle " + n + " Objekte einblenden", "Show all " + n + " objects");
+		else if (hide && marked > 0)
+			tip = DZS_Texts.Pick(m + " von " + n + " ausgeblendet — alle ausblenden", m + " of " + n + " hidden — hide all");
+		else if (hide)
+			tip = DZS_Texts.Pick("Alle " + n + " Objekte ausblenden", "Hide all " + n + " objects");
+		else if (all)
+			tip = DZS_Texts.Pick("Alle " + n + " Objekte entsperren", "Unlock all " + n + " objects");
+		else if (marked > 0)
+			tip = DZS_Texts.Pick(m + " von " + n + " gesperrt — alle sperren", m + " of " + n + " locked — lock all");
+		else
+			tip = DZS_Texts.Pick("Alle " + n + " Objekte sperren", "Lock all " + n + " objects");
+		b.SetTip(tip);
 	}
 
 	// A plugin's group (the loot group): no colour, no object count, no "select all", always last.

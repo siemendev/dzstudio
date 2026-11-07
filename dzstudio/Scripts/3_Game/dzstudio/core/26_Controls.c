@@ -190,6 +190,8 @@ class DZS_Button : DZS_HitListener
 
 	Widget GetWidget() { return m_Hit.m_W; }
 
+	string GetLabel() { return m_Label; }
+
 	void SetLabel(string label)
 	{
 		m_Label = label;

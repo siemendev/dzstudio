@@ -50,6 +50,8 @@ class DZS_OpenJob : Managed
 	int m_Step;
 	string m_File;
 	string m_Gid;
+	bool m_GHidden;
+	bool m_GLocked;
 	ref array<string> m_Chunks;
 	ref DZS_FileSum m_Sum;
 	DZS_Format m_Fmt;
@@ -1642,6 +1644,10 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				array<ref DZS_Companion> oc = new array<ref DZS_Companion>();
 				for (int ci = 0; ci < ro.m_Data.m_Companions.Count(); ci++)
 					oc.Insert(ro.m_Data.m_Companions.GetElement(ci));
+				if (j.m_GHidden)
+					oh = true;
+				if (j.m_GLocked)
+					ol = true;
 				b.Create(DZS_KIND_OBJECT, j.m_Gid, DZS_END, ro.m_Data.m_Fields, oh, ol, oc);
 				j.m_ObjectCount++;
 				j.m_Oi++;
@@ -1718,8 +1724,11 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		}
 		foreach (DZS_Companion rc : rr.m_GroupCompanions)
 			gcomp.Insert(rc);
-		string gid = b.Create(DZS_KIND_GROUP, DZS_PROJECT_ID, DZS_END, gf, ghidden, glocked, gcomp);
+		// a group's mark lives on its objects; older projects marked the group itself
+		string gid = b.Create(DZS_KIND_GROUP, DZS_PROJECT_ID, DZS_END, gf, false, false, gcomp);
 		j.m_Gid = gid;
+		j.m_GHidden = ghidden;
+		j.m_GLocked = glocked;
 		issues.Append(rr.m_Issues, gname, file);
 		if (m_ImportNew && file == m_ImportNew.m_Base + ".json")
 		{

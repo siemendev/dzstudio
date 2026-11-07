@@ -90,6 +90,8 @@ class DZS_ToolInfo : Managed
 	string m_TipDe;
 	string m_TipEn;
 	string m_TipKeyAction;
+	// a switch with its action's label next to the icon, shown only while the action is enabled
+	bool m_Labelled;
 }
 
 class DZS_KeyGroup : Managed
@@ -466,6 +468,15 @@ class DZS_UiRegistry : Managed
 	}
 
 	DZS_ToolInfo GetTool(string id) { return m_Tools.Get(id); }
+
+	void SetToolLabelled(string id)
+	{
+		DZS_ToolInfo t = m_Tools.Get(id);
+		if (!t)
+			return;
+		t.m_Labelled = true;
+		m_ToolsRev++;
+	}
 
 	void SetToolTip(string id, string de, string en, string keyAction)
 	{

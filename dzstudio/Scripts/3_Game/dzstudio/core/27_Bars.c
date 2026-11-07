@@ -115,7 +115,10 @@ class DZS_TopBar : DZS_HitListener
 
 	protected void AddTool(DZS_ToolInfo t, array<ref DZS_Button> list, array<string> ids)
 	{
-		DZS_Button b = new DZS_Button(m_Surface.m_W, "ghost", "", t.m_Icon, 32);
+		string kind = "ghost";
+		if (t.m_Labelled)
+			kind = "secondary";
+		DZS_Button b = new DZS_Button(m_Surface.m_W, kind, "", t.m_Icon, 32);
 		b.m_Tag = t.m_Id;
 		b.m_Hit.m_FocusKind = "";
 		b.m_OnClick.Insert(OnToolClick);
@@ -198,6 +201,18 @@ class DZS_TopBar : DZS_HitListener
 		{
 			DZS_Button s = m_Switches[j];
 			string sid = m_SwitchIds[j];
+			DZS_ToolInfo si = m_Ui.GetTool(sid);
+			if (si && si.m_Labelled)
+			{
+				string ld, le;
+				bool wanted = m_Ui.IsActionEnabled(sid, ld, le);
+				s.Show(wanted);
+				if (!wanted)
+					continue;
+				string label = m_Ui.GetActionLabel(sid);
+				if (label != s.GetLabel())
+					s.SetLabel(label);
+			}
 			s.SetOn(m_Ui.IsActionChecked(sid));
 			RefreshToolButton(s, sid, blockedWhy);
 		}
@@ -292,7 +307,13 @@ class DZS_TopBar : DZS_HitListener
 			}
 			x += DZS_Scale.Px(4);
 		}
-		bool sep = m_Tools.Count() > 0 && m_Switches.Count() > 0;
+		int shownSwitches = 0;
+		foreach (DZS_Button cs : m_Switches)
+		{
+			if (cs.GetWidget().IsVisible())
+				shownSwitches++;
+		}
+		bool sep = m_Tools.Count() > 0 && shownSwitches > 0;
 		m_Sep.Show(sep);
 		if (sep)
 		{
@@ -302,6 +323,8 @@ class DZS_TopBar : DZS_HitListener
 		}
 		foreach (DZS_Button swb : m_Switches)
 		{
+			if (!swb.GetWidget().IsVisible())
+				continue;
 			swb.Place(x, y);
 			x += swb.GetWidth() + DZS_Scale.Px(4);
 		}
