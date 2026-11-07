@@ -15,9 +15,9 @@ class DZS_POwn : Managed
 	DZS_PKind m_Kind;
 	ref map<string, ref DZS_Json> m_Values;
 	string m_Name;
-	ref array<string> m_Children = new array<string>();
-	ref array<DZS_PatchEntry> m_ChildEntries = new array<DZS_PatchEntry>();
-	ref array<ref map<string, ref DZS_Json>> m_ChildValues = new array<ref map<string, ref DZS_Json>>();
+	ref array<ref DZS_POwn> m_Kids = new array<ref DZS_POwn>();
+	// the base element it goes into; null at the top level of its file or inside another own block
+	DZS_XmlNode m_Into;
 	bool m_Ok;
 }
 
@@ -44,26 +44,42 @@ class DZS_PatcherXml : DZS_PatcherBase
 		{
 			if (root.m_Name != k.m_Root)
 				return t;
-			foreach (DZS_XmlNode c : root.m_Children)
+			if (k.m_KeyAttr != "")
 			{
-				if (c.m_Name == k.m_Elem)
-					pool.Insert(c);
+				string top = KeyStr(key, k.m_KeyAttr);
+				if (top == "")
+				{
+					t.m_BadKey = true;
+					return t;
+				}
+				pool.Copy(f.Named(root, k.m_Elem, k.m_KeyAttr, DZS_PatchText.Lower(top)));
+			}
+			else
+			{
+				foreach (DZS_XmlNode c : root.m_Children)
+				{
+					if (c.m_Name == k.m_Elem)
+						pool.Insert(c);
+				}
 			}
 		}
 		else
 		{
 			DZS_PKind pk = DZS_PKinds.Get(k.m_ParentKind);
-			DZS_Json pkey = DZS_Json.Obj();
-			string pname = KeyStr(key, k.m_ParentKey);
+			string pname;
+			DZS_Json pkey = ParentKeyOf(k, pk, key, pname);
 			if (pname == "")
 			{
 				t.m_BadKey = true;
 				return t;
 			}
-			DZS_Json pnameJ = DZS_Json.Str(pname);
-			pkey.Set(pk.m_KeyAttr, pnameJ);
-			DZS_PTarget pt = Resolve(f, pk, pkey, true);
+			DZS_PTarget pt = Resolve(f, pk, pkey, pk.m_Dups == DZS_PKind.MERGE);
 			t.m_Case = pt.m_Case;
+			if (pt.m_BadKey)
+			{
+				t.m_BadKey = true;
+				return t;
+			}
 			if (pt.m_Ambiguous)
 			{
 				t.m_Ambiguous = true;
@@ -95,7 +111,7 @@ class DZS_PatcherXml : DZS_PatcherBase
 		}
 		if (t.m_Nodes.Count() <= 1)
 			return t;
-		if (k.m_Dups == DZS_PKind.MERGE || (all && (k.m_Dups == DZS_PKind.LAST || k.m_Dups == DZS_PKind.FIRST)))
+		if (k.m_Dups == DZS_PKind.MERGE || (all && (k.m_Dups == DZS_PKind.LAST || k.m_Dups == DZS_PKind.FIRST || k.m_RemoveAll)))
 			return t;
 		if (k.m_Dups == DZS_PKind.LAST)
 		{
@@ -113,6 +129,33 @@ class DZS_PatcherXml : DZS_PatcherBase
 		}
 		t.m_Ambiguous = true;
 		return t;
+	}
+
+	// The key of the parent block named in a key of kind k (or in a block's parent key); 'first' is "" when the key
+	// names no parent.
+	static DZS_Json ParentKeyOf(DZS_PKind k, DZS_PKind pk, DZS_Json key, out string first)
+	{
+		first = "";
+		DZS_Json pkey = DZS_Json.Obj();
+		array<string> pairs = new array<string>();
+		pairs.Copy(k.m_ParentMap);
+		if (pairs.Count() == 0)
+			pairs.Insert(k.m_ParentKey + "=" + pk.m_KeyAttr);
+		for (int i = 0; i < pairs.Count(); i++)
+		{
+			string pair = pairs[i];
+			int eq = pair.IndexOf("=");
+			string from = pair.Substring(0, eq);
+			string to = pair.Substring(eq + 1, pair.Length() - eq - 1);
+			string v = KeyStr(key, from);
+			if (i == 0)
+				first = v;
+			if (v == "")
+				continue;
+			DZS_Json vj = DZS_Json.Str(v);
+			pkey.Set(to, vj);
+		}
+		return pkey;
 	}
 
 	// Elements of kind k directly inside a parent element (through its container element, if the kind has one).
@@ -161,6 +204,18 @@ class DZS_PatcherXml : DZS_PatcherBase
 				return;
 			}
 		}
+		array<string> kv = new array<string>();
+		if (k.IsVec())
+		{
+			DZS_Json kvj = null;
+			if (key && key.IsObj())
+				kvj = key.Get(k.m_Vec);
+			if (!VecOf(kvj, kv))
+			{
+				t.m_BadKey = true;
+				return;
+			}
+		}
 		string low = DZS_PatchText.Lower(name);
 		bool caseOnly = false;
 		foreach (DZS_XmlNode n : pool)
@@ -185,6 +240,12 @@ class DZS_PatcherXml : DZS_PatcherBase
 				string nx = n.Get("x");
 				string nz = n.Get("z");
 				if (!DZS_PatchNum.Near(nx, kx, k.m_Tol) || !DZS_PatchNum.Near(nz, kz, k.m_Tol))
+					continue;
+			}
+			if (k.IsVec())
+			{
+				array<string> nv = f.VecAt(n, k.m_Vec);
+				if (!nv || !NearVec(nv, kv, k.m_Tol))
 					continue;
 			}
 			t.m_Nodes.Insert(n);
@@ -281,7 +342,7 @@ class DZS_PatcherXml : DZS_PatcherBase
 				continue;
 			any = true;
 			int o = k.m_Order.Find(c.m_Name);
-			if (mine >= 0 && o >= 0 && o < mine)
+			if (mine >= 0 && o >= 0 && o <= mine)
 				after = c;
 		}
 		if (after)
@@ -458,6 +519,20 @@ class DZS_PatcherXml : DZS_PatcherBase
 			pl.m_Indent = f.LineIndent(after.m_Start);
 			pl.m_Patch = f.Insertion(after.m_End, "");
 			return pl;
+		}
+		if (!after)
+		{
+			foreach (DZS_XmlNode first : parent.m_Children)
+			{
+				if (f.IsRemoved(first) || k.m_Order.Find(first.m_Name) < 0)
+					continue;
+				if (!f.StartsLine(first.m_Start))
+					return null;
+				pl.m_Before = true;
+				pl.m_Indent = f.LineIndent(first.m_Start);
+				pl.m_Patch = f.Insertion(f.LineStart(first.m_Start), "");
+				return pl;
+			}
 		}
 		int et = f.EndTagStart(parent);
 		if (after || !f.StartsLine(et))

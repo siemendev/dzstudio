@@ -6,6 +6,7 @@ class DZS_Patcher : DZS_PatcherJson
 	ref map<string, ref array<string>> m_Out = new map<string, ref array<string>>();
 	ref array<string> m_OutPaths = new array<string>();
 	protected ref array<ref DZS_POwn> m_Owns = new array<ref DZS_POwn>();
+	protected ref array<DZS_POwn> m_AllOwns = new array<DZS_POwn>();
 	protected ref array<DZS_PatchFile> m_SpawnerFiles = new array<DZS_PatchFile>();
 	protected ref array<DZS_PatchEntry> m_SpawnerEntries = new array<DZS_PatchEntry>();
 	protected bool m_Gameplay;
@@ -324,44 +325,104 @@ class DZS_Patcher : DZS_PatcherJson
 					OwnTop(ea, ba, k);
 			}
 		}
-		for (int n = 0; n < m_Project.m_Blocks.Count(); n++)
+		// nested blocks by depth, so a loot point can go into an own container of an own loot type
+		for (int depth = 1; depth <= 2; depth++)
 		{
-			DZS_PatchBlock bn = m_Project.m_Blocks[n];
-			DZS_PatchEntry en = entries[n];
-			if (en.m_Status != "")
-				continue;
-			DZS_PKind kn = DZS_PKinds.Get(bn.m_Kind);
-			if (kn && kn.m_ParentKind != "")
-				OwnNested(en, bn, kn);
+			for (int n = 0; n < m_Project.m_Blocks.Count(); n++)
+			{
+				DZS_PatchBlock bn = m_Project.m_Blocks[n];
+				DZS_PatchEntry en = entries[n];
+				if (en.m_Status != "")
+					continue;
+				DZS_PKind kn = DZS_PKinds.Get(bn.m_Kind);
+				if (kn && kn.m_ParentKind != "" && Depth(kn) == depth)
+					OwnNested(en, bn, kn);
+			}
 		}
 		foreach (DZS_POwn o : m_Owns)
 		{
 			if (!o.m_Ok)
 				continue;
 			DZS_PatchFile f = File(o.m_Kind.m_File);
-			array<string> path = new array<string>();
 			// one level below the root is the neighbours' indent, also where it differs from the rest of the file
 			string unit = f.m_Unit;
 			string near = f.ChildIndent(f.m_Xml.m_Root);
-			if (near.IndexOf("\t") >= 0)
-				unit = "\t";
-			else if (near != "")
+			if (near != "" && !o.m_Into)
 				unit = near;
-			string text = Gen(o.m_Kind, path, o.m_Kind.m_Elem, o.m_Values, o.m_Children, unit);
-			f.AppendChild(f.m_Xml.m_Root, text);
-			if (o.m_Entry)
-				Depends(o.m_Entry, f);
-			foreach (DZS_PatchEntry ce : o.m_ChildEntries)
-				Depends(ce, f);
+			string text = GenOwn(o, unit);
+			if (o.m_Into)
+				InsertInto(f, DZS_PKinds.Get(o.m_Kind.m_ParentKind), o.m_Kind, o.m_Into, text);
+			else
+				f.AppendChild(f.m_Xml.m_Root, text);
+			DependsAll(o, f);
 		}
 	}
 
+	protected static int Depth(DZS_PKind k)
+	{
+		int d = 0;
+		DZS_PKind cur = k;
+		while (cur && cur.m_ParentKind != "")
+		{
+			d++;
+			cur = DZS_PKinds.Get(cur.m_ParentKind);
+		}
+		return d;
+	}
+
+	// The text of an own block with its own children. Fields are read into locals first: Enforce can lose a
+	// caller's parameters across a recursive call.
+	protected string GenOwn(DZS_POwn o, string unit)
+	{
+		DZS_PKind kind = o.m_Kind;
+		map<string, ref DZS_Json> values = o.m_Values;
+		string u = unit;
+		array<DZS_POwn> kids = new array<DZS_POwn>();
+		foreach (DZS_POwn k0 : o.m_Kids)
+			kids.Insert(k0);
+		array<string> texts = new array<string>();
+		foreach (DZS_POwn kid : kids)
+		{
+			string kt = GenOwn(kid, u);
+			texts.Insert(kt);
+		}
+		array<string> path = new array<string>();
+		return Gen(kind, path, kind.m_Elem, values, texts, u);
+	}
+
+	protected void DependsAll(DZS_POwn o, DZS_PatchFile f)
+	{
+		DZS_PatchFile file = f;
+		if (o.m_Entry)
+			Depends(o.m_Entry, file);
+		array<DZS_POwn> kids = new array<DZS_POwn>();
+		foreach (DZS_POwn k0 : o.m_Kids)
+			kids.Insert(k0);
+		foreach (DZS_POwn kid : kids)
+			DependsAll(kid, file);
+	}
+
+	protected DZS_POwn NewOwn(DZS_PatchBlock b, DZS_PatchEntry e, DZS_PKind k, map<string, ref DZS_Json> values)
+	{
+		DZS_POwn o = new DZS_POwn();
+		o.m_Block = b;
+		o.m_Entry = e;
+		o.m_Kind = k;
+		o.m_Values = values;
+		if (k.m_KeyAttr != "" && values.Get(k.m_KeyAttr))
+			o.m_Name = values.Get(k.m_KeyAttr).m_Str;
+		o.m_Ok = true;
+		m_AllOwns.Insert(o);
+		return o;
+	}
+
+	// An own top-level block of a kind found by name (an own event a spawn position or child names as its parent).
 	protected DZS_POwn OwnByName(string kind, string name, bool ci)
 	{
 		string low = DZS_PatchText.Lower(name);
 		foreach (DZS_POwn o : m_Owns)
 		{
-			if (!o.m_Ok || o.m_Kind.m_Name != kind)
+			if (!o.m_Ok || o.m_Kind.m_Name != kind || o.m_Into)
 				continue;
 			if (o.m_Name == name || (ci && DZS_PatchText.Lower(o.m_Name) == low))
 				return o;
@@ -387,25 +448,22 @@ class DZS_Patcher : DZS_PatcherJson
 			e.m_Detail = err;
 			return;
 		}
-		string name = values.Get(k.m_KeyAttr).m_Str;
-		DZS_Json key = DZS_Json.Obj();
-		DZS_Json nameJ = DZS_Json.Str(name);
-		key.Set(k.m_KeyAttr, nameJ);
+		DZS_Json key = OwnKey(k, values, "");
 		DZS_PTarget t = Resolve(f, k, key, true);
-		if (t.m_Nodes.Count() > 0 || OwnByName(k.m_Name, name, k.m_KeyCi))
+		bool taken = t.m_Nodes.Count() > 0;
+		foreach (DZS_POwn other : m_Owns)
+		{
+			if (other.m_Ok && other.m_Kind == k && !other.m_Into && SameKey(k, values, other.m_Values))
+				taken = true;
+		}
+		if (taken)
 		{
 			e.m_Status = "collision";
 			return;
 		}
 		if (t.m_Case)
 			e.m_Detail = "case-mismatch";
-		DZS_POwn o = new DZS_POwn();
-		o.m_Block = b;
-		o.m_Entry = e;
-		o.m_Kind = k;
-		o.m_Values = values;
-		o.m_Name = name;
-		o.m_Ok = true;
+		DZS_POwn o = NewOwn(b, e, k, values);
 		m_Owns.Insert(o);
 		e.m_Status = "applied";
 	}
@@ -431,10 +489,11 @@ class DZS_Patcher : DZS_PatcherJson
 		DZS_PKind pk = DZS_PKinds.Get(k.m_ParentKind);
 		string pname = "";
 		DZS_POwn own = null;
+		DZS_Json pkey = null;
 		if (b.m_ParentId != "")
 		{
 			DZS_POwn byId = null;
-			foreach (DZS_POwn o : m_Owns)
+			foreach (DZS_POwn o : m_AllOwns)
 			{
 				if (o.m_Block && o.m_Block.m_Id == b.m_ParentId)
 					byId = o;
@@ -448,7 +507,13 @@ class DZS_Patcher : DZS_PatcherJson
 			pname = byId.m_Name;
 			if (byId.m_Kind == pk)
 				own = byId;
-			else if (!(k.m_Name == "spawnPosition" && byId.m_Kind.m_Name == "event"))
+			else if (k.m_Name == "spawnPosition" && byId.m_Kind.m_Name == "event")
+			{
+				pkey = DZS_Json.Obj();
+				DZS_Json listName = DZS_Json.Str(pname);
+				pkey.Set(pk.m_KeyAttr, listName);
+			}
+			else
 			{
 				e.m_Status = "invalid";
 				e.m_Detail = "bad-parent";
@@ -456,7 +521,7 @@ class DZS_Patcher : DZS_PatcherJson
 			}
 		}
 		else
-			pname = KeyStr(b.m_Parent, k.m_ParentKey);
+			pkey = ParentKeyOf(k, pk, b.m_Parent, pname);
 		if (pname == "")
 		{
 			e.m_Status = "invalid";
@@ -469,31 +534,33 @@ class DZS_Patcher : DZS_PatcherJson
 			e.m_Detail = "no-positions";
 			return;
 		}
-		array<DZS_XmlNode> parents = new array<DZS_XmlNode>();
+		DZS_XmlNode into = null;
 		if (!own)
 		{
-			DZS_Json pkey = DZS_Json.Obj();
-			DZS_Json pnameJ = DZS_Json.Str(pname);
-			pkey.Set(pk.m_KeyAttr, pnameJ);
-			DZS_PTarget pt = Resolve(f, pk, pkey, true);
+			DZS_PTarget pt = Resolve(f, pk, pkey, pk.m_Dups == DZS_PKind.MERGE);
+			if (pt.m_BadKey)
+			{
+				e.m_Status = "invalid";
+				e.m_Detail = "bad-parent";
+				return;
+			}
 			if (pt.m_Ambiguous)
 			{
 				e.m_Status = "ambiguous";
 				return;
 			}
-			parents.Copy(pt.m_Nodes);
-			if (parents.Count() == 0)
+			if (pt.m_Nodes.Count() > 0)
+				into = pt.m_Nodes[pt.m_Nodes.Count() - 1];
+			else
 			{
-				own = OwnByName(pk.m_Name, pname, pk.m_KeyCi);
+				if (pk.m_ParentKind == "")
+					own = OwnByName(pk.m_Name, pname, pk.m_KeyCi);
 				if (!own && k.m_Name == "spawnPosition")
 				{
-					own = new DZS_POwn();
-					own.m_Kind = pk;
-					own.m_Name = pname;
-					own.m_Values = new map<string, ref DZS_Json>();
-					DZS_Json listName = DZS_Json.Str(pname);
-					own.m_Values.Set("name", listName);
-					own.m_Ok = true;
+					map<string, ref DZS_Json> listValues = new map<string, ref DZS_Json>();
+					DZS_Json listJ = DZS_Json.Str(pname);
+					listValues.Set("name", listJ);
+					own = NewOwn(null, null, pk, listValues);
 					m_Owns.Insert(own);
 				}
 				if (!own)
@@ -506,25 +573,23 @@ class DZS_Patcher : DZS_PatcherJson
 				}
 			}
 		}
-		DZS_Json key = OwnKey(k, values, pname);
-		if (parents.Count() > 0)
+		if (into)
 		{
+			DZS_Json key = OwnKey(k, values, pname);
 			array<DZS_XmlNode> pool = new array<DZS_XmlNode>();
-			foreach (DZS_XmlNode p : parents)
-				Members(f, p, k, pool);
+			Members(f, into, k, pool);
 			DZS_PTarget hit = new DZS_PTarget();
 			Filter(f, k, key, pool, hit);
-			if (hit.m_Nodes.Count() > 0 || Attached(k, values, null, parents[parents.Count() - 1].m_Start))
+			if (hit.m_Nodes.Count() > 0 || Attached(k, values, null, into.m_Start))
 			{
 				e.m_Status = "collision";
 				return;
 			}
-			RememberAttached(k, values, parents[parents.Count() - 1].m_Start);
-			array<string> none = new array<string>();
-			string text = Gen(k, none, k.m_Elem, values, null, f.m_Unit);
-			InsertInto(f, pk, k, parents[parents.Count() - 1], text);
+			RememberAttached(k, values, into.m_Start);
+			DZS_POwn placed = NewOwn(b, e, k, values);
+			placed.m_Into = into;
+			m_Owns.Insert(placed);
 			e.m_Status = "applied";
-			Depends(e, f);
 			return;
 		}
 		if (Attached(k, values, own, -1))
@@ -532,19 +597,20 @@ class DZS_Patcher : DZS_PatcherJson
 			e.m_Status = "collision";
 			return;
 		}
-		array<string> none2 = new array<string>();
-		string text2 = Gen(k, none2, k.m_Elem, values, null, f.m_Unit);
-		own.m_Children.Insert(text2);
-		own.m_ChildValues.Insert(values);
-		own.m_ChildEntries.Insert(e);
+		DZS_POwn child = NewOwn(b, e, k, values);
+		own.m_Kids.Insert(child);
 		e.m_Status = "applied";
 	}
 
+	// The identity key of an own block, from its values ('pname' fills the parent part, if any).
 	protected DZS_Json OwnKey(DZS_PKind k, map<string, ref DZS_Json> values, string pname)
 	{
 		DZS_Json key = DZS_Json.Obj();
-		DZS_Json pj = DZS_Json.Str(pname);
-		key.Set(k.m_ParentKey, pj);
+		if (k.m_ParentKey != "")
+		{
+			DZS_Json pj = DZS_Json.Str(pname);
+			key.Set(k.m_ParentKey, pj);
+		}
 		if (k.m_KeyAttr != "")
 			key.Set(k.m_KeyAttr, values.Get(k.m_KeyAttr));
 		if (k.IsCoord())
@@ -552,6 +618,8 @@ class DZS_Patcher : DZS_PatcherJson
 			key.Set("x", values.Get("x"));
 			key.Set("z", values.Get("z"));
 		}
+		if (k.IsVec())
+			key.Set(k.m_Vec, values.Get(k.m_Vec));
 		return key;
 	}
 
@@ -571,11 +639,16 @@ class DZS_Patcher : DZS_PatcherJson
 
 	protected bool Attached(DZS_PKind k, map<string, ref DZS_Json> values, DZS_POwn own, int parentStart)
 	{
-		array<ref map<string, ref DZS_Json>> list;
 		if (own)
-			list = own.m_ChildValues;
-		else
-			list = m_AddedTo.Get(parentStart);
+		{
+			foreach (DZS_POwn kid : own.m_Kids)
+			{
+				if (kid.m_Kind == k && SameKey(k, values, kid.m_Values))
+					return true;
+			}
+			return false;
+		}
+		array<ref map<string, ref DZS_Json>> list = m_AddedTo.Get(parentStart);
 		if (!list)
 			return false;
 		foreach (map<string, ref DZS_Json> other : list)
@@ -609,15 +682,33 @@ class DZS_Patcher : DZS_PatcherJson
 			if (!DZS_PatchNum.Near(ax, bx, k.m_Tol) || !DZS_PatchNum.Near(az, bz, k.m_Tol))
 				return false;
 		}
+		if (k.IsVec())
+		{
+			array<string> va = new array<string>();
+			array<string> vb = new array<string>();
+			if (!VecOf(a.Get(k.m_Vec), va) || !VecOf(b.Get(k.m_Vec), vb) || !NearVec(va, vb, k.m_Tol))
+				return false;
+		}
 		return true;
 	}
 
-	// Puts an own child into a base parent: into its container element (made when missing) or directly.
+	// Puts an own child into a base parent: into its container element (made when missing), before siblings the
+	// kind's order puts after it (a loot container goes before the fixed parts), or at the end.
 	protected void InsertInto(DZS_PatchFile f, DZS_PKind pk, DZS_PKind k, DZS_XmlNode parent, string text)
 	{
 		if (k.m_Container == "")
 		{
-			f.AppendChild(parent, text);
+			int mine = pk.m_Order.Find(k.m_Elem);
+			bool later = false;
+			foreach (DZS_XmlNode s : parent.m_Children)
+			{
+				if (!f.IsRemoved(s) && mine >= 0 && pk.m_Order.Find(s.m_Name) > mine)
+					later = true;
+			}
+			if (later)
+				InsertOrdered(f, pk, parent, k.m_Elem, text);
+			else
+				f.AppendChild(parent, text);
 			return;
 		}
 		foreach (DZS_XmlNode c : parent.m_Children)

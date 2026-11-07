@@ -49,6 +49,8 @@ class DZS_PatchFile : Managed
 	ref map<int, ref DZS_PInsert> m_Inserts = new map<int, ref DZS_PInsert>();
 	ref array<ref DZS_PJCont> m_Conts = new array<ref DZS_PJCont>();
 	ref map<string, ref DZS_PList> m_Lists = new map<string, ref DZS_PList>();
+	// children of an element by lower-cased attribute value, built once per element, name and attribute
+	ref map<string, ref map<string, ref array<DZS_XmlNode>>> m_Index = new map<string, ref map<string, ref array<DZS_XmlNode>>>();
 	// entries of the report that depend on this file, set to invalid when it cannot be written
 	ref array<DZS_PatchEntry> m_Entries = new array<DZS_PatchEntry>();
 	bool m_Changed;
@@ -90,13 +92,13 @@ class DZS_PatchFile : Managed
 		while (nl >= 0)
 		{
 			string c = m_Xml.CharAt(nl + 1);
-			if (c == "\t")
+			if (c == "\t" || c == " ")
 			{
-				m_Unit = "\t";
+				string ind = LineIndent(nl + 1);
+				if (ind.Length() < 9)
+					m_Unit = ind;
 				break;
 			}
-			if (c == " ")
-				break;
 			nl = m_Xml.Find(nl + 1, "\n");
 		}
 	}
@@ -179,6 +181,48 @@ class DZS_PatchFile : Managed
 	}
 
 	// ---- XML ----
+
+	// The three numbers of an "x y z" attribute as written in the base, parsed once; null when it holds no vector.
+	protected ref map<int, ref array<string>> m_Vecs = new map<int, ref array<string>>();
+
+	array<string> VecAt(DZS_XmlNode n, string attr)
+	{
+		if (m_Vecs.Contains(n.m_Start))
+			return m_Vecs.Get(n.m_Start);
+		array<string> parts = new array<string>();
+		if (!DZS_PatcherBase.VecText(n.Get(attr), parts))
+			parts = null;
+		m_Vecs.Set(n.m_Start, parts);
+		return parts;
+	}
+
+	array<DZS_XmlNode> Named(DZS_XmlNode parent, string elem, string attr, string low)
+	{
+		string ik = parent.m_Start.ToString() + ":" + elem + "@" + attr;
+		map<string, ref array<DZS_XmlNode>> idx = m_Index.Get(ik);
+		if (!idx)
+		{
+			idx = new map<string, ref array<DZS_XmlNode>>();
+			m_Index.Set(ik, idx);
+			foreach (DZS_XmlNode c : parent.m_Children)
+			{
+				if (c.m_Name != elem)
+					continue;
+				string v = DZS_PatchText.Lower(c.Get(attr));
+				array<DZS_XmlNode> list = idx.Get(v);
+				if (!list)
+				{
+					list = new array<DZS_XmlNode>();
+					idx.Set(v, list);
+				}
+				list.Insert(c);
+			}
+		}
+		array<DZS_XmlNode> hit = idx.Get(low);
+		if (!hit)
+			hit = new array<DZS_XmlNode>();
+		return hit;
+	}
 
 	bool IsRemoved(DZS_XmlNode n)
 	{

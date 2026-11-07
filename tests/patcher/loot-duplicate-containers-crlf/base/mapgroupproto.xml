@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<prototype>
+		<defaults>
+				<default name="group" lootmax="6" />
+				<default name="container" lootmax="4" />
+		</defaults>
+		<group name="Land_Smokestack_Medium" lootmax="5">
+				<usage name="Industrial" />
+				<container name="lootFloor" lootmax="2">
+						<category name="tools" />
+						<point pos="1 0 1" range="0.5" height="1" />
+				</container>
+				<container name="lootFloor" lootmax="3">
+						<category name="food" />
+						<point pos="2 0 2" range="0.5" height="1" />
+						<point pos="2 0 2" range="0.5" height="1" />
+				</container>
+		</group>
+</prototype>

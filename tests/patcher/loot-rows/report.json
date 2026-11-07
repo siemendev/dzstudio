@@ -1,0 +1,184 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "lootRow",
+            "key": {
+                "name": "Land_Wreck_Truck01_aban1_blue",
+                "pos": [
+                    100,
+                    5,
+                    200
+                ]
+            },
+            "field": "a",
+            "status": "applied",
+            "file": "mapgrouppos.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "lootRow",
+            "key": {
+                "name": "Land_Misc_FeedShack",
+                "pos": [
+                    80.262581,
+                    113.793480,
+                    4422.178223
+                ]
+            },
+            "field": "pos",
+            "status": "applied",
+            "file": "mapgrouppos.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "lootRow",
+            "key": {
+                "name": "Land_House_1M4_Dam2",
+                "pos": [
+                    2946.91333,
+                    421.467346,
+                    6332.023926
+                ]
+            },
+            "field": "a",
+            "status": "ambiguous",
+            "file": "mapgrouppos.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "remove",
+            "kind": "lootRow",
+            "key": {
+                "name": "Land_House_1M4_Dam2",
+                "pos": [
+                    2946.91333,
+                    421.467346,
+                    6332.023926
+                ]
+            },
+            "status": "applied",
+            "file": "mapgrouppos.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "remove",
+            "kind": "lootRow",
+            "key": {
+                "name": "Land_Tenement_Small_Brown",
+                "pos": [
+                    500,
+                    10,
+                    500
+                ]
+            },
+            "status": "applied",
+            "file": "mapgrouppos.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "remove",
+            "kind": "lootRow",
+            "key": {
+                "name": "Land_Tenement_Small_Brown",
+                "pos": [
+                    500.02,
+                    10,
+                    500
+                ]
+            },
+            "status": "gone",
+            "file": "mapgrouppos.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "lootRow",
+            "key": {
+                "name": "Land_Misc_FeedShack",
+                "pos": [
+                    80.27,
+                    113.79348,
+                    4422.178223
+                ]
+            },
+            "field": "a",
+            "status": "already",
+            "file": "mapgrouppos.xml"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "set",
+            "kind": "lootRow",
+            "key": {
+                "name": "Land_Misc_FeedShack"
+            },
+            "field": "a",
+            "status": "invalid",
+            "file": "mapgrouppos.xml",
+            "detail": "bad-key"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "lootRow",
+            "id": "b-r",
+            "status": "applied",
+            "file": "mapgrouppos.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "lootRow",
+            "id": "b-r2",
+            "status": "collision",
+            "file": "mapgrouppos.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "lootRow",
+            "id": "b-r3",
+            "status": "collision",
+            "file": "mapgrouppos.xml"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "lootRow",
+            "id": "b-r4",
+            "status": "invalid",
+            "file": "mapgrouppos.xml",
+            "detail": "incomplete"
+        },
+        {
+            "what": "block",
+            "index": 4,
+            "kind": "lootRow",
+            "id": "b-r5",
+            "status": "invalid",
+            "file": "mapgrouppos.xml",
+            "detail": "bad-value"
+        }
+    ],
+    "files": [
+        {
+            "path": "mapgrouppos.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

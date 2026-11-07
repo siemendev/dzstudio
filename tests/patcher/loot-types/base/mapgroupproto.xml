@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<prototype>
+		<defaults>
+				<default name="group" lootmax="6" />
+				<default name="container" lootmax="4" />
+		</defaults>
+		<group name="Land_Shed_M1" lootmax="2">
+				<usage name="Industrial" />
+				<usage name="Farm" />
+				<container name="lootFloor" lootmax="2">
+						<category name="tools" />
+						<category name="containers" />
+						<tag name="floor" />
+						<tag name="ground" />
+						<point pos="-0.238281 -1.174019 -0.895996" range="0.497570" height="1.243926" flags="32" />
+						<point pos="0.504883 -1.174019 0.807373" range="0.587867" height="1.469666" flags="32" />
+						<point pos="0.852539 -1.174019 -0.850342" range="0.595474" height="1.488685" flags="32" />
+				</container>
+		</group>
+		<group name="Land_Garage_Row">
+				<container name="lootFloor">
+						<point pos="1 0 1" range="0.5" height="1" />
+				</container>
+				<dispatch>
+						<proxy type="Wheel" pos="0 0 0" rpy="0 0 0" />
+				</dispatch>
+		</group>
+		<group name="Land_Dup" lootmax="1">
+				<container name="lootFloor" lootmax="1">
+						<point pos="0 0 0" range="0.5" height="1" />
+				</container>
+		</group>
+		<group name="land_dup" lootmax="9">
+				<container name="lootFloor" lootmax="1">
+						<point pos="0 0 0" range="0.5" height="1" />
+				</container>
+		</group>
+		<group name="Land_Gone" lootmax="1">
+				<container name="lootFloor" lootmax="1">
+						<point pos="0 0 0" range="0.5" height="1" />
+				</container>
+		</group>
+</prototype>

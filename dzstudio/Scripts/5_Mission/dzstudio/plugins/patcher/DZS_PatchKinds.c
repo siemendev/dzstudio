@@ -88,7 +88,13 @@ class DZS_PKind : Managed
 	string m_Container;
 	string m_KeyAttr;
 	bool m_KeyCi;
+	// coordinate keys: x/z attributes, or one attribute holding "x y z" (m_Vec)
 	int m_Tol = -1;
+	string m_Vec;
+	// how a key of this kind names its parent: "childKey=parentKey" pairs (default: m_ParentKey=parent's key attribute)
+	ref array<string> m_ParentMap = new array<string>();
+	// a remove takes every match (identical loot rows), a set still needs an ordinal
+	bool m_RemoveAll;
 	int m_Dups = SINGLE;
 	string m_SelfClose = "/>";
 	bool m_Singleton;
@@ -124,7 +130,12 @@ class DZS_PKind : Managed
 
 	bool IsCoord()
 	{
-		return m_Tol >= 0;
+		return m_Tol >= 0 && m_Vec == "";
+	}
+
+	bool IsVec()
+	{
+		return m_Tol >= 0 && m_Vec != "";
 	}
 
 	// Extra rules for an own block of this kind; "" when it may be written. 'values' are its fields by name.
@@ -357,6 +368,70 @@ class DZS_PKinds
 		ty.F("value[]", DZS_PField.LIST, false);
 		ty.m_Order = {"nominal", "lifetime", "restock", "min", "quantmin", "quantmax", "cost", "flags", "category", "tag", "usage", "value"};
 		Add(ty);
+
+		DZS_PKind lt = new DZS_PKind();
+		lt.m_Name = "lootType";
+		lt.m_File = "mapgroupproto.xml";
+		lt.m_Root = "prototype";
+		lt.m_Elem = "group";
+		lt.m_KeyAttr = "name";
+		lt.m_KeyCi = true;
+		lt.m_Dups = DZS_PKind.FIRST;
+		lt.m_SelfClose = " />";
+		lt.F("@name", DZS_PField.STR, true);
+		lt.F("@lootmax", DZS_PField.INT, false);
+		lt.F("usage[]", DZS_PField.LIST, false);
+		lt.F("value[]", DZS_PField.LIST, false);
+		lt.m_Order = {"usage", "value", "container", "dispatch"};
+		Add(lt);
+
+		DZS_PKind lc = new DZS_PKind();
+		lc.m_Name = "lootContainer";
+		lc.m_File = "mapgroupproto.xml";
+		lc.m_Elem = "container";
+		lc.m_ParentKind = "lootType";
+		lc.m_ParentKey = "group";
+		lc.m_KeyAttr = "name";
+		lc.m_SelfClose = " />";
+		lc.F("@name", DZS_PField.STR, true);
+		lc.F("@lootmax", DZS_PField.INT, false);
+		lc.F("category[]", DZS_PField.LIST, false);
+		lc.F("tag[]", DZS_PField.LIST, false);
+		lc.m_Order = {"category", "tag", "point"};
+		Add(lc);
+
+		DZS_PKind lp = new DZS_PKind();
+		lp.m_Name = "lootPoint";
+		lp.m_File = "mapgroupproto.xml";
+		lp.m_Elem = "point";
+		lp.m_ParentKind = "lootContainer";
+		lp.m_ParentKey = "group";
+		lp.m_ParentMap = {"group=group", "container=name", "containerOrdinal=ordinal"};
+		lp.m_Vec = "pos";
+		lp.m_Tol = 10000;
+		lp.m_SelfClose = " />";
+		lp.F("@pos", DZS_PField.VEC3, true);
+		lp.F("@range", DZS_PField.FIX6, true);
+		lp.F("@height", DZS_PField.FIX6, true);
+		lp.F("@flags", DZS_PField.INT, false);
+		Add(lp);
+
+		DZS_PKind lr = new DZS_PKind();
+		lr.m_Name = "lootRow";
+		lr.m_File = "mapgrouppos.xml";
+		lr.m_Root = "map";
+		lr.m_Elem = "group";
+		lr.m_KeyAttr = "name";
+		lr.m_KeyCi = true;
+		lr.m_Vec = "pos";
+		lr.m_Tol = 10000;
+		lr.m_RemoveAll = true;
+		lr.m_SelfClose = " />";
+		lr.F("@name", DZS_PField.STR, true);
+		lr.F("@pos", DZS_PField.VEC3, true);
+		lr.F("@rpy", DZS_PField.VEC3, true);
+		lr.F("@a", DZS_PField.FIX6, true);
+		Add(lr);
 
 		DZS_PKind we = new DZS_PKind();
 		we.m_Name = "weather";

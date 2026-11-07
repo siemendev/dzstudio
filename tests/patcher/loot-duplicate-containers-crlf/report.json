@@ -1,0 +1,131 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "lootContainer",
+            "key": {
+                "group": "Land_Smokestack_Medium",
+                "name": "lootFloor"
+            },
+            "field": "lootmax",
+            "status": "ambiguous",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "lootContainer",
+            "key": {
+                "group": "Land_Smokestack_Medium",
+                "name": "lootFloor",
+                "ordinal": 2
+            },
+            "field": "lootmax",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "lootPoint",
+            "key": {
+                "group": "Land_Smokestack_Medium",
+                "container": "lootFloor",
+                "pos": [
+                    1,
+                    0,
+                    1
+                ]
+            },
+            "field": "range",
+            "status": "ambiguous",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "lootPoint",
+            "key": {
+                "group": "Land_Smokestack_Medium",
+                "container": "lootFloor",
+                "containerOrdinal": 1,
+                "pos": [
+                    1,
+                    0,
+                    1
+                ]
+            },
+            "field": "range",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "lootPoint",
+            "key": {
+                "group": "Land_Smokestack_Medium",
+                "container": "lootFloor",
+                "containerOrdinal": 2,
+                "pos": [
+                    2,
+                    0,
+                    2
+                ]
+            },
+            "field": "height",
+            "status": "ambiguous",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "remove",
+            "kind": "lootPoint",
+            "key": {
+                "group": "Land_Smokestack_Medium",
+                "container": "lootFloor",
+                "containerOrdinal": 2,
+                "pos": [
+                    2,
+                    0,
+                    2
+                ],
+                "ordinal": 2
+            },
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "lootPoint",
+            "id": "b-p",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "lootPoint",
+            "id": "b-q",
+            "status": "ambiguous",
+            "file": "mapgroupproto.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "mapgroupproto.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

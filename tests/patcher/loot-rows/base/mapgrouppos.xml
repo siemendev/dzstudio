@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<map>
+    <group name="Land_Misc_FeedShack" pos="80.262581 113.793480 4422.178223" rpy="-0.000000 0.000000 -70.013718" a="160.013718" />
+    <group name="Land_wreck_truck01_aban1_blue" pos="100.000000 5.000000 200.000000" rpy="0.000000 0.000000 10.000000" a="80.000000" />
+    <group name="Land_House_1M4_Dam2" pos="2946.913330 421.467346 6332.023926" rpy="0.000000 0.000000 0.000000" a="90.000000" />
+    <group name="Land_House_1M4_Dam2" pos="2946.913330 421.467346 6332.023926" rpy="0.000000 0.000000 0.000000" a="90.000000" />
+    <group name="Land_Tenement_Small_Brown" pos="500.000000 10.000000 500.000000" rpy="0 0 0" a="90" />
+    <group name="Land_Tenement_Small_Brown_Ghost1" pos="500.000000 10.000000 500.000000" rpy="0 0 0" a="90" />
+</map>

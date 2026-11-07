@@ -1,0 +1,129 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-p",
+            "kind": "lootPoint",
+            "parent": {
+                "group": "Land_Smokestack_Medium",
+                "container": "lootFloor",
+                "containerOrdinal": 2
+            },
+            "data": {
+                "pos": [
+                    3,
+                    0,
+                    3
+                ],
+                "range": 0.5,
+                "height": 1
+            }
+        },
+        {
+            "id": "b-q",
+            "kind": "lootPoint",
+            "parent": {
+                "group": "Land_Smokestack_Medium",
+                "container": "lootFloor"
+            },
+            "data": {
+                "pos": [
+                    4,
+                    0,
+                    4
+                ],
+                "range": 0.5,
+                "height": 1
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "lootContainer",
+            "key": {
+                "group": "Land_Smokestack_Medium",
+                "name": "lootFloor"
+            },
+            "field": "lootmax",
+            "to": 4
+        },
+        {
+            "op": "set",
+            "block": "lootContainer",
+            "key": {
+                "group": "Land_Smokestack_Medium",
+                "name": "lootFloor",
+                "ordinal": 2
+            },
+            "field": "lootmax",
+            "from": 3,
+            "to": 4
+        },
+        {
+            "op": "set",
+            "block": "lootPoint",
+            "key": {
+                "group": "Land_Smokestack_Medium",
+                "container": "lootFloor",
+                "pos": [
+                    1,
+                    0,
+                    1
+                ]
+            },
+            "field": "range",
+            "to": 0.6
+        },
+        {
+            "op": "set",
+            "block": "lootPoint",
+            "key": {
+                "group": "Land_Smokestack_Medium",
+                "container": "lootFloor",
+                "containerOrdinal": 1,
+                "pos": [
+                    1,
+                    0,
+                    1
+                ]
+            },
+            "field": "range",
+            "from": 0.5,
+            "to": 0.6
+        },
+        {
+            "op": "set",
+            "block": "lootPoint",
+            "key": {
+                "group": "Land_Smokestack_Medium",
+                "container": "lootFloor",
+                "containerOrdinal": 2,
+                "pos": [
+                    2,
+                    0,
+                    2
+                ]
+            },
+            "field": "height",
+            "to": 2
+        },
+        {
+            "op": "remove",
+            "block": "lootPoint",
+            "key": {
+                "group": "Land_Smokestack_Medium",
+                "container": "lootFloor",
+                "containerOrdinal": 2,
+                "pos": [
+                    2,
+                    0,
+                    2
+                ],
+                "ordinal": 2
+            }
+        }
+    ]
+}

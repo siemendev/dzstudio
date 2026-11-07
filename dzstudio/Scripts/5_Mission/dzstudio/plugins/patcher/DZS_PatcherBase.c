@@ -36,6 +36,16 @@ class DZS_PatcherBase : Managed
 				return DZS_PatchNum.Fixed6(v.m_Str);
 			return DZS_PatchNum.Canon(v.m_Str);
 		}
+		if (fmt == DZS_PField.VEC3)
+		{
+			array<string> parts = new array<string>();
+			if (!VecOf(v, parts))
+			{
+				err = "bad-value";
+				return "";
+			}
+			return DZS_PatchNum.Fixed6(parts[0]) + " " + DZS_PatchNum.Fixed6(parts[1]) + " " + DZS_PatchNum.Fixed6(parts[2]);
+		}
 		if (fmt == DZS_PField.BOOL01)
 		{
 			int b = BoolOf(v);
@@ -107,6 +117,19 @@ class DZS_PatcherBase : Managed
 		int fmt = f.m_Fmt;
 		if (fmt == DZS_PField.INT || fmt == DZS_PField.NUM || fmt == DZS_PField.FIX6)
 			return v.IsNum() && DZS_PatchNum.Same(cur, v.m_Str);
+		if (fmt == DZS_PField.VEC3)
+		{
+			array<string> want = new array<string>();
+			array<string> have = new array<string>();
+			if (!VecOf(v, want) || !VecText(cur, have))
+				return false;
+			for (int i = 0; i < 3; i++)
+			{
+				if (!DZS_PatchNum.Same(want[i], have[i]))
+					return false;
+			}
+			return true;
+		}
 		if (fmt == DZS_PField.BOOL01)
 		{
 			int bv = BoolOf(v);
@@ -158,6 +181,67 @@ class DZS_PatcherBase : Managed
 		for (int i = 0; i < want.Count(); i++)
 		{
 			if (want[i] != cur[i])
+				return false;
+		}
+		return true;
+	}
+
+	// Three numbers from a project value: [x, y, z] or "x y z".
+	static bool VecOf(DZS_Json v, array<string> parts)
+	{
+		parts.Clear();
+		if (!v)
+			return false;
+		if (v.IsStr())
+			return VecText(v.m_Str, parts);
+		if (!v.IsArr() || v.Count() != 3)
+			return false;
+		for (int i = 0; i < 3; i++)
+		{
+			DZS_Json c = v.At(i);
+			if (!c.IsNum() || !DZS_PatchNum.IsNumber(c.m_Str))
+				return false;
+			parts.Insert(c.m_Str);
+		}
+		return true;
+	}
+
+	// Three numbers from file text "x y z" (any spaces or tabs between them).
+	static bool VecText(string t, array<string> parts)
+	{
+		parts.Clear();
+		string cur = "";
+		for (int i = 0; i <= t.Length(); i++)
+		{
+			string c = " ";
+			if (i < t.Length())
+				c = t.Get(i);
+			if (c == " " || c == "\t" || c == "\r" || c == "\n")
+			{
+				if (cur != "")
+				{
+					parts.Insert(cur);
+					cur = "";
+				}
+			}
+			else
+				cur += c;
+		}
+		if (parts.Count() != 3)
+			return false;
+		foreach (string p : parts)
+		{
+			if (!DZS_PatchNum.IsNumber(p))
+				return false;
+		}
+		return true;
+	}
+
+	static bool NearVec(array<string> a, array<string> b, int tol)
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			if (!DZS_PatchNum.Near(a[i], b[i], tol))
 				return false;
 		}
 		return true;

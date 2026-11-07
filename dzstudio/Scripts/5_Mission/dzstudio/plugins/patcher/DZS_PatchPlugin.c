@@ -261,7 +261,7 @@ class DZS_PatchTests
 		array<string> names;
 		array<bool> folders;
 		DZS_Files.List(dir, names, folders);
-		array<string> files = {"db/events.xml", "cfgeventspawns.xml", "cfgeventgroups.xml", "cfgeffectarea.json", "cfgweather.xml", "cfggameplay.json", "db/types.xml"};
+		array<string> files = {"db/events.xml", "cfgeventspawns.xml", "cfgeventgroups.xml", "cfgeffectarea.json", "cfgweather.xml", "cfggameplay.json", "db/types.xml", "mapgroupproto.xml", "mapgrouppos.xml"};
 		int bad = 0;
 		for (int i = 0; i < names.Count(); i++)
 		{
@@ -308,75 +308,30 @@ class DZS_PatchTests
 		DZS_Log.Info("patchsmoke: done, " + bad + " problems");
 	}
 
-	// Resolves every block of the file's kinds by its own key; returns counts of unique / duplicate / not found.
+	// Resolves every block of the file's kinds by its own key, as an editor would address it (ordinals only where a
+	// container name repeats); returns counts of unique / duplicate / not found per kind.
 	protected static string KeyCheck(DZS_PatchFile f)
 	{
 		DZS_Patcher p = new DZS_Patcher();
-		array<string> kinds = {"event", "eventChild", "spawnList", "spawnPosition", "eventGroup", "eventGroupChild", "itemType"};
+		array<string> kinds = {"event", "eventChild", "spawnList", "spawnPosition", "eventGroup", "eventGroupChild", "itemType", "lootType", "lootContainer", "lootPoint", "lootRow"};
 		string r = "";
 		foreach (string kn : kinds)
 		{
 			DZS_PKind k = DZS_PKinds.Get(kn);
 			if (DZS_PatchText.Lower(f.m_Path) != k.m_File)
 				continue;
+			array<DZS_XmlNode> nodes = new array<DZS_XmlNode>();
+			array<ref DZS_Json> keys = new array<ref DZS_Json>();
+			Collect(p, f, k, nodes, keys);
 			int ok = 0;
 			int multi = 0;
 			int lost = 0;
-			array<DZS_XmlNode> nodes = new array<DZS_XmlNode>();
-			array<string> parents = new array<string>();
-			DZS_XmlNode root = f.m_Xml.m_Root;
-			if (k.m_ParentKind == "")
-			{
-				foreach (DZS_XmlNode c : root.m_Children)
-				{
-					if (c.m_Name == k.m_Elem)
-					{
-						nodes.Insert(c);
-						parents.Insert("");
-					}
-				}
-			}
-			else
-			{
-				DZS_PKind pk = DZS_PKinds.Get(k.m_ParentKind);
-				foreach (DZS_XmlNode pn : root.m_Children)
-				{
-					if (pn.m_Name != pk.m_Elem)
-						continue;
-					array<DZS_XmlNode> pool = new array<DZS_XmlNode>();
-					p.Members(f, pn, k, pool);
-					foreach (DZS_XmlNode m : pool)
-					{
-						nodes.Insert(m);
-						parents.Insert(pn.Get(pk.m_KeyAttr));
-					}
-				}
-			}
 			for (int i = 0; i < nodes.Count(); i++)
 			{
-				DZS_XmlNode n = nodes[i];
-				DZS_Json key = DZS_Json.Obj();
-				if (k.m_ParentKey != "")
-				{
-					DZS_Json pj = DZS_Json.Str(parents[i]);
-					key.Set(k.m_ParentKey, pj);
-				}
-				if (k.m_KeyAttr != "")
-				{
-					DZS_Json nj = DZS_Json.Str(n.Get(k.m_KeyAttr));
-					key.Set(k.m_KeyAttr, nj);
-				}
-				if (k.IsCoord())
-				{
-					DZS_Json xj = DZS_Json.Num(n.Get("x"));
-					DZS_Json zj = DZS_Json.Num(n.Get("z"));
-					key.Set("x", xj);
-					key.Set("z", zj);
-				}
-				DZS_PTarget t = p.Resolve(f, k, key, false);
+				DZS_PTarget t = p.Resolve(f, k, keys[i], false);
 				if (t.m_Ambiguous || t.m_Nodes.Count() > 1)
 					multi++;
-				else if (t.m_Nodes.Count() == 1 && t.m_Nodes[0] == n)
+				else if (t.m_Nodes.Count() == 1 && t.m_Nodes[0] == nodes[i])
 					ok++;
 				else if (t.m_Nodes.Count() == 1 && k.m_Dups != DZS_PKind.SINGLE)
 					ok++;
@@ -386,5 +341,124 @@ class DZS_PatchTests
 			r += kn + " " + ok + "/" + multi + "/" + lost + " ";
 		}
 		return r;
+	}
+
+	// Every element of a kind with its key, through up to two parent levels.
+	protected static void Collect(DZS_Patcher p, DZS_PatchFile f, DZS_PKind k, array<DZS_XmlNode> nodes, array<ref DZS_Json> keys)
+	{
+		DZS_XmlNode root = f.m_Xml.m_Root;
+		array<DZS_XmlNode> tops = new array<DZS_XmlNode>();
+		array<ref DZS_Json> topKeys = new array<ref DZS_Json>();
+		DZS_PKind top = k;
+		while (top.m_ParentKind != "")
+			top = DZS_PKinds.Get(top.m_ParentKind);
+		foreach (DZS_XmlNode c : root.m_Children)
+		{
+			if (c.m_Name != top.m_Elem)
+				continue;
+			tops.Insert(c);
+			DZS_Json none = DZS_Json.Obj();
+			topKeys.Insert(KeyOf(top, top, c, none, 0));
+		}
+		if (k == top)
+		{
+			nodes.Copy(tops);
+			foreach (DZS_Json tk : topKeys)
+				keys.Insert(tk);
+			return;
+		}
+		DZS_PKind mid = k;
+		if (DZS_PKinds.Get(k.m_ParentKind) != top)
+			mid = DZS_PKinds.Get(k.m_ParentKind);
+		for (int i = 0; i < tops.Count(); i++)
+		{
+			array<DZS_XmlNode> mids = new array<DZS_XmlNode>();
+			p.Members(f, tops[i], mid, mids);
+			foreach (DZS_XmlNode m : mids)
+			{
+				int ord = 0;
+				if (mid.m_KeyAttr != "" && mid.m_Dups == DZS_PKind.SINGLE && !mid.IsCoord() && !mid.IsVec())
+					ord = OrdinalAmong(mids, m, mid.m_KeyAttr);
+				DZS_Json midKey = KeyOf(mid, top, m, topKeys[i], ord);
+				if (mid == k)
+				{
+					nodes.Insert(m);
+					keys.Insert(midKey);
+					continue;
+				}
+				array<DZS_XmlNode> leaves = new array<DZS_XmlNode>();
+				p.Members(f, m, k, leaves);
+				foreach (DZS_XmlNode l : leaves)
+				{
+					nodes.Insert(l);
+					keys.Insert(KeyOf(k, mid, l, midKey, 0));
+				}
+			}
+		}
+	}
+
+	// 1-based position among same-named siblings when the name repeats, else 0.
+	protected static int OrdinalAmong(array<DZS_XmlNode> sibs, DZS_XmlNode n, string attr)
+	{
+		int count = 0;
+		int at = 0;
+		foreach (DZS_XmlNode s : sibs)
+		{
+			if (s.Get(attr) != n.Get(attr))
+				continue;
+			count++;
+			if (s == n)
+				at = count;
+		}
+		if (count < 2)
+			return 0;
+		return at;
+	}
+
+	protected static DZS_Json KeyOf(DZS_PKind k, DZS_PKind pk, DZS_XmlNode n, DZS_Json parentKey, int ordinal)
+	{
+		DZS_Json key = DZS_Json.Obj();
+		if (k.m_ParentKind != "")
+		{
+			array<string> pairs = new array<string>();
+			pairs.Copy(k.m_ParentMap);
+			if (pairs.Count() == 0)
+				pairs.Insert(k.m_ParentKey + "=" + pk.m_KeyAttr);
+			foreach (string pair : pairs)
+			{
+				int eq = pair.IndexOf("=");
+				string mine = pair.Substring(0, eq);
+				string theirs = pair.Substring(eq + 1, pair.Length() - eq - 1);
+				DZS_Json v = parentKey.Get(theirs);
+				if (v)
+				{
+					DZS_Json vc = DZS_Json.Str(v.m_Str);
+					key.Set(mine, vc);
+				}
+			}
+		}
+		if (k.m_KeyAttr != "")
+		{
+			DZS_Json nj = DZS_Json.Str(n.Get(k.m_KeyAttr));
+			key.Set(k.m_KeyAttr, nj);
+		}
+		if (k.IsCoord())
+		{
+			DZS_Json xj = DZS_Json.Num(n.Get("x"));
+			DZS_Json zj = DZS_Json.Num(n.Get("z"));
+			key.Set("x", xj);
+			key.Set("z", zj);
+		}
+		if (k.IsVec())
+		{
+			DZS_Json vj = DZS_Json.Str(n.Get(k.m_Vec));
+			key.Set(k.m_Vec, vj);
+		}
+		if (ordinal > 0)
+		{
+			DZS_Json oj = DZS_Json.Num(ordinal.ToString());
+			key.Set("ordinal", oj);
+		}
+		return key;
 	}
 }

@@ -1,0 +1,369 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-c",
+            "kind": "lootContainer",
+            "parent": {
+                "group": "Land_Garage_Row"
+            },
+            "data": {
+                "name": "lootShelves",
+                "lootmax": 2,
+                "category": [
+                    "tools"
+                ],
+                "tag": [
+                    "shelves"
+                ]
+            }
+        },
+        {
+            "id": "b-c-p1",
+            "kind": "lootPoint",
+            "parent": "b-c",
+            "data": {
+                "pos": [
+                    0,
+                    1,
+                    0
+                ],
+                "range": 0.5,
+                "height": 1,
+                "flags": 32
+            }
+        },
+        {
+            "id": "b-c-p2",
+            "kind": "lootPoint",
+            "parent": "b-c",
+            "data": {
+                "pos": [
+                    0.005,
+                    1,
+                    0
+                ],
+                "range": 0.5,
+                "height": 1
+            }
+        },
+        {
+            "id": "b-p",
+            "kind": "lootPoint",
+            "parent": {
+                "group": "Land_Shed_M1",
+                "container": "lootFloor"
+            },
+            "data": {
+                "pos": [
+                    1,
+                    1,
+                    1
+                ],
+                "range": 0.3,
+                "height": 0.5
+            }
+        },
+        {
+            "id": "b-p2",
+            "kind": "lootPoint",
+            "parent": {
+                "group": "Land_Shed_M1",
+                "container": "lootFloor"
+            },
+            "data": {
+                "pos": [
+                    0.504883,
+                    -1.174019,
+                    0.807373
+                ],
+                "range": 1,
+                "height": 1
+            }
+        },
+        {
+            "id": "b-t",
+            "kind": "lootType",
+            "parent": null,
+            "data": {
+                "name": "Land_New_Shed",
+                "lootmax": 3,
+                "usage": [
+                    "Farm"
+                ]
+            }
+        },
+        {
+            "id": "b-t-c-p",
+            "kind": "lootPoint",
+            "parent": "b-t-c",
+            "data": {
+                "pos": [
+                    0,
+                    0,
+                    0
+                ],
+                "range": 0.5,
+                "height": 1
+            }
+        },
+        {
+            "id": "b-t-c",
+            "kind": "lootContainer",
+            "parent": "b-t",
+            "data": {
+                "name": "lootFloor",
+                "lootmax": 2,
+                "category": [
+                    "tools"
+                ],
+                "tag": [
+                    "floor"
+                ]
+            }
+        },
+        {
+            "id": "b-t2",
+            "kind": "lootType",
+            "parent": null,
+            "data": {
+                "name": "LAND_SHED_M1"
+            }
+        },
+        {
+            "id": "b-x",
+            "kind": "lootContainer",
+            "parent": {
+                "group": "Land_Missing"
+            },
+            "data": {
+                "name": "lootFloor"
+            }
+        },
+        {
+            "id": "b-y",
+            "kind": "lootPoint",
+            "parent": {
+                "group": "Land_Shed_M1"
+            },
+            "data": {
+                "pos": [
+                    5,
+                    5,
+                    5
+                ],
+                "range": 1,
+                "height": 1
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "lootType",
+            "key": {
+                "name": "land_shed_m1"
+            },
+            "field": "lootmax",
+            "from": 2,
+            "to": 4
+        },
+        {
+            "op": "set",
+            "block": "lootType",
+            "key": {
+                "name": "Land_Shed_M1"
+            },
+            "field": "usage",
+            "from": "sha256:5986096127506591c4732ecda8141094f1786b28cbed00e89fa0374f0409d6e0",
+            "to": [
+                "Industrial",
+                "Town"
+            ]
+        },
+        {
+            "op": "set",
+            "block": "lootType",
+            "key": {
+                "name": "Land_Garage_Row"
+            },
+            "field": "lootmax",
+            "to": 3
+        },
+        {
+            "op": "set",
+            "block": "lootType",
+            "key": {
+                "name": "Land_Garage_Row"
+            },
+            "field": "usage",
+            "to": [
+                "Industrial"
+            ]
+        },
+        {
+            "op": "set",
+            "block": "lootType",
+            "key": {
+                "name": "LAND_DUP"
+            },
+            "field": "lootmax",
+            "from": 1,
+            "to": null
+        },
+        {
+            "op": "remove",
+            "block": "lootType",
+            "key": {
+                "name": "Land_Gone"
+            }
+        },
+        {
+            "op": "remove",
+            "block": "lootType",
+            "key": {
+                "name": "Land_Never"
+            }
+        },
+        {
+            "op": "set",
+            "block": "lootContainer",
+            "key": {
+                "group": "Land_Shed_M1",
+                "name": "lootFloor"
+            },
+            "field": "lootmax",
+            "from": 2,
+            "to": 3
+        },
+        {
+            "op": "set",
+            "block": "lootContainer",
+            "key": {
+                "group": "Land_Shed_M1",
+                "name": "lootfloor"
+            },
+            "field": "lootmax",
+            "to": 1
+        },
+        {
+            "op": "set",
+            "block": "lootContainer",
+            "key": {
+                "group": "Land_Shed_M1",
+                "name": "lootFloor"
+            },
+            "field": "tag",
+            "from": "sha256:1b173b51ae4a4506824000eb6e0db55fec4adb88b53d0fbc84942141b61a39da",
+            "to": [
+                "floor"
+            ]
+        },
+        {
+            "op": "set",
+            "block": "lootPoint",
+            "key": {
+                "group": "Land_Shed_M1",
+                "container": "lootFloor",
+                "pos": [
+                    0.504883,
+                    -1.174019,
+                    0.807373
+                ]
+            },
+            "field": "range",
+            "from": 0.587867,
+            "to": 0.7
+        },
+        {
+            "op": "set",
+            "block": "lootPoint",
+            "key": {
+                "group": "Land_Shed_M1",
+                "container": "lootFloor",
+                "pos": [
+                    0.51,
+                    -1.174019,
+                    0.807373
+                ]
+            },
+            "field": "height",
+            "to": 2
+        },
+        {
+            "op": "set",
+            "block": "lootPoint",
+            "key": {
+                "group": "Land_Shed_M1",
+                "container": "lootFloor",
+                "pos": [
+                    0.52,
+                    -1.174019,
+                    0.807373
+                ]
+            },
+            "field": "height",
+            "to": 3
+        },
+        {
+            "op": "remove",
+            "block": "lootPoint",
+            "key": {
+                "group": "Land_Shed_M1",
+                "container": "lootFloor",
+                "pos": [
+                    -0.238281,
+                    -1.174019,
+                    -0.895996
+                ]
+            }
+        },
+        {
+            "op": "set",
+            "block": "lootPoint",
+            "key": {
+                "group": "Land_Shed_M1",
+                "container": "lootFloor",
+                "pos": "0.852539 -1.174019 -0.850342"
+            },
+            "field": "pos",
+            "to": [
+                0.9,
+                -1.174019,
+                -0.85
+            ]
+        },
+        {
+            "op": "set",
+            "block": "lootPoint",
+            "key": {
+                "group": "Land_Garage_Row",
+                "container": "lootFloor",
+                "pos": [
+                    1,
+                    0,
+                    1
+                ]
+            },
+            "field": "flags",
+            "to": 16
+        },
+        {
+            "op": "set",
+            "block": "lootPoint",
+            "key": {
+                "group": "Land_Garage_Row",
+                "container": "lootFloor",
+                "pos": [
+                    1,
+                    0,
+                    1
+                ]
+            },
+            "field": "flags",
+            "to": "x"
+        }
+    ]
+}

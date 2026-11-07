@@ -1,0 +1,347 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "lootType",
+            "key": {
+                "name": "land_shed_m1"
+            },
+            "field": "lootmax",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "lootType",
+            "key": {
+                "name": "Land_Shed_M1"
+            },
+            "field": "usage",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "lootType",
+            "key": {
+                "name": "Land_Garage_Row"
+            },
+            "field": "lootmax",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "lootType",
+            "key": {
+                "name": "Land_Garage_Row"
+            },
+            "field": "usage",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "lootType",
+            "key": {
+                "name": "LAND_DUP"
+            },
+            "field": "lootmax",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "remove",
+            "kind": "lootType",
+            "key": {
+                "name": "Land_Gone"
+            },
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "remove",
+            "kind": "lootType",
+            "key": {
+                "name": "Land_Never"
+            },
+            "status": "gone",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "set",
+            "kind": "lootContainer",
+            "key": {
+                "group": "Land_Shed_M1",
+                "name": "lootFloor"
+            },
+            "field": "lootmax",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 8,
+            "op": "set",
+            "kind": "lootContainer",
+            "key": {
+                "group": "Land_Shed_M1",
+                "name": "lootfloor"
+            },
+            "field": "lootmax",
+            "status": "orphaned",
+            "file": "mapgroupproto.xml",
+            "detail": "case-mismatch"
+        },
+        {
+            "what": "change",
+            "index": 9,
+            "op": "set",
+            "kind": "lootContainer",
+            "key": {
+                "group": "Land_Shed_M1",
+                "name": "lootFloor"
+            },
+            "field": "tag",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 10,
+            "op": "set",
+            "kind": "lootPoint",
+            "key": {
+                "group": "Land_Shed_M1",
+                "container": "lootFloor",
+                "pos": [
+                    0.504883,
+                    -1.174019,
+                    0.807373
+                ]
+            },
+            "field": "range",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 11,
+            "op": "set",
+            "kind": "lootPoint",
+            "key": {
+                "group": "Land_Shed_M1",
+                "container": "lootFloor",
+                "pos": [
+                    0.51,
+                    -1.174019,
+                    0.807373
+                ]
+            },
+            "field": "height",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 12,
+            "op": "set",
+            "kind": "lootPoint",
+            "key": {
+                "group": "Land_Shed_M1",
+                "container": "lootFloor",
+                "pos": [
+                    0.52,
+                    -1.174019,
+                    0.807373
+                ]
+            },
+            "field": "height",
+            "status": "orphaned",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 13,
+            "op": "remove",
+            "kind": "lootPoint",
+            "key": {
+                "group": "Land_Shed_M1",
+                "container": "lootFloor",
+                "pos": [
+                    -0.238281,
+                    -1.174019,
+                    -0.895996
+                ]
+            },
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 14,
+            "op": "set",
+            "kind": "lootPoint",
+            "key": {
+                "group": "Land_Shed_M1",
+                "container": "lootFloor",
+                "pos": "0.852539 -1.174019 -0.850342"
+            },
+            "field": "pos",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 15,
+            "op": "set",
+            "kind": "lootPoint",
+            "key": {
+                "group": "Land_Garage_Row",
+                "container": "lootFloor",
+                "pos": [
+                    1,
+                    0,
+                    1
+                ]
+            },
+            "field": "flags",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "change",
+            "index": 16,
+            "op": "set",
+            "kind": "lootPoint",
+            "key": {
+                "group": "Land_Garage_Row",
+                "container": "lootFloor",
+                "pos": [
+                    1,
+                    0,
+                    1
+                ]
+            },
+            "field": "flags",
+            "status": "invalid",
+            "file": "mapgroupproto.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "lootContainer",
+            "id": "b-c",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "lootPoint",
+            "id": "b-c-p1",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "lootPoint",
+            "id": "b-c-p2",
+            "status": "collision",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "lootPoint",
+            "id": "b-p",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "block",
+            "index": 4,
+            "kind": "lootPoint",
+            "id": "b-p2",
+            "status": "collision",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "block",
+            "index": 5,
+            "kind": "lootType",
+            "id": "b-t",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "block",
+            "index": 6,
+            "kind": "lootPoint",
+            "id": "b-t-c-p",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "block",
+            "index": 7,
+            "kind": "lootContainer",
+            "id": "b-t-c",
+            "status": "applied",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "block",
+            "index": 8,
+            "kind": "lootType",
+            "id": "b-t2",
+            "status": "collision",
+            "file": "mapgroupproto.xml"
+        },
+        {
+            "what": "block",
+            "index": 9,
+            "kind": "lootContainer",
+            "id": "b-x",
+            "status": "orphaned",
+            "file": "mapgroupproto.xml",
+            "detail": "parent-missing"
+        },
+        {
+            "what": "block",
+            "index": 10,
+            "kind": "lootPoint",
+            "id": "b-y",
+            "status": "invalid",
+            "file": "mapgroupproto.xml",
+            "detail": "bad-parent"
+        }
+    ],
+    "files": [
+        {
+            "path": "mapgroupproto.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

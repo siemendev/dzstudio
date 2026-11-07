@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<prototype>
+		<defaults>
+				<default name="group" lootmax="6" />
+				<default name="container" lootmax="4" />
+		</defaults>
+		<group name="Land_Shed_M1" lootmax="4">
+				<usage name="Industrial" />
+				<usage name="Town" />
+				<container name="lootFloor" lootmax="3">
+						<category name="tools" />
+						<category name="containers" />
+						<tag name="floor" />
+						<point pos="0.504883 -1.174019 0.807373" range="0.700000" height="2.000000" flags="32" />
+						<point pos="0.900000 -1.174019 -0.850000" range="0.595474" height="1.488685" flags="32" />
+						<point pos="1.000000 1.000000 1.000000" range="0.300000" height="0.500000" />
+				</container>
+		</group>
+		<group name="Land_Garage_Row" lootmax="3">
+				<usage name="Industrial" />
+				<container name="lootFloor">
+						<point pos="1 0 1" range="0.5" height="1" flags="16" />
+				</container>
+				<container name="lootShelves" lootmax="2">
+						<category name="tools" />
+						<tag name="shelves" />
+						<point pos="0.000000 1.000000 0.000000" range="0.500000" height="1.000000" flags="32" />
+				</container>
+				<dispatch>
+						<proxy type="Wheel" pos="0 0 0" rpy="0 0 0" />
+				</dispatch>
+		</group>
+		<group name="Land_Dup">
+				<container name="lootFloor" lootmax="1">
+						<point pos="0 0 0" range="0.5" height="1" />
+				</container>
+		</group>
+		<group name="land_dup" lootmax="9">
+				<container name="lootFloor" lootmax="1">
+						<point pos="0 0 0" range="0.5" height="1" />
+				</container>
+		</group>
+		<group name="Land_New_Shed" lootmax="3">
+				<usage name="Farm" />
+				<container name="lootFloor" lootmax="2">
+						<category name="tools" />
+						<tag name="floor" />
+						<point pos="0.000000 0.000000 0.000000" range="0.500000" height="1.000000" />
+				</container>
+		</group>
+</prototype>

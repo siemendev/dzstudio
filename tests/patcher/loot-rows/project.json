@@ -1,0 +1,214 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-r",
+            "kind": "lootRow",
+            "parent": null,
+            "data": {
+                "name": "Land_Container_1Bo",
+                "pos": [
+                    4960,
+                    9.5,
+                    2500
+                ],
+                "rpy": [
+                    0,
+                    0,
+                    90
+                ],
+                "a": 0
+            }
+        },
+        {
+            "id": "b-r2",
+            "kind": "lootRow",
+            "parent": null,
+            "data": {
+                "name": "Land_Container_1Bo",
+                "pos": [
+                    4960.005,
+                    9.5,
+                    2500
+                ],
+                "rpy": [
+                    0,
+                    0,
+                    90
+                ],
+                "a": 0
+            }
+        },
+        {
+            "id": "b-r3",
+            "kind": "lootRow",
+            "parent": null,
+            "data": {
+                "name": "land_wreck_truck01_aban1_BLUE",
+                "pos": [
+                    100,
+                    5,
+                    200
+                ],
+                "rpy": [
+                    0,
+                    0,
+                    0
+                ],
+                "a": 0
+            }
+        },
+        {
+            "id": "b-r4",
+            "kind": "lootRow",
+            "parent": null,
+            "data": {
+                "name": "Land_Container_1Bo",
+                "pos": [
+                    1,
+                    1,
+                    1
+                ],
+                "rpy": [
+                    0,
+                    0,
+                    0
+                ]
+            }
+        },
+        {
+            "id": "b-r5",
+            "kind": "lootRow",
+            "parent": null,
+            "data": {
+                "name": "Land_Container_1Bo",
+                "pos": [
+                    1,
+                    1
+                ],
+                "rpy": [
+                    0,
+                    0,
+                    0
+                ],
+                "a": 0
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "lootRow",
+            "key": {
+                "name": "Land_Wreck_Truck01_aban1_blue",
+                "pos": [
+                    100,
+                    5,
+                    200
+                ]
+            },
+            "field": "a",
+            "from": 80,
+            "to": 81
+        },
+        {
+            "op": "set",
+            "block": "lootRow",
+            "key": {
+                "name": "Land_Misc_FeedShack",
+                "pos": [
+                    80.262581,
+                    113.793480,
+                    4422.178223
+                ]
+            },
+            "field": "pos",
+            "from": [
+                80.262581,
+                113.79348,
+                4422.178223
+            ],
+            "to": [
+                80.3,
+                113.79348,
+                4422.178223
+            ]
+        },
+        {
+            "op": "set",
+            "block": "lootRow",
+            "key": {
+                "name": "Land_House_1M4_Dam2",
+                "pos": [
+                    2946.91333,
+                    421.467346,
+                    6332.023926
+                ]
+            },
+            "field": "a",
+            "to": 1
+        },
+        {
+            "op": "remove",
+            "block": "lootRow",
+            "key": {
+                "name": "Land_House_1M4_Dam2",
+                "pos": [
+                    2946.91333,
+                    421.467346,
+                    6332.023926
+                ]
+            }
+        },
+        {
+            "op": "remove",
+            "block": "lootRow",
+            "key": {
+                "name": "Land_Tenement_Small_Brown",
+                "pos": [
+                    500,
+                    10,
+                    500
+                ]
+            }
+        },
+        {
+            "op": "remove",
+            "block": "lootRow",
+            "key": {
+                "name": "Land_Tenement_Small_Brown",
+                "pos": [
+                    500.02,
+                    10,
+                    500
+                ]
+            }
+        },
+        {
+            "op": "set",
+            "block": "lootRow",
+            "key": {
+                "name": "Land_Misc_FeedShack",
+                "pos": [
+                    80.27,
+                    113.79348,
+                    4422.178223
+                ]
+            },
+            "field": "a",
+            "from": 160.013718,
+            "to": 160.013718
+        },
+        {
+            "op": "set",
+            "block": "lootRow",
+            "key": {
+                "name": "Land_Misc_FeedShack"
+            },
+            "field": "a",
+            "to": 1
+        }
+    ]
+}
