@@ -481,7 +481,6 @@ class DZS_DzeImport : Managed
 	protected int m_N_sim;
 	protected int m_N_persist;
 	protected int m_N_attach;
-	protected int m_N_spelled;
 	protected int m_N_outside;
 
 	static string MapKeyOf(string world)
@@ -510,41 +509,6 @@ class DZS_DzeImport : Managed
 		if (dot > 0)
 			leaf = leaf.Substring(0, dot);
 		return leaf;
-	}
-
-	// The first allowed folder that differs only in case gets the server's spelling (DZ\plants …).
-	static string ServerSpelling(string path, out bool changed)
-	{
-		changed = false;
-		array<string> allowed = {"DZ\\plants_bliss", "DZ\\plants_sakhal", "DZ\\plants", "DZ\\rocks_bliss", "DZ\\rocks_sakhal", "DZ\\rocks"};
-		string low = path;
-		low.ToLower();
-		low.Replace("/", "\\");
-		foreach (string a : allowed)
-		{
-			string al = a;
-			al.ToLower();
-			int at = low.IndexOf(al);
-			if (at < 0)
-				continue;
-			int endAt = at + al.Length();
-			if (endAt < low.Length())
-			{
-				string next = low.Substring(endAt, 1);
-				if (next != "\\")
-					continue;
-			}
-			string sep = path.Substring(at + 2, 1);
-			string want = "DZ" + sep + a.Substring(3, a.Length() - 3);
-			string have = path.Substring(at, al.Length());
-			if (have == want)
-				return path;
-			string head = path.Substring(0, at);
-			string tail = path.Substring(endAt, path.Length() - endAt);
-			changed = true;
-			return head + want + tail;
-		}
-		return path;
 	}
 
 	static DZS_DzeImport From(string path, string displayName)
@@ -635,10 +599,9 @@ class DZS_DzeImport : Managed
 		string name = o.m_Type;
 		if (DZS_Obj.IsModelPath(name))
 		{
-			bool changed;
-			name = ServerSpelling(name, changed);
-			if (changed)
-				m_N_spelled++;
+			string spelled = DZS_SpawnerFix.Fixed(name);
+			if (spelled != "")
+				name = spelled;
 		}
 		string what = name;
 		if (what == "")
@@ -687,7 +650,6 @@ class DZS_DzeImport : Managed
 	{
 		DZS_Issues issues = m_Read.m_Issues;
 		m_Read.m_Readable = true;
-		Hint(m_N_spelled, " Modellpfad in die Schreibweise des Servers gebracht", " Modellpfade in die Schreibweise des Servers gebracht", " model path put into the server’s spelling", " model paths put into the server’s spelling");
 		Hint(m_N_displays, " Anzeigename nicht übernommen", " Anzeigenamen nicht übernommen", " display name not taken over", " display names not taken over");
 		Hint(m_N_params, " Objekt mit Zusatzwerten (z. B. Licht) — nicht übernommen", " Objekte mit Zusatzwerten (z. B. Licht) — nicht übernommen", " object with extra values (e.g. light) — not taken over", " objects with extra values (e.g. light) — not taken over");
 		Hint(m_N_editorOnly, " Objekt war nur für den Editor gedacht — wird jetzt mitgeschrieben", " Objekte waren nur für den Editor gedacht — werden jetzt mitgeschrieben", " object was meant for the editor only — is written now", " objects were meant for the editor only — are written now");
