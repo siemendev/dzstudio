@@ -109,6 +109,7 @@ class DZS_Color
 	{
 		s_Colors = new map<string, int>();
 		s_Colors.Set("surface", ARGB(DarkAlpha(245), 0x18, 0x18, 0x1B));
+		s_Colors.Set("bar", ARGB(DarkAlpha(190), 0x18, 0x18, 0x1B));
 		s_Colors.Set("surfaceRaised", ARGB(255, 0x27, 0x27, 0x2A));
 		s_Colors.Set("surfacePressed", ARGB(255, 0x3F, 0x3F, 0x46));
 		s_Colors.Set("well", ARGB(255, 0x09, 0x09, 0x0B));

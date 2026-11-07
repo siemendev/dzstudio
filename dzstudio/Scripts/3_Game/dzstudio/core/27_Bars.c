@@ -528,7 +528,7 @@ class DZS_SideBar : DZS_HitListener
 		m_Surface = new DZS_Hit(parent, this, "sidebar");
 		m_Surface.m_Surface = true;
 		m_Surface.m_W.SetFlags(WidgetFlags.CLIPCHILDREN);
-		m_Bg = DZS_W.Panel(m_Surface.m_W, DZS_Color.Get("surface"));
+		m_Bg = DZS_W.Panel(m_Surface.m_W, DZS_Color.Get("bar"));
 		m_Edge = DZS_W.Panel(m_Surface.m_W, DZS_Color.Get("line"));
 		string icon = "panel-left-close";
 		if (side == "right")
