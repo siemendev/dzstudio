@@ -1,1 +1,7 @@
 - The side panels are slightly see-through, so the world stays visible beneath them.
+- Moving and rotating large selections is much smoother (about 2,400 objects: 17–20 instead of 13 frames per second when moving, 19–21 instead of 11 when rotating).
+- The project panel has a search field that filters the placed objects by name or class name; "select all" on a group then selects only what it shows.
+- The lock and eye on a group now lock or hide every object in it and show whether all, some or none are; single objects in a locked group can be unlocked again.
+- "Unlock all" and "Show all": a toolbar button with the count appears as soon as anything is locked or hidden, also in the Edit menu (Ctrl+Alt+L / Ctrl+Alt+H).
+- The test character no longer overheats on Badlands: while invulnerable (the default) it also feels no hunger, thirst, heat or cold.
+- Pain, shock and unconsciousness of the test character no longer cover the free camera after leaving it.
