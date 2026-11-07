@@ -211,8 +211,8 @@ class DZS_CameraChar : Managed
 		}
 		m_P.BeforeCharacter();
 		m_Invuln = m_Kernel.GetSettings().GetBool("camera.playerInvulnerable", true);
-		ApplyDamage();
 		GetGame().SelectPlayer(null, m_Man);
+		ApplyDamage();
 		m_P.SetCameraActive(false);
 		ShowGameHud(true);
 		m_Kernel.GetScreen().SetGameControl(true);
@@ -230,11 +230,34 @@ class DZS_CameraChar : Managed
 		HidePlate();
 		ShowGameHud(false);
 		m_Kernel.GetScreen().SetGameControl(false);
+		ClearPlayerEffects();
 		m_P.SetCameraActive(true);
 		string at = "gone";
 		if (m_Man)
 			at = m_Man.GetPosition().ToString();
 		DZS_Log.Info("character out (figure " + at + "), camera " + m_P.GetPosition().ToString() + " yaw " + m_P.GetYaw() + " pitch " + m_P.GetPitch());
+	}
+
+	// Damage, shock and unconsciousness of the figure tint, blur and mute the game only while it is steered.
+	// The figure stays the game's player after leaving it and renews its effects every tick, so they are
+	// stopped every frame outside it.
+	protected void StopPlayerEffects()
+	{
+		PPEManagerStatic.GetPPEManager().StopAllEffects(PPERequesterCategory.GAMEPLAY_EFFECTS);
+		Mission mission = GetGame().GetMission();
+		if (mission && mission.GetEffectWidgets())
+		{
+			mission.GetEffectWidgets().StopAllEffects();
+			mission.GetEffectWidgets().ClearSuspendRequests();
+		}
+	}
+
+	protected void ClearPlayerEffects()
+	{
+		StopPlayerEffects();
+		if (m_Man)
+			m_Man.SetMasterAttenuation("");
+		GetGame().GetSoundScene().SetSoundVolume(g_Game.m_volume_sound, 0);
 	}
 
 	// Insert: for this stay in the figure only; the setting stays.
@@ -293,8 +316,12 @@ class DZS_CameraChar : Managed
 
 	protected void ApplyDamage()
 	{
-		if (m_Man)
-			m_Man.SetAllowDamage(!m_Invuln);
+		if (!m_Man)
+			return;
+		m_Man.SetAllowDamage(!m_Invuln);
+		PlayerBase pb = PlayerBase.Cast(m_Man);
+		if (pb)
+			pb.SetModifiers(!m_Invuln);
 	}
 
 	// T: the figure to the point under the pointer; the camera stays.
@@ -316,6 +343,8 @@ class DZS_CameraChar : Managed
 			HideGameCrosshair();
 		if (!m_Man)
 			return;
+		if (!m_In)
+			StopPlayerEffects();
 		if (m_Man.IsAlive())
 		{
 			if (m_In && m_Invuln)
@@ -336,7 +365,7 @@ class DZS_CameraChar : Managed
 		}
 	}
 
-	// Health, blood and shock stay full while invulnerable.
+	// Health, blood and shock stay full while invulnerable; hunger, thirst, heat and cold stay neutral.
 	protected void KeepWhole()
 	{
 		array<string> kinds = {"", "Blood", "Shock"};
@@ -346,6 +375,21 @@ class DZS_CameraChar : Managed
 			if (mx > 0 && m_Man.GetHealth("", k) < mx)
 				m_Man.SetHealth("", k, mx);
 		}
+		PlayerBase pb = PlayerBase.Cast(m_Man);
+		if (!pb)
+			return;
+		if (pb.GetStatWater())
+			pb.GetStatWater().Set(pb.GetStatWater().GetMax());
+		if (pb.GetStatEnergy())
+			pb.GetStatEnergy().Set(pb.GetStatEnergy().GetMax());
+		if (pb.GetStatHeatComfort())
+			pb.GetStatHeatComfort().Set(0);
+		if (pb.GetStatHeatBuffer())
+			pb.GetStatHeatBuffer().Set(0);
+		if (pb.GetStatTremor())
+			pb.GetStatTremor().Set(0);
+		if (pb.GetStatToxicity())
+			pb.GetStatToxicity().Set(0);
 	}
 
 	void Drop()
@@ -368,7 +412,11 @@ class DZS_CameraChar : Managed
 	{
 		if (!m_Man)
 			return "none";
-		return "alive " + m_Man.IsAlive() + " health " + DZS_Num.Fixed(m_Man.GetHealth("", ""), 1) + "/" + DZS_Num.Fixed(m_Man.GetMaxHealth("", ""), 1) + " blood " + DZS_Num.Fixed(m_Man.GetHealth("", "Blood"), 0) + " shock " + DZS_Num.Fixed(m_Man.GetHealth("", "Shock"), 0);
+		string survival = "";
+		PlayerBase pb = PlayerBase.Cast(m_Man);
+		if (pb && pb.GetStatWater())
+			survival = " water " + DZS_Num.Fixed(pb.GetStatWater().Get(), 0) + " energy " + DZS_Num.Fixed(pb.GetStatEnergy().Get(), 0) + " heatcomfort " + DZS_Num.Fixed(pb.GetStatHeatComfort().Get(), 2) + " heatbuffer " + DZS_Num.Fixed(pb.GetStatHeatBuffer().Get(), 1) + " modifiers " + pb.GetModifiersManager().IsModifiersEnable() + " uncon " + pb.IsUnconscious() + " selected " + (GetGame().GetPlayer() == m_Man);
+		return "alive " + m_Man.IsAlive() + survival + " health " + DZS_Num.Fixed(m_Man.GetHealth("", ""), 1) + "/" + DZS_Num.Fixed(m_Man.GetMaxHealth("", ""), 1) + " blood " + DZS_Num.Fixed(m_Man.GetHealth("", "Blood"), 0) + " shock " + DZS_Num.Fixed(m_Man.GetHealth("", "Shock"), 0);
 	}
 
 	// ---- display: top left, 12 px from the edge ----

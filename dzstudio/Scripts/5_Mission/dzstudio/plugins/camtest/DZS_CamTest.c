@@ -153,6 +153,16 @@ class DZS_CamTest : DZS_Plugin
 				DZS_Log.Info("camtest charlift to " + cl.GetMan().GetPosition().ToString());
 			}
 		}
+		else if (c == "charhurt")
+		{
+			DZS_CameraChar chh = cam.GetCharacter();
+			if (chh && chh.GetMan())
+			{
+				chh.GetMan().SetHealth("", "", a[1].ToFloat());
+				chh.GetMan().SetHealth("", "Shock", a[2].ToFloat());
+			}
+			DZS_Log.Info("camtest charhurt health " + a[1] + " shock " + a[2]);
+		}
 		else if (c == "charkill")
 		{
 			DZS_CameraChar ck = cam.GetCharacter();

@@ -142,7 +142,7 @@ class DZS_CameraPlugin : DZS_Plugin
 		st.DefineToggle("camera.collision", "camera", "Kollision", "Collision", "Die Kamera stoppt vor Wänden und Objekten", "The camera stops in front of walls and objects", false);
 		st.DefineToggle("camera.invertPitch", "camera", "Neigung umkehren", "Invert tilt", "Maus nach oben neigt die Kamera nach unten", "Mouse up tilts the camera down", false);
 		st.DefineSlider("camera.mouseSensitivity", "camera", "Mausempfindlichkeit", "Mouse sensitivity", "Wie weit die Kamera je Mausbewegung dreht", "How far the camera turns per mouse movement", 10, 200, 5, 0, " %", 100);
-		st.DefineToggle("camera.playerInvulnerable", "camera", "Spielfigur unverwundbar", "Character invulnerable", "Die Spielfigur nimmt keinen Schaden", "The character takes no damage", true);
+		st.DefineToggle("camera.playerInvulnerable", "camera", "Spielfigur unverwundbar", "Character invulnerable", "Kein Schaden, Hunger, Durst, Hitze oder Kälte", "No damage, hunger, thirst, heat or cold", true);
 		st.Define("camera.speedStage", DZS_Json.Int(STAGE_DEFAULT));
 
 		DZS_UiRegistry ui = m_Kernel.GetUi();
