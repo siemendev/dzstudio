@@ -690,7 +690,7 @@ class DZS_LootBlocksTest
 	}
 
 	// A different mix of edits per type (i), the way the loot editor makes them: values as six decimals.
-	protected static void Edit(DZS_LootEEntry e, int i)
+	static void Edit(DZS_LootEEntry e, int i)
 	{
 		if (i % 7 == 0)
 		{

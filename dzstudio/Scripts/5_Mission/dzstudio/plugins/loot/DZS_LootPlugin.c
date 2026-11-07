@@ -894,6 +894,35 @@ class DZS_LootPlugin : DZS_Plugin
 		}
 	}
 
+	// Every type the project edits or wrote before: its loot editor elements and the written types.
+	array<string> EditedTypes(DZS_Instance inst)
+	{
+		Cache(inst);
+		Written(inst);
+		array<string> r = new array<string>();
+		array<string> seen = new array<string>();
+		for (int i = 0; i < m_ElemOf.Count(); i++)
+		{
+			string type;
+			inst.GetField(m_ElemOf.GetElement(i), "type", type);
+			string low = type;
+			low.ToLower();
+			if (seen.Find(low) >= 0)
+				continue;
+			seen.Insert(low);
+			r.Insert(type);
+		}
+		for (int w = 0; w < m_WName.Count(); w++)
+		{
+			string wk = m_WName.GetKey(w);
+			if (seen.Find(wk) >= 0)
+				continue;
+			seen.Insert(wk);
+			r.Insert(m_WName.GetElement(w));
+		}
+		return r;
+	}
+
 	array<string> ClassObjects(DZS_Instance inst)
 	{
 		Cache(inst);

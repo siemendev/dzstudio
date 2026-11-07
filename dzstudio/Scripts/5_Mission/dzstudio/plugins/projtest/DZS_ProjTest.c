@@ -496,6 +496,49 @@ class DZS_ProjTest : DZS_Plugin
 			pp0.StartSave(false, "");
 			return;
 		}
+		if (c == "lootedit")
+		{
+			// lootedit TYPE MIX — the loot editor's way of changing a type, with the test mix MIX of DZS_LootBlocksTest
+			DZS_LootPlugin lpe = DZS_LootPlugin.Cast(m_Kernel.GetPlugin("loot"));
+			DZS_LootEEntry le = lpe.Effective(inst, a[1]);
+			if (!le)
+			{
+				Log("lootedit " + a[1] + ": no entry");
+				return;
+			}
+			DZS_LootEEntry edited = le.Copy();
+			DZS_LootBlocksTest.Edit(edited, a[2].ToInt());
+			DZS_OpBuilder lb = inst.BeginOperation("loot:edit", 1);
+			lpe.SetEntry(lb, inst, a[1], edited);
+			DZS_SubmitResult lr = lb.Commit("Loot", "Loot");
+			Log("lootedit " + a[1] + " mix " + a[2] + ": " + lr.Ok());
+			return;
+		}
+		if (c == "v2")
+		{
+			// v2 BASE OUT — the open project as building blocks, applied to the mission folder BASE, written to OUT
+			string v2Base = DZS_PatchPlugin.Path(a[1]);
+			string v2Out = DZS_PatchPlugin.Path(a[2]);
+			DZS_Json v2p = DZS_ProjectV2.Build(m_Kernel, inst, pp0.m_Open.m_Name, pp0.m_Open.m_MapKey);
+			DZS_Files.MakeDirs(v2Out);
+			DZS_TextWriter vw = new DZS_TextWriter();
+			DZS_TextForm.Value(vw, v2p, 0);
+			vw.Append("\n");
+			DZS_Files.Write(v2Out + "\\project.v2.json", vw.Finish());
+			string v2Err;
+			DZS_Patcher vp = DZS_ProjectV2.Apply(v2p, v2Base, v2Out, v2Err);
+			if (!vp)
+			{
+				Log("v2: " + v2Err);
+				return;
+			}
+			vp.m_Report.Log();
+			string v2Line = "v2: " + v2p.Get("blocks").Count() + " blocks, " + v2p.Get("changes").Count() + " changes, ";
+			v2Line += vp.m_OutPaths.Count().ToString() + " files, applied " + vp.m_Report.Count("applied");
+			v2Line += ", invalid " + vp.m_Report.Count("invalid");
+			Log(v2Line);
+			return;
+		}
 		if (c == "slicetest")
 		{
 			// slicetest — sliced text form against ExportState, once plain and once with a move of the first
