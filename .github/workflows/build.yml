@@ -1,0 +1,139 @@
+name: build
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version
+        id: version
+        run: |
+          cfg=$(sed -n 's/^[[:space:]]*version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' dzstudio/config.cpp | head -1)
+          src=$(sed -n 's/^const string DZS_VERSION = "\([^"]*\)";.*/\1/p' dzstudio/Scripts/3_Game/dzstudio/core/00_Base.c | head -1)
+          [ "$cfg" = "$src" ] || { echo "::error::config.cpp says $cfg, DZS_VERSION says $src"; exit 1; }
+          echo "version=$cfg" >> "$GITHUB_OUTPUT"
+      - name: Pack
+        run: |
+          mkdir -p stage out/@dzstudio/Addons out/@dzstudio/Keys
+          cp -r dzstudio stage/dzstudio
+          rm -rf stage/dzstudio/licenses
+          cp -r workshop/logo stage/dzstudio/logo
+          python3 tools/dzpbo.py pack stage/dzstudio out/@dzstudio/Addons/dzstudio.pbo
+          cp -r dzstudio/licenses out/@dzstudio/
+          cp keys/dzstudio.bikey out/@dzstudio/Keys/
+          sed "s/@VERSION@/${{ steps.version.outputs.version }}/" workshop/mod.cpp > out/@dzstudio/mod.cpp
+      - name: Sign
+        if: github.event_name != 'pull_request'
+        env:
+          KEY: ${{ secrets.DZSTUDIO_PRIVATE_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then echo "::warning::no DZSTUDIO_PRIVATE_KEY secret, the build stays unsigned"; exit 0; fi
+          umask 077
+          printf '%s' "$KEY" | base64 -d > "$RUNNER_TEMP/dzstudio.biprivatekey"
+          python3 tools/dzpbo.py sign "$RUNNER_TEMP/dzstudio.biprivatekey" out/@dzstudio/Addons/dzstudio.pbo
+          rm -f "$RUNNER_TEMP/dzstudio.biprivatekey"
+          python3 tools/dzpbo.py verify keys/dzstudio.bikey out/@dzstudio/Addons/dzstudio.pbo
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dzstudio-${{ steps.version.outputs.version }}
+          path: out/@dzstudio
+
+  # A version that already has its v tag is skipped, so only a raised version uploads to the Workshop
+  publish:
+    needs: build
+    if: github.event_name == 'push' && github.repository == 'siemendev/dzstudio'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Is the version new?
+        id: new
+        env:
+          STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
+          STEAM_PASSWORD: ${{ secrets.STEAM_PASSWORD }}
+          STEAM_SHARED_SECRET: ${{ secrets.STEAM_SHARED_SECRET }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "v$VERSION is already tagged, nothing to upload"; exit 0
+          fi
+          if [ -z "$STEAM_USERNAME" ] || [ -z "$STEAM_PASSWORD" ] || [ -z "$STEAM_SHARED_SECRET" ]; then
+            echo "::warning::$VERSION is new, but the Steam secrets are missing; not uploaded"; exit 0
+          fi
+          echo "upload=true" >> "$GITHUB_OUTPUT"
+      - if: steps.new.outputs.upload
+        uses: actions/download-artifact@v4
+        with:
+          name: dzstudio-${{ env.VERSION }}
+          path: '@dzstudio'
+      - if: steps.new.outputs.upload
+        name: Signed?
+        run: python3 tools/dzpbo.py verify keys/dzstudio.bikey @dzstudio/Addons/dzstudio.pbo
+      - if: steps.new.outputs.upload
+        name: Change note
+        run: |
+          note=workshop/notes/$VERSION.txt
+          if [ ! -f "$note" ]; then
+            last=$(git tag --list 'v*' --sort=-v:refname | head -1)
+            mkdir -p workshop/notes
+            git log --no-merges --format='- %s' ${last:+$last..}HEAD -- dzstudio > "$note"
+          fi
+          { echo "$VERSION"; echo; cat "$note"; } > "$RUNNER_TEMP/changenote.txt"
+          cat "$RUNNER_TEMP/changenote.txt"
+      - if: steps.new.outputs.upload
+        name: SteamCMD
+        run: |
+          sudo apt-get install -y -qq lib32gcc-s1 >/dev/null
+          mkdir -p "$RUNNER_TEMP/steamcmd"
+          curl -sSL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz | tar -xz -C "$RUNNER_TEMP/steamcmd"
+          "$RUNNER_TEMP/steamcmd/steamcmd.sh" +quit >/dev/null || true
+      - if: steps.new.outputs.upload
+        name: Upload to the Workshop
+        env:
+          STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
+          STEAM_PASSWORD: ${{ secrets.STEAM_PASSWORD }}
+          STEAM_SHARED_SECRET: ${{ secrets.STEAM_SHARED_SECRET }}
+        run: |
+          python3 - "$RUNNER_TEMP/item.vdf" <<'PY'
+          import json, os, sys
+          item = json.load(open('workshop/item.json'))
+          vis = {'public': 0, 'friends': 1, 'hidden': 2, 'unlisted': 3}[item['visibility']]
+          q = lambda s: '"' + s.strip().replace('\\', '\\\\').replace('"', '\\"') + '"'
+          read = lambda p: open(p, encoding='utf-8').read()
+          fields = {
+              'appid': '221100',
+              'publishedfileid': item['id'],
+              'contentfolder': os.path.abspath('@dzstudio'),
+              'previewfile': os.path.abspath('workshop/preview.jpg'),
+              'visibility': str(vis),
+              'title': read('workshop/title.txt'),
+              'description': read('workshop/description.bbcode'),
+              'changenote': read(os.environ['RUNNER_TEMP'] + '/changenote.txt'),
+          }
+          body = ''.join(f'  "{k}" {q(v)}\n' for k, v in fields.items())
+          open(sys.argv[1], 'w', encoding='utf-8').write('"workshopitem"\n{\n' + body + '}\n')
+          PY
+          code=$(python3 tools/steam_guard_code.py)
+          "$RUNNER_TEMP/steamcmd/steamcmd.sh" +set_steam_guard_code "$code" +login "$STEAM_USERNAME" "$STEAM_PASSWORD" \
+            +workshop_build_item "$RUNNER_TEMP/item.vdf" +quit | tee "$RUNNER_TEMP/steamcmd.log"
+          if grep -qE 'ERROR!|FAILED|Failure' "$RUNNER_TEMP/steamcmd.log"; then echo "::error::upload failed"; exit 1; fi
+      - if: steps.new.outputs.upload
+        name: Tag
+        run: |
+          git tag "v$VERSION"
+          git push origin "v$VERSION"

@@ -44,20 +44,30 @@ is on its way.
 |---|---|
 | `dzstudio/` | The mod as it is packed into `@dzstudio`: `config.cpp`, `Scripts/`, `gui/`, `data/`, `licenses/` |
 | `tools/brush/` | The script that builds the shipped brush sets (`dzstudio/data/brush-sets.txt`) from the game's own model list |
+| `tools/dzpbo.py` | Packs, signs and verifies the PBO like AddonBuilder and DSSignFile, without DayZ Tools |
+| `tools/steam_guard_code.py` | The Steam Guard code for the Workshop upload in CI |
+| `workshop/` | The Workshop page: title, description, preview, logo, `mod.cpp`, change notes |
+| `keys/` | The public key the Workshop build is signed with |
 
 ## Build it yourself
 
-You need DayZ and DayZ Tools on Windows (Steam).
+You need DayZ on Windows (Steam) to run it; packing works anywhere with Python 3.
 
-1. Pack the folder `dzstudio/` into `dzstudio.pbo` with the prefix `dzstudio`, e.g. with AddonBuilder from DayZ Tools
-   (it names the PBO after the folder):
-   `AddonBuilder.exe <repo>\dzstudio <out>\@dzstudio\Addons -packonly -prefix=dzstudio`
+1. Pack the folder `dzstudio/` into `dzstudio.pbo`:
+   `python3 tools/dzpbo.py pack dzstudio <out>/@dzstudio/Addons/dzstudio.pbo`
+   (AddonBuilder from DayZ Tools works too: `AddonBuilder.exe <repo>\dzstudio <out>\@dzstudio\Addons -packonly -prefix=dzstudio`)
 2. Copy `dzstudio/licenses/` next to `Addons/` in `@dzstudio`.
 3. Copy `@dzstudio` into your DayZ folder and start `DayZ_x64.exe "-mod=@dzstudio" -nosplash -skipIntro -noPause`
    from there, with Steam running. DZSTUDIO opens instead of the main menu.
 
 The Workshop build is signed with our own key; a build of your own is not, which does not matter for the editor since
 it never joins a server.
+
+## Releases
+
+The `build` workflow packs every push and pull request. On `main`, a version in `dzstudio/config.cpp` that has no
+`v<version>` tag yet is signed, uploaded to the Steam Workshop and tagged. The Workshop page comes from `workshop/`;
+the change note from `workshop/notes/<version>.txt`, or the commit subjects since the last tag when there is none.
 
 ## Contributing
 

@@ -1,0 +1,10 @@
+name = "DZSTUDIO";
+author = "dzbot";
+version = "@VERSION@";
+overview = "Object and loot editor for DayZ console servers.";
+action = "https://dzbot.de/creators/studio";
+picture = "dzstudio\logo\logo256.paa";
+logo = "dzstudio\logo\logo128.paa";
+logoOver = "dzstudio\logo\logo128.paa";
+logoSmall = "dzstudio\logo\logo64.paa";
+tooltip = "DZSTUDIO";
