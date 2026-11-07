@@ -580,7 +580,7 @@ class DZS_Patcher : DZS_PatcherJson
 			Members(f, into, k, pool);
 			DZS_PTarget hit = new DZS_PTarget();
 			Filter(f, k, key, pool, hit);
-			if (hit.m_Nodes.Count() > 0 || Attached(k, values, null, into.m_Start))
+			if (!k.m_Repeats && (hit.m_Nodes.Count() > 0 || Attached(k, values, null, into.m_Start)))
 			{
 				e.m_Status = "collision";
 				return;
@@ -592,7 +592,7 @@ class DZS_Patcher : DZS_PatcherJson
 			e.m_Status = "applied";
 			return;
 		}
-		if (Attached(k, values, own, -1))
+		if (!k.m_Repeats && Attached(k, values, own, -1))
 		{
 			e.m_Status = "collision";
 			return;

@@ -95,6 +95,8 @@ class DZS_PKind : Managed
 	ref array<string> m_ParentMap = new array<string>();
 	// a remove takes every match (identical loot rows), a set still needs an ordinal
 	bool m_RemoveAll;
+	// own blocks may repeat an existing key (a second container named like the first)
+	bool m_Repeats;
 	int m_Dups = SINGLE;
 	string m_SelfClose = "/>";
 	bool m_Singleton;
@@ -392,6 +394,7 @@ class DZS_PKinds
 		lc.m_ParentKind = "lootType";
 		lc.m_ParentKey = "group";
 		lc.m_KeyAttr = "name";
+		lc.m_Repeats = true;
 		lc.m_SelfClose = " />";
 		lc.F("@name", DZS_PField.STR, true);
 		lc.F("@lootmax", DZS_PField.INT, false);

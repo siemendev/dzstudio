@@ -3,6 +3,7 @@
 //       writes the changed files (never in place) and report.json into the output folder
 //   -dzsPatchTest=<folder>   runs every conformance case in the folder (base/, project.json, expected/, report.json)
 //   -dzsPatchSmoke=<folder>  reads every file the patcher handles in each mission folder below and writes it back
+//   -dzsLootBlocksTest=<folder>  loot edits through today's writer and as building blocks, per mission folder below
 //   -dzsPatchQuit            ends the game afterwards
 [DZS_RegisterPlugin(DZS_PatchPlugin)]
 class DZS_PatchPlugin : DZS_Plugin
@@ -10,6 +11,7 @@ class DZS_PatchPlugin : DZS_Plugin
 	protected string m_Patch;
 	protected string m_Test;
 	protected string m_Smoke;
+	protected string m_LootTest;
 	protected bool m_Ran;
 	protected float m_Wait;
 
@@ -20,11 +22,12 @@ class DZS_PatchPlugin : DZS_Plugin
 		GetCLIParam("dzsPatch", m_Patch);
 		GetCLIParam("dzsPatchTest", m_Test);
 		GetCLIParam("dzsPatchSmoke", m_Smoke);
+		GetCLIParam("dzsLootBlocksTest", m_LootTest);
 	}
 
 	override void OnUpdate(float dt)
 	{
-		if (m_Ran || (m_Patch == "" && m_Test == "" && m_Smoke == ""))
+		if (m_Ran || (m_Patch == "" && m_Test == "" && m_Smoke == "" && m_LootTest == ""))
 			return;
 		m_Wait += dt;
 		if (m_Wait < 1.0)
@@ -34,6 +37,18 @@ class DZS_PatchPlugin : DZS_Plugin
 			DZS_PatchTests.RunAll(Path(m_Test));
 		if (m_Smoke != "")
 			DZS_PatchTests.Smoke(Path(m_Smoke));
+		if (m_LootTest != "")
+		{
+			array<string> names;
+			array<bool> folders;
+			string lootDir = Path(m_LootTest);
+			DZS_Files.List(lootDir, names, folders);
+			for (int i = 0; i < names.Count(); i++)
+			{
+				if (folders[i])
+					DZS_LootBlocksTest.Run(lootDir + "\\" + names[i]);
+			}
+		}
 		if (m_Patch != "")
 		{
 			string baseDir;
