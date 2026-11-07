@@ -1,0 +1,110 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-e1",
+            "kind": "spawnPosition",
+            "parent": {
+                "event": "VehicleE"
+            },
+            "data": {
+                "x": 10,
+                "z": 20,
+                "a": 30
+            }
+        },
+        {
+            "id": "b-e2",
+            "kind": "spawnPosition",
+            "parent": {
+                "event": "VehicleE"
+            },
+            "data": {
+                "x": 10.4,
+                "z": 20
+            }
+        },
+        {
+            "id": "b-e3",
+            "kind": "spawnPosition",
+            "parent": {
+                "event": "VehicleE"
+            },
+            "data": {
+                "x": 11,
+                "z": 20
+            }
+        },
+        {
+            "id": "b-g",
+            "kind": "spawnPosition",
+            "parent": {
+                "event": "StaticTrain"
+            },
+            "data": {
+                "x": 100,
+                "z": 200,
+                "y": 5,
+                "group": "Train_A"
+            }
+        },
+        {
+            "id": "b-g2",
+            "kind": "spawnPosition",
+            "parent": {
+                "event": "StaticTrain"
+            },
+            "data": {
+                "x": 300,
+                "z": 200,
+                "group": "Train_A"
+            }
+        },
+        {
+            "id": "b-inf",
+            "kind": "spawnPosition",
+            "parent": {
+                "event": "InfectedVillage"
+            },
+            "data": {
+                "x": 1,
+                "z": 1
+            }
+        },
+        {
+            "id": "b-new",
+            "kind": "spawnPosition",
+            "parent": {
+                "event": "VehicleNew"
+            },
+            "data": {
+                "x": 1,
+                "z": 2
+            }
+        },
+        {
+            "id": "b-bad",
+            "kind": "spawnPosition",
+            "parent": {},
+            "data": {
+                "x": 1,
+                "z": 2
+            }
+        },
+        {
+            "id": "b-unk",
+            "kind": "spawnPosition",
+            "parent": {
+                "event": "VehicleE"
+            },
+            "data": {
+                "x": 50,
+                "z": 50,
+                "b": 1
+            }
+        }
+    ],
+    "changes": []
+}

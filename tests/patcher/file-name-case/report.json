@@ -1,0 +1,25 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "nominal",
+            "status": "applied",
+            "file": "DB/Events.XML"
+        }
+    ],
+    "files": [
+        {
+            "path": "DB/Events.XML",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

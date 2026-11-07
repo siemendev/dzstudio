@@ -1,0 +1,12 @@
+{
+    "Objects": [
+        {
+            "name": "Barrel_Red",
+            "pos": [1.000000, 2.000000, 3.000000],
+            "ypr": [0.000000, 0.000000, 0.000000],
+            "scale": 1,
+            "enableCEPersistency": false,
+            "customString": ""
+        }
+    ]
+}

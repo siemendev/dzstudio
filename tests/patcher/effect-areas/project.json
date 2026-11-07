@@ -1,0 +1,207 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-gas",
+            "kind": "effectArea",
+            "parent": null,
+            "data": {
+                "AreaName": "Own-Gas",
+                "Type": "ContaminatedArea_Static",
+                "TriggerType": "ContaminatedTrigger",
+                "Data": {
+                    "Pos": [
+                        1000,
+                        0,
+                        2000
+                    ],
+                    "Radius": 50,
+                    "PosHeight": 20,
+                    "NegHeight": 5,
+                    "InnerRingCount": 1,
+                    "InnerPartDist": 50,
+                    "OuterRingToggle": true,
+                    "OuterPartDist": 40,
+                    "OuterOffset": 0,
+                    "VerticalLayers": 0,
+                    "VerticalOffset": 0,
+                    "ParticleName": "graphics/particles/contaminated_area_gas_bigass",
+                    "EffectInterval": 0,
+                    "EffectDuration": 0,
+                    "EffectModifier": false
+                },
+                "PlayerData": {
+                    "AroundPartName": "graphics/particles/contaminated_area_gas_around",
+                    "TinyPartName": "graphics/particles/contaminated_area_gas_around_tiny",
+                    "PPERequesterType": "PPERequester_ContaminatedAreaTint"
+                }
+            }
+        },
+        {
+            "id": "b-dup",
+            "kind": "effectArea",
+            "parent": null,
+            "data": {
+                "AreaName": "Ship-Bow",
+                "Type": "ContaminatedArea_Static",
+                "TriggerType": "ContaminatedTrigger",
+                "Data": {
+                    "Pos": [
+                        1000,
+                        0,
+                        2000
+                    ],
+                    "Radius": 50,
+                    "PosHeight": 20,
+                    "NegHeight": 5,
+                    "InnerRingCount": 1,
+                    "InnerPartDist": 50,
+                    "OuterRingToggle": true,
+                    "OuterPartDist": 40,
+                    "OuterOffset": 0,
+                    "VerticalLayers": 0,
+                    "VerticalOffset": 0,
+                    "ParticleName": "graphics/particles/contaminated_area_gas_bigass",
+                    "EffectInterval": 0,
+                    "EffectDuration": 0,
+                    "EffectModifier": false
+                },
+                "PlayerData": {
+                    "AroundPartName": "graphics/particles/contaminated_area_gas_around",
+                    "TinyPartName": "graphics/particles/contaminated_area_gas_around_tiny",
+                    "PPERequesterType": "PPERequester_ContaminatedAreaTint"
+                }
+            }
+        },
+        {
+            "id": "b-inc",
+            "kind": "effectArea",
+            "parent": null,
+            "data": {
+                "AreaName": "Half",
+                "Type": "SpookyArea"
+            }
+        },
+        {
+            "id": "b-safe",
+            "kind": "safePosition",
+            "parent": null,
+            "data": {
+                "x": 100,
+                "z": 200
+            }
+        },
+        {
+            "id": "b-safe2",
+            "kind": "safePosition",
+            "parent": null,
+            "data": {
+                "x": 434.0,
+                "z": 13624
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.Radius",
+            "from": 75,
+            "to": 90
+        },
+        {
+            "op": "set",
+            "block": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.InnerRingCount",
+            "to": 2
+        },
+        {
+            "op": "set",
+            "block": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.Pos",
+            "from": [
+                13917,
+                0,
+                11178
+            ],
+            "to": [
+                13920,
+                0,
+                11178.5
+            ]
+        },
+        {
+            "op": "set",
+            "block": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.OuterOffset",
+            "from": 30,
+            "to": 30.0
+        },
+        {
+            "op": "set",
+            "block": "effectArea",
+            "key": {
+                "name": "ship-bow"
+            },
+            "field": "Data.Radius",
+            "to": 1
+        },
+        {
+            "op": "remove",
+            "block": "effectArea",
+            "key": {
+                "name": "Ship-Stern"
+            }
+        },
+        {
+            "op": "remove",
+            "block": "safePosition",
+            "key": {
+                "x": 360,
+                "z": 10986
+            }
+        },
+        {
+            "op": "set",
+            "block": "safePosition",
+            "key": {
+                "x": 434,
+                "z": 13624
+            },
+            "field": "x",
+            "to": 1
+        },
+        {
+            "op": "set",
+            "block": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "AreaName",
+            "to": "X"
+        },
+        {
+            "op": "set",
+            "block": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.Radius",
+            "to": "big"
+        }
+    ]
+}

@@ -1,0 +1,136 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "nominal",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "max",
+            "status": "already",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "flags.remove_damaged",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "eventChild",
+            "key": {
+                "event": "VehicleCivilianSedan",
+                "type": "civiliansedan_black"
+            },
+            "field": "max",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "remove",
+            "kind": "eventChild",
+            "key": {
+                "event": "VehicleCivilianSedan",
+                "type": "CivilianSedan_Wine"
+            },
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "StaticHeliCrash"
+            },
+            "field": "secondary",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "nominal",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "lifetime",
+            "status": "invalid",
+            "file": "db/events.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "change",
+            "index": 8,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "bogus",
+            "status": "invalid",
+            "file": "db/events.xml",
+            "detail": "unknown-field"
+        },
+        {
+            "what": "change",
+            "index": 9,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "flags.deletable",
+            "status": "applied",
+            "file": "db/events.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "db/events.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

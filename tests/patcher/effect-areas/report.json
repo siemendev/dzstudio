@@ -1,0 +1,177 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.Radius",
+            "status": "applied",
+            "file": "cfgEffectArea.json"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.InnerRingCount",
+            "status": "applied",
+            "file": "cfgEffectArea.json"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.Pos",
+            "status": "applied",
+            "file": "cfgEffectArea.json"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.OuterOffset",
+            "status": "already",
+            "file": "cfgEffectArea.json"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "effectArea",
+            "key": {
+                "name": "ship-bow"
+            },
+            "field": "Data.Radius",
+            "status": "orphaned",
+            "file": "cfgEffectArea.json"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "remove",
+            "kind": "effectArea",
+            "key": {
+                "name": "Ship-Stern"
+            },
+            "status": "applied",
+            "file": "cfgEffectArea.json"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "remove",
+            "kind": "safePosition",
+            "key": {
+                "x": 360,
+                "z": 10986
+            },
+            "status": "applied",
+            "file": "cfgEffectArea.json"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "set",
+            "kind": "safePosition",
+            "key": {
+                "x": 434,
+                "z": 13624
+            },
+            "field": "x",
+            "status": "invalid",
+            "file": "cfgEffectArea.json",
+            "detail": "bad-op"
+        },
+        {
+            "what": "change",
+            "index": 8,
+            "op": "set",
+            "kind": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "AreaName",
+            "status": "invalid",
+            "file": "cfgEffectArea.json",
+            "detail": "unknown-field"
+        },
+        {
+            "what": "change",
+            "index": 9,
+            "op": "set",
+            "kind": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.Radius",
+            "status": "invalid",
+            "file": "cfgEffectArea.json",
+            "detail": "bad-value"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "effectArea",
+            "id": "b-gas",
+            "status": "applied",
+            "file": "cfgEffectArea.json"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "effectArea",
+            "id": "b-dup",
+            "status": "collision",
+            "file": "cfgEffectArea.json"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "effectArea",
+            "id": "b-inc",
+            "status": "invalid",
+            "file": "cfgEffectArea.json",
+            "detail": "incomplete"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "safePosition",
+            "id": "b-safe",
+            "status": "applied",
+            "file": "cfgEffectArea.json"
+        },
+        {
+            "what": "block",
+            "index": 4,
+            "kind": "safePosition",
+            "id": "b-safe2",
+            "status": "collision",
+            "file": "cfgEffectArea.json"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgEffectArea.json",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

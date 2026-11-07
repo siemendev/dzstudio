@@ -1,0 +1,16 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "spawnerGroup",
+            "id": "b-koth",
+            "status": "invalid",
+            "detail": "no-slug"
+        }
+    ],
+    "files": [],
+    "notes": []
+}

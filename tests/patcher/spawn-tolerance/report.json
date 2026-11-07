@@ -1,0 +1,134 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleA",
+                "x": 341.000000,
+                "z": 1000
+            },
+            "field": "pos",
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleA",
+                "x": 500.499,
+                "z": 500
+            },
+            "field": "a",
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleA",
+                "x": 500.5,
+                "z": 500
+            },
+            "field": "a",
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleA",
+                "x": 500.501,
+                "z": 500
+            },
+            "field": "a",
+            "status": "orphaned",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleA",
+                "x": 500,
+                "z": 499.5
+            },
+            "field": "a",
+            "status": "already",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "remove",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleB",
+                "x": 341,
+                "z": 1000
+            },
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleB",
+                "x": 341,
+                "z": 1000
+            },
+            "field": "a",
+            "status": "orphaned",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "set",
+            "kind": "spawnList",
+            "key": {
+                "name": "VehicleA"
+            },
+            "field": "zone.dmax",
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 8,
+            "op": "set",
+            "kind": "spawnList",
+            "key": {
+                "name": "VehicleB"
+            },
+            "field": "zone.r",
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgeventspawns.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

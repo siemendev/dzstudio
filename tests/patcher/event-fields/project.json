@@ -1,0 +1,103 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [],
+    "changes": [
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "nominal",
+            "from": 8,
+            "to": 12
+        },
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "max",
+            "from": 11,
+            "to": 11
+        },
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "flags.remove_damaged",
+            "from": 1,
+            "to": 0
+        },
+        {
+            "op": "set",
+            "block": "eventChild",
+            "key": {
+                "event": "VehicleCivilianSedan",
+                "type": "civiliansedan_black"
+            },
+            "field": "max",
+            "from": 5,
+            "to": 2
+        },
+        {
+            "op": "remove",
+            "block": "eventChild",
+            "key": {
+                "event": "VehicleCivilianSedan",
+                "type": "CivilianSedan_Wine"
+            }
+        },
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "StaticHeliCrash"
+            },
+            "field": "secondary",
+            "to": "InfectedArmy"
+        },
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "nominal",
+            "from": 12,
+            "to": 14
+        },
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "lifetime",
+            "to": "abc"
+        },
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "bogus",
+            "to": 1
+        },
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "flags.deletable",
+            "to": true
+        }
+    ]
+}

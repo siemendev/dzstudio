@@ -1,0 +1,29 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "effectArea",
+            "id": "b-gas",
+            "status": "applied",
+            "file": "cfgeffectarea.json"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "safePosition",
+            "id": "b-safe",
+            "status": "applied",
+            "file": "cfgeffectarea.json"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgeffectarea.json",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

@@ -1,0 +1,40 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.Radius",
+            "status": "invalid",
+            "file": "cfgeffectarea.json",
+            "detail": "output-invalid"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.InnerPartDist",
+            "status": "invalid",
+            "file": "cfgeffectarea.json",
+            "detail": "output-invalid"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgeffectarea.json",
+            "status": "invalid",
+            "detail": "int-field"
+        }
+    ],
+    "notes": []
+}

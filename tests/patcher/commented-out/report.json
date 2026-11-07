@@ -1,0 +1,91 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleOld"
+            },
+            "field": "nominal",
+            "status": "orphaned",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "remove",
+            "kind": "eventChild",
+            "key": {
+                "event": "VehicleX",
+                "type": "Foo"
+            },
+            "status": "gone",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "eventChild",
+            "key": {
+                "event": "VehicleX",
+                "type": "bar"
+            },
+            "field": "max",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "remove",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleX",
+                "x": 10,
+                "z": 10
+            },
+            "status": "gone",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "event",
+            "id": "b-old",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "eventChild",
+            "id": "b-foo",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "spawnPosition",
+            "id": "b-p",
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgeventspawns.xml",
+            "status": "written"
+        },
+        {
+            "path": "db/events.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

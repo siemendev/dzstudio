@@ -1,0 +1,85 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "spawnerGroup",
+            "id": "b-koth",
+            "status": "applied",
+            "file": "dzstudio/test/b-koth.json"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "spawnerGroup",
+            "id": "b-bad",
+            "status": "invalid",
+            "detail": "incomplete"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "spawnerGroup",
+            "id": "b-two",
+            "status": "applied",
+            "file": "dzstudio/test/b-two.json"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "spawnerGroup",
+            "id": "B Bad",
+            "status": "invalid",
+            "detail": "bad-id"
+        },
+        {
+            "what": "registration",
+            "field": "WorldsData.objectSpawnersArr",
+            "value": "/spawners/a.json",
+            "status": "deduplicated",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "registration",
+            "field": "WorldsData.objectSpawnersArr",
+            "value": "spawners\\b.json",
+            "status": "deduplicated",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "registration",
+            "id": "b-koth",
+            "field": "WorldsData.objectSpawnersArr",
+            "value": "dzstudio/test/b-koth.json",
+            "status": "applied",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "registration",
+            "id": "b-two",
+            "field": "WorldsData.objectSpawnersArr",
+            "value": "dzstudio/test/b-two.json",
+            "status": "applied",
+            "file": "cfggameplay.json"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfggameplay.json",
+            "status": "written"
+        },
+        {
+            "path": "dzstudio/test/b-koth.json",
+            "status": "created"
+        },
+        {
+            "path": "dzstudio/test/b-two.json",
+            "status": "created"
+        }
+    ],
+    "notes": [
+        "enableCfgGameplayFile"
+    ]
+}

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<eventposdef>
+	<event name="VehicleCivilianSedan">
+		<pos x="12071.933594" z="9129.989258" a="317.953339" />
+		<pos x="12302.375001" z="9051.289062" a="60.399284" />
+	</event>
+</eventposdef>

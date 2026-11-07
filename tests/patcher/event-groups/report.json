@@ -1,0 +1,177 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "eventGroupChild",
+            "key": {
+                "group": "train_a",
+                "type": "wagon_box",
+                "x": 12.085,
+                "z": 2.74
+            },
+            "field": "a",
+            "status": "ambiguous",
+            "file": "cfgeventgroups.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "eventGroupChild",
+            "key": {
+                "group": "Train_A",
+                "type": "Wagon_Box",
+                "x": 12.0,
+                "z": 2.74,
+                "ordinal": 1
+            },
+            "field": "lootmax",
+            "status": "applied",
+            "file": "cfgeventgroups.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "eventGroupChild",
+            "key": {
+                "group": "Train_A",
+                "type": "WAGON_BOX",
+                "x": 12.336,
+                "z": 2.74
+            },
+            "field": "a",
+            "status": "applied",
+            "file": "cfgeventgroups.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "remove",
+            "kind": "eventGroupChild",
+            "key": {
+                "group": "Train_B",
+                "type": "Wagon_Box",
+                "x": 12.085,
+                "z": 2.740
+            },
+            "status": "applied",
+            "file": "cfgeventgroups.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "remove",
+            "kind": "eventGroup",
+            "key": {
+                "name": "TRAIN_B"
+            },
+            "status": "applied",
+            "file": "cfgeventgroups.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "set",
+            "kind": "eventGroupChild",
+            "key": {
+                "group": "Train_C",
+                "type": "Wagon_Box",
+                "x": 0,
+                "z": 0
+            },
+            "field": "a",
+            "status": "orphaned",
+            "file": "cfgeventgroups.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "eventGroupChild",
+            "key": {
+                "group": "Train_A",
+                "type": "Wagon_Red",
+                "x": 0.25,
+                "z": 0
+            },
+            "field": "y",
+            "status": "applied",
+            "file": "cfgeventgroups.xml"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "set",
+            "kind": "eventGroupChild",
+            "key": {
+                "group": "Train_A",
+                "type": "Wagon_Red",
+                "x": 0.250001,
+                "z": 0
+            },
+            "field": "y",
+            "status": "orphaned",
+            "file": "cfgeventgroups.xml"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "eventGroup",
+            "id": "b-grp",
+            "status": "applied",
+            "file": "cfgeventgroups.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "eventGroupChild",
+            "id": "b-grp-c1",
+            "status": "applied",
+            "file": "cfgeventgroups.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "eventGroupChild",
+            "id": "b-grp-c2",
+            "status": "collision",
+            "file": "cfgeventgroups.xml"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "eventGroupChild",
+            "id": "b-add",
+            "status": "collision",
+            "file": "cfgeventgroups.xml"
+        },
+        {
+            "what": "block",
+            "index": 4,
+            "kind": "eventGroupChild",
+            "id": "b-add2",
+            "status": "applied",
+            "file": "cfgeventgroups.xml"
+        },
+        {
+            "what": "block",
+            "index": 5,
+            "kind": "eventGroup",
+            "id": "b-dup",
+            "status": "collision",
+            "file": "cfgeventgroups.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgeventgroups.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

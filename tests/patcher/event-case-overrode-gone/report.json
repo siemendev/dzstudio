@@ -1,0 +1,122 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "vehicleCivilianSedan"
+            },
+            "field": "nominal",
+            "status": "orphaned",
+            "file": "db/events.xml",
+            "detail": "case-mismatch"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "remove",
+            "kind": "event",
+            "key": {
+                "name": "VEHICLECIVILIANSEDAN"
+            },
+            "status": "gone",
+            "file": "db/events.xml",
+            "detail": "case-mismatch"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "nominal",
+            "status": "overrode",
+            "file": "db/events.xml",
+            "current": "8"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "remove",
+            "kind": "event",
+            "key": {
+                "name": "VehicleMissing"
+            },
+            "status": "gone",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleMissing"
+            },
+            "field": "nominal",
+            "status": "orphaned",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "remove",
+            "kind": "eventChild",
+            "key": {
+                "event": "VehicleCivilianSedan",
+                "type": "Nope"
+            },
+            "status": "gone",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "eventChild",
+            "key": {
+                "event": "VehicleMissing",
+                "type": "CivilianSedan"
+            },
+            "field": "max",
+            "status": "orphaned",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "rename",
+            "kind": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "status": "invalid",
+            "detail": "bad-op"
+        },
+        {
+            "what": "change",
+            "index": 8,
+            "op": "set",
+            "kind": "noSuchKind",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "nominal",
+            "status": "invalid",
+            "detail": "unknown-kind"
+        }
+    ],
+    "files": [
+        {
+            "path": "db/events.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

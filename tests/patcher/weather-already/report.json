@@ -1,0 +1,28 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "weather",
+            "id": "b-w",
+            "status": "already",
+            "file": "cfgweather.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "weather",
+            "id": "b-h",
+            "status": "collision"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgweather.xml",
+            "status": "unchanged"
+        }
+    ],
+    "notes": []
+}

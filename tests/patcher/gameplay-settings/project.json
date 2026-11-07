@@ -1,0 +1,112 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [],
+    "changes": [
+        {
+            "op": "set",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "PlayerData.StaminaData.staminaMax"
+            },
+            "from": 100,
+            "to": 120
+        },
+        {
+            "op": "set",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "GeneralData.disableBaseDamage"
+            },
+            "from": false,
+            "to": true
+        },
+        {
+            "op": "set",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "GeneralData.disableBaseDamage"
+            },
+            "to": true
+        },
+        {
+            "op": "set",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "WorldsData.objectSpawnersArr"
+            },
+            "to": [
+                "x.json"
+            ]
+        },
+        {
+            "op": "set",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "PlayerData.StaminaData"
+            },
+            "to": 1
+        },
+        {
+            "op": "set",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "GeneralData.newFlag"
+            },
+            "to": true
+        },
+        {
+            "op": "set",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "NewSection.sub.leaf"
+            },
+            "to": 5.50
+        },
+        {
+            "op": "remove",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "GeneralData.disableContainerDamage"
+            }
+        },
+        {
+            "op": "remove",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "GeneralData.nothing"
+            }
+        },
+        {
+            "op": "set",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "GeneralData.disableRespawnDialog"
+            },
+            "to": {
+                "a": 1
+            }
+        },
+        {
+            "op": "set",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "PlayerData.StaminaData.staminaMax"
+            },
+            "from": 100,
+            "to": 130
+        },
+        {
+            "op": "set",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "WorldsData.environmentMinTemps"
+            },
+            "to": [
+                -5,
+                -8.50
+            ]
+        }
+    ]
+}

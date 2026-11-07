@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<eventposdef>
+	<event name="VehicleA">
+		<zone smin="1" smax="3" dmin="3" dmax="7" r="45" />
+		<pos x="342.000000" z="1000" a="20.000000" />
+		<pos x="500.000000" z="500.000000" a="46.000000" />
+	</event>
+	<event name="VehicleB">
+		<zone r="30" />
+	</event>
+</eventposdef>

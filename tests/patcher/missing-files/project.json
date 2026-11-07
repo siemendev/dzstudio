@@ -1,0 +1,29 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-p",
+            "kind": "spawnPosition",
+            "parent": {
+                "event": "VehicleCivilianSedan"
+            },
+            "data": {
+                "x": 1,
+                "z": 2
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "nominal",
+            "to": 1
+        }
+    ]
+}

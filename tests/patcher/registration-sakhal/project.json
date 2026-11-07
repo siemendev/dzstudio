@@ -1,0 +1,52 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "slug": "test",
+    "blocks": [
+        {
+            "id": "b-koth",
+            "kind": "spawnerGroup",
+            "parent": null,
+            "data": {
+                "name": "KotH",
+                "objects": [
+                    {
+                        "name": "Land_Mil_Barracks1",
+                        "pos": [
+                            100,
+                            5.5,
+                            200
+                        ],
+                        "ypr": [
+                            90,
+                            0,
+                            0
+                        ]
+                    },
+                    {
+                        "name": "Barrel_Blue",
+                        "pos": [
+                            101,
+                            5,
+                            201
+                        ],
+                        "scale": 1.5,
+                        "enableCEPersistency": 1,
+                        "customString": "x"
+                    }
+                ]
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "WorldsData.playerRestrictedAreaFiles"
+            },
+            "to": []
+        }
+    ]
+}

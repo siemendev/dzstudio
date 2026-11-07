@@ -1,0 +1,35 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "spawnerGroup",
+            "id": "b-koth",
+            "status": "applied",
+            "file": "dzstudio/test/b-koth.json"
+        },
+        {
+            "what": "registration",
+            "id": "b-koth",
+            "field": "WorldsData.objectSpawnersArr",
+            "value": "dzstudio/test/b-koth.json",
+            "status": "already",
+            "file": "cfggameplay.json"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfggameplay.json",
+            "status": "unchanged"
+        },
+        {
+            "path": "dzstudio/test/b-koth.json",
+            "status": "created"
+        }
+    ],
+    "notes": [
+        "enableCfgGameplayFile"
+    ]
+}

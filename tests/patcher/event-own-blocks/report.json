@@ -1,0 +1,134 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "event",
+            "id": "b-car",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "eventChild",
+            "id": "b-car-child",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "spawnPosition",
+            "id": "b-car-pos",
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "event",
+            "id": "b-dup",
+            "status": "collision",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "block",
+            "index": 4,
+            "kind": "event",
+            "id": "b-bad",
+            "status": "invalid",
+            "file": "db/events.xml",
+            "detail": "prefix"
+        },
+        {
+            "what": "block",
+            "index": 5,
+            "kind": "eventChild",
+            "id": "b-add",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "block",
+            "index": 6,
+            "kind": "eventChild",
+            "id": "b-add2",
+            "status": "collision",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "block",
+            "index": 7,
+            "kind": "spawnPosition",
+            "id": "b-anim",
+            "status": "invalid",
+            "file": "cfgeventspawns.xml",
+            "detail": "no-positions"
+        },
+        {
+            "what": "block",
+            "index": 8,
+            "kind": "event",
+            "id": "b-inc",
+            "status": "invalid",
+            "file": "db/events.xml",
+            "detail": "incomplete"
+        },
+        {
+            "what": "block",
+            "index": 9,
+            "kind": "spawnPosition",
+            "id": "b-near",
+            "status": "collision",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "block",
+            "index": 10,
+            "kind": "event",
+            "id": "b-mx",
+            "status": "invalid",
+            "file": "db/events.xml",
+            "detail": "max-zero"
+        },
+        {
+            "what": "block",
+            "index": 11,
+            "kind": "eventChild",
+            "id": "b-orph",
+            "status": "orphaned",
+            "file": "db/events.xml",
+            "detail": "parent-missing"
+        },
+        {
+            "what": "block",
+            "index": 12,
+            "kind": "event",
+            "id": "b-car",
+            "status": "invalid",
+            "detail": "bad-id"
+        },
+        {
+            "what": "block",
+            "index": 13,
+            "kind": "spawnPosition",
+            "id": "b-pos2",
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgeventspawns.xml",
+            "status": "written"
+        },
+        {
+            "path": "db/events.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

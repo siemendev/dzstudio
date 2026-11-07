@@ -1,0 +1,39 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "nominal",
+            "status": "invalid",
+            "file": "db/events.xml",
+            "detail": "missing-file"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "spawnPosition",
+            "id": "b-p",
+            "status": "invalid",
+            "file": "cfgeventspawns.xml",
+            "detail": "missing-file"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgeventspawns.xml",
+            "status": "missing"
+        },
+        {
+            "path": "db/events.xml",
+            "status": "missing"
+        }
+    ],
+    "notes": []
+}

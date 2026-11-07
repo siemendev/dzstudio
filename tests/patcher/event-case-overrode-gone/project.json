@@ -1,0 +1,86 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [],
+    "changes": [
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "vehicleCivilianSedan"
+            },
+            "field": "nominal",
+            "from": 8,
+            "to": 9
+        },
+        {
+            "op": "remove",
+            "block": "event",
+            "key": {
+                "name": "VEHICLECIVILIANSEDAN"
+            }
+        },
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "nominal",
+            "from": 6,
+            "to": 10
+        },
+        {
+            "op": "remove",
+            "block": "event",
+            "key": {
+                "name": "VehicleMissing"
+            }
+        },
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "VehicleMissing"
+            },
+            "field": "nominal",
+            "from": 1,
+            "to": 2
+        },
+        {
+            "op": "remove",
+            "block": "eventChild",
+            "key": {
+                "event": "VehicleCivilianSedan",
+                "type": "Nope"
+            }
+        },
+        {
+            "op": "set",
+            "block": "eventChild",
+            "key": {
+                "event": "VehicleMissing",
+                "type": "CivilianSedan"
+            },
+            "field": "max",
+            "to": 1
+        },
+        {
+            "op": "rename",
+            "block": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            }
+        },
+        {
+            "op": "set",
+            "block": "noSuchKind",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "nominal",
+            "to": 1
+        }
+    ]
+}

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<eventposdef>
+	<event name="VehicleE" />
+	<event name="InfectedVillage" />
+	<event name="StaticTrain">
+		<pos x="5587.466" z="2063.353" a="0" y="7.75" group="Train_A"/>
+	</event>
+</eventposdef>

@@ -1,0 +1,150 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "nominal",
+            "status": "applied",
+            "file": "db/types.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "value",
+            "status": "applied",
+            "file": "db/types.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "usage",
+            "status": "overrode",
+            "file": "db/types.xml",
+            "current": "sha256:77362826f5bd48ef3361459a61ff82aea09a7fa125e1332b7a2c4b04d12fa18f"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "tag",
+            "status": "applied",
+            "file": "db/types.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "itemType",
+            "key": {
+                "name": "Apple"
+            },
+            "field": "nominal",
+            "status": "applied",
+            "file": "db/types.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "remove",
+            "kind": "itemType",
+            "key": {
+                "name": "Banana"
+            },
+            "status": "gone",
+            "file": "db/types.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "flags.deloot",
+            "status": "applied",
+            "file": "db/types.xml"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "set",
+            "kind": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "usage",
+            "status": "invalid",
+            "file": "db/types.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "change",
+            "index": 8,
+            "op": "set",
+            "kind": "itemType",
+            "key": {
+                "name": "APPLE"
+            },
+            "field": "category.name",
+            "status": "applied",
+            "file": "db/types.xml"
+        },
+        {
+            "what": "change",
+            "index": 9,
+            "op": "set",
+            "kind": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "value",
+            "status": "already",
+            "file": "db/types.xml"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "itemType",
+            "id": "b-pen",
+            "status": "applied",
+            "file": "db/types.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "itemType",
+            "id": "b-dup",
+            "status": "collision",
+            "file": "db/types.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "db/types.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

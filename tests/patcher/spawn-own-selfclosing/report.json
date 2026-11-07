@@ -1,0 +1,89 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "spawnPosition",
+            "id": "b-e1",
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "spawnPosition",
+            "id": "b-e2",
+            "status": "collision",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "spawnPosition",
+            "id": "b-e3",
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "spawnPosition",
+            "id": "b-g",
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "block",
+            "index": 4,
+            "kind": "spawnPosition",
+            "id": "b-g2",
+            "status": "invalid",
+            "file": "cfgeventspawns.xml",
+            "detail": "group-needs-y"
+        },
+        {
+            "what": "block",
+            "index": 5,
+            "kind": "spawnPosition",
+            "id": "b-inf",
+            "status": "invalid",
+            "file": "cfgeventspawns.xml",
+            "detail": "no-positions"
+        },
+        {
+            "what": "block",
+            "index": 6,
+            "kind": "spawnPosition",
+            "id": "b-new",
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "block",
+            "index": 7,
+            "kind": "spawnPosition",
+            "id": "b-bad",
+            "status": "invalid",
+            "file": "cfgeventspawns.xml",
+            "detail": "bad-parent"
+        },
+        {
+            "what": "block",
+            "index": 8,
+            "kind": "spawnPosition",
+            "id": "b-unk",
+            "status": "invalid",
+            "file": "cfgeventspawns.xml",
+            "detail": "unknown-field"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgeventspawns.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

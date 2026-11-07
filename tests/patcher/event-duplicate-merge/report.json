@@ -1,0 +1,62 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "ItemDup"
+            },
+            "field": "nominal",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "remove",
+            "kind": "eventChild",
+            "key": {
+                "event": "ItemDup",
+                "type": "pen_red"
+            },
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "eventChild",
+            "key": {
+                "event": "ItemDup",
+                "type": "PEN_BLACK"
+            },
+            "field": "min",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "ItemDup"
+            },
+            "field": "lifetime",
+            "status": "already",
+            "file": "db/events.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "db/events.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

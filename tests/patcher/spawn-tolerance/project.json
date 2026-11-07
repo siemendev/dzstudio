@@ -1,0 +1,113 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [],
+    "changes": [
+        {
+            "op": "set",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleA",
+                "x": 341.000000,
+                "z": 1000
+            },
+            "field": "pos",
+            "from": {
+                "x": 341,
+                "z": 1000,
+                "a": 10
+            },
+            "to": {
+                "x": 342,
+                "z": 1000,
+                "a": 20
+            }
+        },
+        {
+            "op": "set",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleA",
+                "x": 500.499,
+                "z": 500
+            },
+            "field": "a",
+            "to": 45
+        },
+        {
+            "op": "set",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleA",
+                "x": 500.5,
+                "z": 500
+            },
+            "field": "a",
+            "from": 45,
+            "to": 46
+        },
+        {
+            "op": "set",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleA",
+                "x": 500.501,
+                "z": 500
+            },
+            "field": "a",
+            "to": 1
+        },
+        {
+            "op": "set",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleA",
+                "x": 500,
+                "z": 499.5
+            },
+            "field": "a",
+            "from": 46,
+            "to": 46
+        },
+        {
+            "op": "remove",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleB",
+                "x": 341,
+                "z": 1000
+            }
+        },
+        {
+            "op": "set",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleB",
+                "x": 341,
+                "z": 1000
+            },
+            "field": "a",
+            "to": 1
+        },
+        {
+            "op": "set",
+            "block": "spawnList",
+            "key": {
+                "name": "VehicleA"
+            },
+            "field": "zone.dmax",
+            "from": 5,
+            "to": 7
+        },
+        {
+            "op": "set",
+            "block": "spawnList",
+            "key": {
+                "name": "VehicleB"
+            },
+            "field": "zone.r",
+            "to": 30.0
+        }
+    ]
+}

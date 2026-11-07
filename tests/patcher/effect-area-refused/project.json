@@ -1,0 +1,26 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [],
+    "changes": [
+        {
+            "op": "set",
+            "block": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.Radius",
+            "to": 90
+        },
+        {
+            "op": "set",
+            "block": "effectArea",
+            "key": {
+                "name": "Ship-Bow"
+            },
+            "field": "Data.InnerPartDist",
+            "to": 80.5
+        }
+    ]
+}

@@ -1,0 +1,46 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [],
+    "changes": [
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "ItemDup"
+            },
+            "field": "nominal",
+            "to": 5
+        },
+        {
+            "op": "remove",
+            "block": "eventChild",
+            "key": {
+                "event": "ItemDup",
+                "type": "pen_red"
+            }
+        },
+        {
+            "op": "set",
+            "block": "eventChild",
+            "key": {
+                "event": "ItemDup",
+                "type": "PEN_BLACK"
+            },
+            "field": "min",
+            "from": 1,
+            "to": 2
+        },
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "ItemDup"
+            },
+            "field": "lifetime",
+            "from": 300,
+            "to": 300
+        }
+    ]
+}

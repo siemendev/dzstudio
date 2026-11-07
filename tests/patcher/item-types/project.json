@@ -1,0 +1,183 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-pen",
+            "kind": "itemType",
+            "parent": null,
+            "data": {
+                "name": "Pen_Gold",
+                "nominal": 5,
+                "lifetime": 3600,
+                "restock": 0,
+                "min": 2,
+                "quantmin": -1,
+                "quantmax": -1,
+                "cost": 100,
+                "flags": {
+                    "count_in_cargo": 0,
+                    "count_in_hoarder": 0,
+                    "count_in_map": 1,
+                    "count_in_player": 0,
+                    "crafted": 0,
+                    "deloot": 0
+                },
+                "category": {
+                    "name": "tools"
+                },
+                "usage": [
+                    "Town"
+                ],
+                "value": [
+                    "Tier1",
+                    "Tier2"
+                ]
+            }
+        },
+        {
+            "id": "b-dup",
+            "kind": "itemType",
+            "parent": null,
+            "data": {
+                "name": "akm",
+                "nominal": 5,
+                "lifetime": 3600,
+                "restock": 0,
+                "min": 2,
+                "quantmin": -1,
+                "quantmax": -1,
+                "cost": 100,
+                "flags": {
+                    "count_in_cargo": 0,
+                    "count_in_hoarder": 0,
+                    "count_in_map": 1,
+                    "count_in_player": 0,
+                    "crafted": 0,
+                    "deloot": 0
+                },
+                "category": {
+                    "name": "tools"
+                },
+                "usage": [
+                    "Town"
+                ],
+                "value": [
+                    "Tier1",
+                    "Tier2"
+                ]
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "nominal",
+            "from": 3,
+            "to": 5
+        },
+        {
+            "op": "set",
+            "block": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "value",
+            "from": "sha256:f061cc4972b7acfe406114900815badc32b52f23223d14da9f66742eb3ab57a1",
+            "to": [
+                "Tier4",
+                "Tier5"
+            ]
+        },
+        {
+            "op": "set",
+            "block": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "usage",
+            "from": "sha256:0000",
+            "to": [
+                "Military",
+                {
+                    "user": "TownUser"
+                }
+            ]
+        },
+        {
+            "op": "set",
+            "block": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "tag",
+            "to": [
+                "floor"
+            ]
+        },
+        {
+            "op": "set",
+            "block": "itemType",
+            "key": {
+                "name": "Apple"
+            },
+            "field": "nominal",
+            "from": 20,
+            "to": 25
+        },
+        {
+            "op": "remove",
+            "block": "itemType",
+            "key": {
+                "name": "Banana"
+            }
+        },
+        {
+            "op": "set",
+            "block": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "flags.deloot",
+            "from": 0,
+            "to": 1
+        },
+        {
+            "op": "set",
+            "block": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "usage",
+            "to": "notalist"
+        },
+        {
+            "op": "set",
+            "block": "itemType",
+            "key": {
+                "name": "APPLE"
+            },
+            "field": "category.name",
+            "from": "food",
+            "to": "fruit"
+        },
+        {
+            "op": "set",
+            "block": "itemType",
+            "key": {
+                "name": "akm"
+            },
+            "field": "value",
+            "from": "sha256:8c75ad7f37817823350cbfe1d5a5b2693d93999c1223540ff7e4f844af1e61b8",
+            "to": [
+                "Tier4",
+                "Tier5"
+            ]
+        }
+    ]
+}

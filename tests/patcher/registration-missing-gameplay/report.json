@@ -1,0 +1,22 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "spawnerGroup",
+            "id": "b-koth",
+            "status": "invalid",
+            "file": "cfggameplay.json",
+            "detail": "missing-file"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfggameplay.json",
+            "status": "missing"
+        }
+    ],
+    "notes": []
+}

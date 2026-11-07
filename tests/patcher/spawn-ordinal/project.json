@@ -1,0 +1,94 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [],
+    "changes": [
+        {
+            "op": "set",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleC",
+                "x": 100,
+                "z": 100
+            },
+            "field": "a",
+            "to": 9
+        },
+        {
+            "op": "remove",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleC",
+                "x": 100,
+                "z": 100,
+                "ordinal": 2
+            }
+        },
+        {
+            "op": "set",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleC",
+                "x": 100,
+                "z": 100,
+                "ordinal": 2
+            },
+            "field": "a",
+            "to": 9
+        },
+        {
+            "op": "set",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleC",
+                "x": 100,
+                "z": 100,
+                "ordinal": 3
+            },
+            "field": "a",
+            "from": 0,
+            "to": 90
+        },
+        {
+            "op": "remove",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleC",
+                "x": 100,
+                "z": 100,
+                "ordinal": 4
+            }
+        },
+        {
+            "op": "set",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleD",
+                "x": 5,
+                "z": 5
+            },
+            "field": "a",
+            "to": 3
+        },
+        {
+            "op": "remove",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleD",
+                "x": 5,
+                "z": 5,
+                "ordinal": 2
+            }
+        },
+        {
+            "op": "remove",
+            "block": "spawnPosition",
+            "key": {
+                "event": "VehicleC",
+                "x": 100,
+                "z": 100
+            }
+        }
+    ]
+}

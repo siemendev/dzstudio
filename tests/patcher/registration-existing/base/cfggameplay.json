@@ -1,0 +1,8 @@
+{
+	"version": 123,
+	"WorldsData":
+	{
+		"lightingConfig": 1,
+		"objectSpawnersArr": ["spawners/a.json", "dzstudio/test/b-koth.json"]
+	}
+}

@@ -1,0 +1,151 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "PlayerData.StaminaData.staminaMax"
+            },
+            "status": "applied",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "GeneralData.disableBaseDamage"
+            },
+            "status": "applied",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "GeneralData.disableBaseDamage"
+            },
+            "status": "already",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "WorldsData.objectSpawnersArr"
+            },
+            "status": "invalid",
+            "file": "cfggameplay.json",
+            "detail": "registration-list"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "PlayerData.StaminaData"
+            },
+            "status": "invalid",
+            "file": "cfggameplay.json",
+            "detail": "not-a-leaf"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "set",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "GeneralData.newFlag"
+            },
+            "status": "applied",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "NewSection.sub.leaf"
+            },
+            "status": "applied",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "remove",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "GeneralData.disableContainerDamage"
+            },
+            "status": "applied",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "change",
+            "index": 8,
+            "op": "remove",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "GeneralData.nothing"
+            },
+            "status": "gone",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "change",
+            "index": 9,
+            "op": "set",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "GeneralData.disableRespawnDialog"
+            },
+            "status": "invalid",
+            "file": "cfggameplay.json",
+            "detail": "bad-value"
+        },
+        {
+            "what": "change",
+            "index": 10,
+            "op": "set",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "PlayerData.StaminaData.staminaMax"
+            },
+            "status": "overrode",
+            "file": "cfggameplay.json",
+            "current": "120"
+        },
+        {
+            "what": "change",
+            "index": 11,
+            "op": "set",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "WorldsData.environmentMinTemps"
+            },
+            "status": "applied",
+            "file": "cfggameplay.json"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfggameplay.json",
+            "status": "written"
+        }
+    ],
+    "notes": [
+        "enableCfgGameplayFile"
+    ]
+}

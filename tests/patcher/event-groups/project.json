@@ -1,0 +1,171 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-grp",
+            "kind": "eventGroup",
+            "parent": null,
+            "data": {
+                "name": "Ruins_1"
+            }
+        },
+        {
+            "id": "b-grp-c1",
+            "kind": "eventGroupChild",
+            "parent": "b-grp",
+            "data": {
+                "type": "Land_Ruin",
+                "x": 0,
+                "z": 0,
+                "a": 0,
+                "y": 0
+            }
+        },
+        {
+            "id": "b-grp-c2",
+            "kind": "eventGroupChild",
+            "parent": "b-grp",
+            "data": {
+                "type": "land_ruin",
+                "x": 0.1,
+                "z": 0,
+                "a": 90
+            }
+        },
+        {
+            "id": "b-add",
+            "kind": "eventGroupChild",
+            "parent": {
+                "group": "train_a"
+            },
+            "data": {
+                "type": "Wagon_Red",
+                "x": 0.2,
+                "z": 0,
+                "a": 0
+            }
+        },
+        {
+            "id": "b-add2",
+            "kind": "eventGroupChild",
+            "parent": {
+                "group": "Train_A"
+            },
+            "data": {
+                "type": "Wagon_Tank",
+                "deloot": 0,
+                "lootmax": 3,
+                "lootmin": 1,
+                "x": 80,
+                "z": 20,
+                "a": 250,
+                "y": 1.5
+            }
+        },
+        {
+            "id": "b-dup",
+            "kind": "eventGroup",
+            "parent": null,
+            "data": {
+                "name": "train_a"
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "eventGroupChild",
+            "key": {
+                "group": "train_a",
+                "type": "wagon_box",
+                "x": 12.085,
+                "z": 2.74
+            },
+            "field": "a",
+            "to": 1
+        },
+        {
+            "op": "set",
+            "block": "eventGroupChild",
+            "key": {
+                "group": "Train_A",
+                "type": "Wagon_Box",
+                "x": 12.0,
+                "z": 2.74,
+                "ordinal": 1
+            },
+            "field": "lootmax",
+            "from": 3,
+            "to": 4
+        },
+        {
+            "op": "set",
+            "block": "eventGroupChild",
+            "key": {
+                "group": "Train_A",
+                "type": "WAGON_BOX",
+                "x": 12.336,
+                "z": 2.74
+            },
+            "field": "a",
+            "from": 10,
+            "to": 15
+        },
+        {
+            "op": "remove",
+            "block": "eventGroupChild",
+            "key": {
+                "group": "Train_B",
+                "type": "Wagon_Box",
+                "x": 12.085,
+                "z": 2.740
+            }
+        },
+        {
+            "op": "remove",
+            "block": "eventGroup",
+            "key": {
+                "name": "TRAIN_B"
+            }
+        },
+        {
+            "op": "set",
+            "block": "eventGroupChild",
+            "key": {
+                "group": "Train_C",
+                "type": "Wagon_Box",
+                "x": 0,
+                "z": 0
+            },
+            "field": "a",
+            "to": 1
+        },
+        {
+            "op": "set",
+            "block": "eventGroupChild",
+            "key": {
+                "group": "Train_A",
+                "type": "Wagon_Red",
+                "x": 0.25,
+                "z": 0
+            },
+            "field": "y",
+            "from": 1.9,
+            "to": 2
+        },
+        {
+            "op": "set",
+            "block": "eventGroupChild",
+            "key": {
+                "group": "Train_A",
+                "type": "Wagon_Red",
+                "x": 0.250001,
+                "z": 0
+            },
+            "field": "y",
+            "to": 3
+        }
+    ]
+}

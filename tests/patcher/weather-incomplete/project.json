@@ -1,0 +1,22 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-h",
+            "kind": "weather",
+            "parent": null,
+            "data": {
+                "reset": 0,
+                "fog": {
+                    "limits": {
+                        "min": 0,
+                        "max": 1
+                    }
+                }
+            }
+        }
+    ],
+    "changes": []
+}

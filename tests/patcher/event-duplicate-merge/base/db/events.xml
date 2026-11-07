@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<events>
+    <event name="ItemDup">
+        <nominal>2</nominal>
+        <min>1</min>
+        <max>2</max>
+        <lifetime>300</lifetime>
+        <restock>0</restock>
+        <saferadius>0</saferadius>
+        <distanceradius>0</distanceradius>
+        <cleanupradius>0</cleanupradius>
+        <flags deletable="0" init_random="0" remove_damaged="0"/>
+        <position>fixed</position>
+        <limit>mixed</limit>
+        <active>1</active>
+        <children>
+            <child lootmax="0" lootmin="0" max="2" min="1" type="Pen_Black"/>
+        </children>
+    </event>
+    <event name="VehicleCivilianSedan">
+        <nominal>8</nominal>
+        <min>5</min>
+        <max>11</max>
+        <lifetime>300</lifetime>
+        <restock>0</restock>
+        <saferadius>500</saferadius>
+        <distanceradius>500</distanceradius>
+        <cleanupradius>200</cleanupradius>
+        <flags deletable="0" init_random="0" remove_damaged="1"/>
+        <position>fixed</position>
+        <limit>mixed</limit>
+        <active>1</active>
+        <children>
+            <child lootmax="0" lootmin="0" max="5" min="3" type="CivilianSedan"/>
+            <child lootmax="0" lootmin="0" max="5" min="3" type="CivilianSedan_Black"/>
+            <child lootmax="0" lootmin="0" max="5" min="3" type="CivilianSedan_Wine"/>
+        </children>
+    </event>
+    <event name="ItemDup">
+        <nominal>3</nominal>
+        <min>1</min>
+        <max>2</max>
+        <lifetime>300</lifetime>
+        <restock>0</restock>
+        <saferadius>0</saferadius>
+        <distanceradius>0</distanceradius>
+        <cleanupradius>0</cleanupradius>
+        <flags deletable="0" init_random="0" remove_damaged="0"/>
+        <position>fixed</position>
+        <limit>mixed</limit>
+        <active>1</active>
+        <children>
+            <child lootmax="0" lootmin="0" max="2" min="1" type="Pen_Red"/>
+        </children>
+    </event>
+</events>

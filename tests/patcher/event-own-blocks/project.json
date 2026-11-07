@@ -1,0 +1,233 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-car",
+            "kind": "event",
+            "parent": null,
+            "data": {
+                "name": "VehicleFixedOffroad",
+                "nominal": 1,
+                "min": 1,
+                "max": 1,
+                "lifetime": 300,
+                "restock": 0,
+                "saferadius": 500,
+                "distanceradius": 500,
+                "cleanupradius": 200,
+                "flags": {
+                    "deletable": 0,
+                    "init_random": 0,
+                    "remove_damaged": 1
+                },
+                "position": "fixed",
+                "limit": "child",
+                "active": 1
+            }
+        },
+        {
+            "id": "b-car-child",
+            "kind": "eventChild",
+            "parent": "b-car",
+            "data": {
+                "type": "OffroadHatchback",
+                "min": 1,
+                "max": 1,
+                "lootmin": 0,
+                "lootmax": 0
+            }
+        },
+        {
+            "id": "b-car-pos",
+            "kind": "spawnPosition",
+            "parent": "b-car",
+            "data": {
+                "x": 7500.5,
+                "z": 7600.25,
+                "a": 90
+            }
+        },
+        {
+            "id": "b-dup",
+            "kind": "event",
+            "parent": null,
+            "data": {
+                "name": "VehicleCivilianSedan",
+                "nominal": 1,
+                "min": 1,
+                "max": 1,
+                "lifetime": 300,
+                "restock": 0,
+                "saferadius": 500,
+                "distanceradius": 500,
+                "cleanupradius": 200,
+                "flags": {
+                    "deletable": 0,
+                    "init_random": 0,
+                    "remove_damaged": 1
+                },
+                "position": "fixed",
+                "limit": "child",
+                "active": 1
+            }
+        },
+        {
+            "id": "b-bad",
+            "kind": "event",
+            "parent": null,
+            "data": {
+                "name": "FixedCar",
+                "nominal": 1,
+                "min": 1,
+                "max": 1,
+                "lifetime": 300,
+                "restock": 0,
+                "saferadius": 500,
+                "distanceradius": 500,
+                "cleanupradius": 200,
+                "flags": {
+                    "deletable": 0,
+                    "init_random": 0,
+                    "remove_damaged": 1
+                },
+                "position": "fixed",
+                "limit": "child",
+                "active": 1
+            }
+        },
+        {
+            "id": "b-add",
+            "kind": "eventChild",
+            "parent": {
+                "event": "VehicleCivilianSedan"
+            },
+            "data": {
+                "type": "CivilianSedan_Green",
+                "min": 1,
+                "max": 2,
+                "lootmin": 0,
+                "lootmax": 0
+            }
+        },
+        {
+            "id": "b-add2",
+            "kind": "eventChild",
+            "parent": {
+                "event": "VehicleCivilianSedan"
+            },
+            "data": {
+                "type": "civiliansedan",
+                "min": 1,
+                "max": 2,
+                "lootmin": 0,
+                "lootmax": 0
+            }
+        },
+        {
+            "id": "b-anim",
+            "kind": "spawnPosition",
+            "parent": {
+                "event": "AnimalWolf"
+            },
+            "data": {
+                "x": 1,
+                "z": 2
+            }
+        },
+        {
+            "id": "b-inc",
+            "kind": "event",
+            "parent": null,
+            "data": {
+                "name": "VehicleX",
+                "nominal": 1
+            }
+        },
+        {
+            "id": "b-near",
+            "kind": "spawnPosition",
+            "parent": {
+                "event": "VehicleCivilianSedan"
+            },
+            "data": {
+                "x": 12071.733594,
+                "z": 9129.989258
+            }
+        },
+        {
+            "id": "b-mx",
+            "kind": "event",
+            "parent": null,
+            "data": {
+                "name": "VehicleMixedZero",
+                "nominal": 1,
+                "min": 1,
+                "max": 0,
+                "lifetime": 300,
+                "restock": 0,
+                "saferadius": 500,
+                "distanceradius": 500,
+                "cleanupradius": 200,
+                "flags": {
+                    "deletable": 0,
+                    "init_random": 0,
+                    "remove_damaged": 1
+                },
+                "position": "fixed",
+                "limit": "mixed",
+                "active": 1
+            }
+        },
+        {
+            "id": "b-orph",
+            "kind": "eventChild",
+            "parent": "b-bad",
+            "data": {
+                "type": "X",
+                "min": 1,
+                "max": 1,
+                "lootmin": 0,
+                "lootmax": 0
+            }
+        },
+        {
+            "id": "b-car",
+            "kind": "event",
+            "parent": null,
+            "data": {
+                "name": "VehicleOther",
+                "nominal": 1,
+                "min": 1,
+                "max": 1,
+                "lifetime": 300,
+                "restock": 0,
+                "saferadius": 500,
+                "distanceradius": 500,
+                "cleanupradius": 200,
+                "flags": {
+                    "deletable": 0,
+                    "init_random": 0,
+                    "remove_damaged": 1
+                },
+                "position": "fixed",
+                "limit": "child",
+                "active": 1
+            }
+        },
+        {
+            "id": "b-pos2",
+            "kind": "spawnPosition",
+            "parent": {
+                "event": "VehicleCivilianSedan"
+            },
+            "data": {
+                "x": 100,
+                "z": 200.1234567,
+                "a": -0.0000001
+            }
+        }
+    ],
+    "changes": []
+}

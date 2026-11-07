@@ -1,0 +1,126 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleC",
+                "x": 100,
+                "z": 100
+            },
+            "field": "a",
+            "status": "ambiguous",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "remove",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleC",
+                "x": 100,
+                "z": 100,
+                "ordinal": 2
+            },
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleC",
+                "x": 100,
+                "z": 100,
+                "ordinal": 2
+            },
+            "field": "a",
+            "status": "orphaned",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleC",
+                "x": 100,
+                "z": 100,
+                "ordinal": 3
+            },
+            "field": "a",
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "remove",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleC",
+                "x": 100,
+                "z": 100,
+                "ordinal": 4
+            },
+            "status": "gone",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "set",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleD",
+                "x": 5,
+                "z": 5
+            },
+            "field": "a",
+            "status": "ambiguous",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "remove",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleD",
+                "x": 5,
+                "z": 5,
+                "ordinal": 2
+            },
+            "status": "applied",
+            "file": "cfgeventspawns.xml"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "remove",
+            "kind": "spawnPosition",
+            "key": {
+                "event": "VehicleC",
+                "x": 100,
+                "z": 100
+            },
+            "status": "ambiguous",
+            "file": "cfgeventspawns.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgeventspawns.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

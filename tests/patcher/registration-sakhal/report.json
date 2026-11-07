@@ -1,0 +1,47 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "WorldsData.playerRestrictedAreaFiles"
+            },
+            "status": "invalid",
+            "file": "cfggameplay.json",
+            "detail": "registration-list"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "spawnerGroup",
+            "id": "b-koth",
+            "status": "applied",
+            "file": "dzstudio/test/b-koth.json"
+        },
+        {
+            "what": "registration",
+            "id": "b-koth",
+            "field": "WorldsData.objectSpawnersArr",
+            "value": "dzstudio/test/b-koth.json",
+            "status": "applied",
+            "file": "cfggameplay.json"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfggameplay.json",
+            "status": "written"
+        },
+        {
+            "path": "dzstudio/test/b-koth.json",
+            "status": "created"
+        }
+    ],
+    "notes": [
+        "enableCfgGameplayFile"
+    ]
+}

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<eventposdef>
+	<event name="VehicleX">
+		<!--<pos x="10" z="10" a="0" />-->
+		<pos x="20" z="20" a="0" />
+		<pos x="10.000000" z="10.000000" />
+	</event>
+</eventposdef>

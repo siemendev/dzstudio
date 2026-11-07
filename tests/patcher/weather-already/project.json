@@ -1,0 +1,159 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-w",
+            "kind": "weather",
+            "parent": null,
+            "data": {
+                "reset": 0,
+                "overcast": {
+                    "current": {
+                        "actual": 0.45,
+                        "time": 120,
+                        "duration": 240
+                    },
+                    "limits": {
+                        "min": 0.0,
+                        "max": 1.0
+                    },
+                    "timelimits": {
+                        "min": 600,
+                        "max": 900
+                    },
+                    "changelimits": {
+                        "min": 0.0,
+                        "max": 1.0
+                    }
+                },
+                "fog": {
+                    "current": {
+                        "actual": 0.05,
+                        "time": 120,
+                        "duration": 240
+                    },
+                    "limits": {
+                        "min": 0.02,
+                        "max": 0.08
+                    },
+                    "timelimits": {
+                        "min": 900,
+                        "max": 900
+                    },
+                    "changelimits": {
+                        "min": 0.0,
+                        "max": 1.0
+                    }
+                },
+                "rain": {
+                    "current": {
+                        "actual": 0.0,
+                        "time": 60,
+                        "duration": 120
+                    },
+                    "limits": {
+                        "min": 0.0,
+                        "max": 1.0
+                    },
+                    "timelimits": {
+                        "min": 60,
+                        "max": 120
+                    },
+                    "changelimits": {
+                        "min": 0.0,
+                        "max": 1.0
+                    },
+                    "thresholds": {
+                        "min": 0.6,
+                        "max": 1.0,
+                        "end": 60
+                    }
+                },
+                "windMagnitude": {
+                    "current": {
+                        "actual": 8.0,
+                        "time": 120,
+                        "duration": 240
+                    },
+                    "limits": {
+                        "min": 0.0,
+                        "max": 20.0
+                    },
+                    "timelimits": {
+                        "min": 120,
+                        "max": 240
+                    },
+                    "changelimits": {
+                        "min": 0.0,
+                        "max": 20.0
+                    }
+                },
+                "windDirection": {
+                    "current": {
+                        "actual": 0.0,
+                        "time": 120,
+                        "duration": 240
+                    },
+                    "limits": {
+                        "min": -3.14,
+                        "max": 3.14
+                    },
+                    "timelimits": {
+                        "min": 60,
+                        "max": 120
+                    },
+                    "changelimits": {
+                        "min": -1.0,
+                        "max": 1.0
+                    }
+                },
+                "snowfall": {
+                    "current": {
+                        "actual": 0.0,
+                        "time": 0,
+                        "duration": 32768
+                    },
+                    "limits": {
+                        "min": 0.0,
+                        "max": 0.0
+                    },
+                    "timelimits": {
+                        "min": 300,
+                        "max": 3600
+                    },
+                    "changelimits": {
+                        "min": 0.0,
+                        "max": 0.0
+                    },
+                    "thresholds": {
+                        "min": 1.0,
+                        "max": 1.0,
+                        "end": 120
+                    }
+                },
+                "storm": {
+                    "density": 1.0,
+                    "threshold": 0.9,
+                    "timeout": 45
+                }
+            }
+        },
+        {
+            "id": "b-h",
+            "kind": "weather",
+            "parent": null,
+            "data": {
+                "reset": 0,
+                "fog": {
+                    "limits": {
+                        "min": 0,
+                        "max": 1
+                    }
+                }
+            }
+        }
+    ],
+    "changes": []
+}

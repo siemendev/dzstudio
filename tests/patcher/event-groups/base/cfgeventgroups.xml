@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<eventgroupdef>
+    <!--pos x="5587.466" z="2063.353" a="0" y="7.591" group="Train_A"/-->
+    <group name="Train_A">
+        <child type="Wagon_Red" deloot="0" lootmax="3" lootmin="1" x="0" z="0" a="78.123" y="1.9"/>
+        <child type="Wagon_Box" deloot="0" lootmax="3" lootmin="2" x="12.085" z="2.740" a="256.739" y="1.789"/>
+        <child type="Wagon_Box" deloot="0" lootmax="3" lootmin="2" x="12.2" z="2.740" a="10" y="1.789"/>
+    </group>
+    <group name="Train_B">
+        <child type="Wagon_Box" deloot="0" lootmax="3" lootmin="2" x="12.085" z="2.740" a="256.739" y="1.789"/>
+    </group>
+</eventgroupdef>
