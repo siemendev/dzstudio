@@ -110,10 +110,11 @@ jobs:
           STEAM_SHARED_SECRET: ${{ secrets.STEAM_SHARED_SECRET }}
         run: |
           python3 - "$RUNNER_TEMP/item.vdf" <<'PY'
-          import json, os, sys
+          import json, os, re, sys
           item = json.load(open('workshop/item.json'))
           vis = {'public': 0, 'friends': 1, 'hidden': 2, 'unlisted': 3}[item['visibility']]
-          q = lambda s: '"' + s.strip().replace('\\', '\\\\').replace('"', '\\"') + '"'
+          # steamcmd reads VDF without escape sequences: a straight double quote always ends the string.
+          q = lambda s: '"' + re.sub(r'"([^"\n]*)"', '\u201c\\1\u201d', s.strip()).replace('"', '\u201d') + '"'
           read = lambda p: open(p, encoding='utf-8').read()
           fields = {
               'appid': '221100',
