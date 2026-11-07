@@ -790,11 +790,11 @@ class DZS_HomeMenu : DZS_HitListener
 			m_EmptyText.SetText(DZS_Texts.Pick("Noch kein Projekt auf " + mapName + " — leg eins an oder importiere eine .dze", "No project on " + mapName + " yet — create one or import a .dze"));
 		}
 		m_New = new DZS_Button(m_Plate, "side", DZS_Texts.Pick("Neues Projekt …", "New project …"));
-		m_New.SetCaps(m_P.Kernel().GetUi().TipBinding("projects.new"));
+		m_New.SetCapsAction("projects.new");
 		m_New.SetTipAction(DZS_Texts.Pick("Neues Projekt …", "New project …"), "projects.new");
 		m_New.m_OnClick.Insert(OnNew);
 		m_All = new DZS_Button(m_Plate, "side", DZS_Texts.Pick("Alle Projekte …", "All projects …"));
-		m_All.SetCaps(m_P.Kernel().GetUi().TipBinding("projects.browse"));
+		m_All.SetCapsAction("projects.browse");
 		m_All.SetTipAction(DZS_Texts.Pick("Alle Projekte …", "All projects …"), "projects.browse");
 		m_All.m_OnClick.Insert(OnAll);
 		m_Import = new DZS_Button(m_Plate, "side", DZS_Texts.Pick(".dze importieren …", "Import .dze …"));

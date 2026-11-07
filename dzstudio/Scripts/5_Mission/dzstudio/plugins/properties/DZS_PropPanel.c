@@ -290,8 +290,7 @@ class DZS_PropPanel : DZS_PanelContent
 					ft = lockTip;
 				m_Fields[i].SetFieldTip(ft);
 			}
-			string binding = m_P.Kernel().GetUi().TipBinding("properties.details");
-			m_Details.SetCaps(binding);
+			m_Details.SetCapsAction("properties.details");
 			m_Details.SetEnabled(!o.m_Locked, lockTip);
 			m_Details.SetTipAction("Details …", "properties.details");
 			m_Variant.SetObject(inst, o);

@@ -140,6 +140,7 @@ class DZS_Button : DZS_HitListener
 	protected string m_Kind;
 	protected string m_Label;
 	protected string m_CapsBinding;
+	protected string m_CapsAction;
 	protected bool m_On;
 	protected float m_H = 28;
 	protected int m_FixedWidth;
@@ -211,6 +212,43 @@ class DZS_Button : DZS_HitListener
 			m_Caps.Set("");
 		else
 			m_Caps.Set("[" + binding + "]");
+	}
+
+	// Key caps of an action that disappear while its key has no effect; their space stays.
+	void SetCapsAction(string actionId)
+	{
+		DZS_UiRegistry ui = DZS_Kernel.Get().GetUi();
+		if (!s_CapsButtons)
+			s_CapsButtons = new array<DZS_Button>();
+		if (m_CapsAction == "")
+			s_CapsButtons.Insert(this);
+		m_CapsAction = actionId;
+		SetCaps(ui.FirstBinding(actionId));
+		RefreshCaps(ui);
+	}
+
+	protected void RefreshCaps(DZS_UiRegistry ui)
+	{
+		if (!m_Caps)
+			return;
+		DZS_Action a = ui.GetAction(m_CapsAction);
+		m_Caps.Show(a && ui.WorksNow(a));
+	}
+
+	protected static ref array<DZS_Button> s_CapsButtons;
+
+	static void RefreshAllCaps(DZS_UiRegistry ui)
+	{
+		if (!s_CapsButtons)
+			return;
+		for (int i = s_CapsButtons.Count() - 1; i >= 0; i--)
+		{
+			DZS_Button b = s_CapsButtons[i];
+			if (b)
+				b.RefreshCaps(ui);
+			else
+				s_CapsButtons.Remove(i);
+		}
 	}
 
 	void SetFixedWidth(int refW) { m_FixedWidth = refW; }

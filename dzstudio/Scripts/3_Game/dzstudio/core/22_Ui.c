@@ -948,15 +948,21 @@ class DZS_UiRegistry : Managed
 	// character; and inside the scene whether something is in the hand or selected (none, hand, selection).
 	void SetKeyboardTarget(string target)
 	{
-		m_Target = target;
 		m_InputBlocked = target != "scene";
+		if (m_Target == target)
+			return;
+		m_Target = target;
+		DZS_Button.RefreshAllCaps(this);
 	}
 
 	string GetKeyboardTarget() { return m_Target; }
 
 	void SetSceneState(string state)
 	{
+		if (m_SceneState == state)
+			return;
 		m_SceneState = state;
+		DZS_Button.RefreshAllCaps(this);
 	}
 
 	// Whether an action may fire for the current keyboard target.
