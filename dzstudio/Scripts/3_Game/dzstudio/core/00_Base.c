@@ -1,5 +1,5 @@
 const int DZS_API_VERSION = 1;
-const string DZS_VERSION = "0.7.0";
+const string DZS_VERSION = "0.7.1";
 const string DZS_WORKSHOP_URL = "";
 const int DZS_TEXTFORM_VERSION = 1;
 const int DZS_CHUNK_BYTES = 1000;
