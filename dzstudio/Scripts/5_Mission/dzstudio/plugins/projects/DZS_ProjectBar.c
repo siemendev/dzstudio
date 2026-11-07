@@ -117,8 +117,8 @@ class DZS_GroupRow : DZS_HitListener
 	}
 }
 
-// Upper part of the project bar: project head, meta line, the groups with their
-// objects, one row each.
+// Upper part of the project bar: project head, meta line, filter field, the groups with their
+// objects, one row each. While the filter has text only matching objects show, in open groups.
 class DZS_ProjectBar : DZS_PanelContent
 {
 	protected DZS_ProjectsPlugin m_P;
@@ -136,6 +136,10 @@ class DZS_ProjectBar : DZS_PanelContent
 	protected ref map<string, int> m_GroupSelected = new map<string, int>();
 	protected ref map<string, int> m_GroupDups = new map<string, int>();
 	protected string m_DupSel;
+	protected ref DZS_SearchField m_Search;
+	protected TextWidget m_NoHits;
+	protected string m_Query;
+	protected ref map<string, ref DZS_BarLayout> m_Hits = new map<string, ref DZS_BarLayout>();
 
 	void DZS_ProjectBar(DZS_ProjectsPlugin p)
 	{
@@ -149,6 +153,62 @@ class DZS_ProjectBar : DZS_PanelContent
 		m_Parent = parent;
 		m_Name = DZS_W.Text(parent, DZS_Font.DISPLAY, 24, DZS_Color.Get("text"));
 		m_Meta = DZS_W.Text(parent, DZS_Font.READ, 13, DZS_Color.Get("textMuted"));
+		m_Search = new DZS_SearchField("projects.filter", DZS_Texts.Pick("Platzierte Objekte filtern …", "Filter placed objects …"));
+		m_Search.Build(parent);
+		m_Search.m_OnCommit.Insert(OnSearchCommit);
+		m_NoHits = DZS_W.Text(parent, DZS_Font.READ, 13, DZS_Color.Get("textQuiet"));
+	}
+
+	void OnSearchCommit(DZS_NumberField f, string typed, DZS_FieldResult r)
+	{
+		r.m_Ok = true;
+	}
+
+	protected bool IsClosed(string key)
+	{
+		return m_Query == "" && m_Closed.Contains(key);
+	}
+
+	protected bool Matches(string text)
+	{
+		string t = text;
+		t.ToLower();
+		return t.Contains(m_Query);
+	}
+
+	// The objects of a group the list shows: all of them, or only the filter's hits.
+	protected DZS_BarLayout ShownOf(DZS_Instance inst, string gid)
+	{
+		DZS_BarLayout full = LayoutOf(inst, gid);
+		if (m_Query == "")
+			return full;
+		DZS_BarLayout hl = m_Hits.Get(gid);
+		if (hl && hl.m_Inst == inst && hl.m_Ver == full.m_Ver && hl.m_Query == m_Query && hl.m_HeightSig == full.m_HeightSig)
+			return hl;
+		hl = new DZS_BarLayout();
+		m_Hits.Set(gid, hl);
+		hl.m_Inst = inst;
+		hl.m_Ver = full.m_Ver;
+		hl.m_Query = m_Query;
+		hl.m_HeightSig = full.m_HeightSig;
+		map<string, bool> kinds = new map<string, bool>();
+		foreach (string kind : full.m_Kinds)
+			kinds.Set(kind, Matches(Shown(kind) + " " + kind));
+		float top = 0;
+		for (int i = 0; i < full.m_Ids.Count(); i++)
+		{
+			string cls = full.m_Cls[i];
+			if (!kinds.Get(cls))
+				continue;
+			hl.m_Ids.Insert(full.m_Ids[i]);
+			hl.m_Cls.Insert(cls);
+			hl.m_Nth.Insert(full.m_Nth[i]);
+			hl.m_H.Insert(full.m_H[i]);
+			hl.m_Top.Insert(top);
+			top += full.m_H[i];
+		}
+		hl.m_Total = top;
+		return hl;
 	}
 
 	protected DZS_GroupRow Row(int i)
@@ -282,6 +342,8 @@ class DZS_ProjectBar : DZS_PanelContent
 			m_Meta.SetText("");
 			foreach (DZS_GroupRow hr : m_Rows)
 				hr.Show(false);
+			m_Search.Show(false);
+			m_NoHits.Show(false);
 			DZS_W.Place(m_Name, pad, DZS_Scale.Px(8), width - 2 * pad, DZS_Scale.Px(28));
 			return DZS_Scale.Px(44);
 		}
@@ -289,7 +351,12 @@ class DZS_ProjectBar : DZS_PanelContent
 		{
 			m_FoldInst = inst;
 			m_Closed.Clear();
+			m_Search.SetText("");
 		}
+		string typed = m_Search.GetText();
+		string query = typed.Trim();
+		query.ToLower();
+		m_Query = query;
 		DZS_SelectionApi sel = DZS_SelectionApi.Get();
 		string active = DZS_ActiveGroup.Get(inst);
 		UpdateDuplicates(inst, sel);
@@ -314,20 +381,31 @@ class DZS_ProjectBar : DZS_PanelContent
 		m_Meta.SetText(localText + " · " + DZS_Maps.Display(m_P.m_Open.m_MapKey) + " · " + n + groupWord);
 		DZS_W.Place(m_Name, pad, DZS_Scale.Px(8), width - 2 * pad, DZS_Scale.Px(28));
 		DZS_W.Place(m_Meta, pad, DZS_Scale.Px(38), width - 2 * pad, DZS_Scale.Px(18));
-		float y = DZS_Scale.Px(64);
+		m_Search.Show(true);
+		m_Search.SetWidth((width - 2 * pad) / DZS_Scale.Factor());
+		m_Search.Place(pad, DZS_Scale.Px(64), DZS_Scale.Px(32));
+		float y = DZS_Scale.Px(106);
+		float listTop = y;
 		int ri = 0;
 		foreach (string gid : groups)
 		{
 			if (inst.GetKind(gid) != DZS_KIND_GROUP)
 				continue;
+			// one row per object in group order, kinds counted on ("Fass", "Fass 2" …); rows only where the section shows
+			DZS_BarLayout lay = ShownOf(inst, gid);
+			int hits = -1;
+			if (m_Query != "")
+			{
+				hits = lay.m_Ids.Count();
+				if (hits == 0)
+					continue;
+			}
 			DZS_GroupRow gr = Row(ri);
 			ri++;
-			PlaceGroup(inst, gr, gid, gid == active, width, y, sel);
+			PlaceGroup(inst, gr, gid, gid == active, width, y, sel, hits);
 			y += DZS_Scale.Px(40);
-			if (m_Closed.Contains(gid))
+			if (IsClosed(gid))
 				continue;
-			// one row per object in group order, kinds counted on ("Fass", "Fass 2" …); rows only where the section shows
-			DZS_BarLayout lay = LayoutOf(inst, gid);
 			float viewTop = m_SectionTop - DZS_Scale.Px(80);
 			float viewEnd = m_SectionTop + m_SectionH + DZS_Scale.Px(80);
 			float y0 = y;
@@ -347,14 +425,26 @@ class DZS_ProjectBar : DZS_PanelContent
 		{
 			if (!eg.IsShown(inst))
 				continue;
+			array<ref DZS_BarGroupRow> erows = new array<ref DZS_BarGroupRow>();
+			eg.GetRows(inst, erows);
+			if (m_Query != "")
+			{
+				array<ref DZS_BarGroupRow> ehits = new array<ref DZS_BarGroupRow>();
+				foreach (DZS_BarGroupRow cand : erows)
+				{
+					if (Matches(cand.m_Name + " " + cand.m_Sub))
+						ehits.Insert(cand);
+				}
+				if (ehits.Count() == 0)
+					continue;
+				erows = ehits;
+			}
 			DZS_GroupRow er = Row(ri);
 			ri++;
 			PlaceExt(inst, er, eg, width, y);
 			y += DZS_Scale.Px(40);
-			if (m_Closed.Contains("ext:" + eg.GetKey()))
+			if (IsClosed("ext:" + eg.GetKey()))
 				continue;
-			array<ref DZS_BarGroupRow> erows = new array<ref DZS_BarGroupRow>();
-			eg.GetRows(inst, erows);
 			foreach (DZS_BarGroupRow item : erows)
 			{
 				DZS_GroupRow xr = Row(ri);
@@ -365,6 +455,14 @@ class DZS_ProjectBar : DZS_PanelContent
 		}
 		for (int h = ri; h < m_Rows.Count(); h++)
 			m_Rows[h].Show(false);
+		bool none = m_Query != "" && ri == 0;
+		m_NoHits.Show(none);
+		if (none)
+		{
+			m_NoHits.SetText(DZS_W.Literal(DZS_Texts.Pick("Keine platzierten Objekte für „", "No placed objects match “") + typed.Trim() + DZS_Texts.Pick("“", "”")));
+			DZS_W.Place(m_NoHits, pad, listTop, width - 2 * pad, DZS_Scale.Px(26));
+			y += DZS_Scale.Px(26);
+		}
 		return y + DZS_Scale.Px(8);
 	}
 
@@ -394,7 +492,8 @@ class DZS_ProjectBar : DZS_PanelContent
 		r.m_LockB.SetOn(locked);
 	}
 
-	protected void PlaceGroup(DZS_Instance inst, DZS_GroupRow r, string gid, bool isActive, float width, float y, DZS_SelectionApi sel)
+	// hits: objects of the group the filter matches, -1 without a filter
+	protected void PlaceGroup(DZS_Instance inst, DZS_GroupRow r, string gid, bool isActive, float width, float y, DZS_SelectionApi sel, int hits)
 	{
 		r.m_Sig = "";
 		r.m_Type = "group";
@@ -410,7 +509,7 @@ class DZS_ProjectBar : DZS_PanelContent
 		inst.GetField(gid, DZS_Obj.GROUP_FILE, file);
 		inst.GetField(gid, "unreadable", unreadable);
 		string countKey = m_P.m_StateVer.ToString() + "|" + m_DupGen + "|" + gid;
-		bool closed = m_Closed.Contains(gid);
+		bool closed = IsClosed(gid);
 		if (closed)
 			countKey += "|closed";
 		if (sel && closed)
@@ -453,7 +552,7 @@ class DZS_ProjectBar : DZS_PanelContent
 		if (DZS_Palette.Valid(color))
 			r.m_Swatch.SetColor(DZS_Palette.ToARGB(color));
 		float sq = DZS_Scale.Px(8);
-		float fold = PlaceFold(r, pad, rowH, !m_Closed.Contains(gid));
+		float fold = PlaceFold(r, pad, rowH, !closed);
 		float tx = pad + fold + DZS_Scale.Px(2);
 		DZS_W.Place(r.m_Swatch, tx, DZS_Scale.Px(8), sq, sq);
 		r.m_Name.SetText(DZS_W.Literal(name));
@@ -464,13 +563,15 @@ class DZS_ProjectBar : DZS_PanelContent
 		float textW = width - tx - DZS_Scale.Px(14) - DZS_Scale.Px(8) - DZS_Scale.Px(24) * 3 - DZS_Scale.Px(50);
 		DZS_W.Place(r.m_Name, tx + DZS_Scale.Px(14), DZS_Scale.Px(2), textW, DZS_Scale.Px(20));
 		string sub = file + " · " + count;
+		if (hits >= 0)
+			sub = file + " · " + hits + DZS_Texts.Pick(" von ", " of ") + count;
 		if (unreadable == "1")
 			sub = file + " · " + DZS_Texts.Pick("nicht lesbar", "not readable");
-		if (selected > 0 && m_Closed.Contains(gid))
+		if (selected > 0 && closed)
 			sub += " · " + selected + DZS_Texts.Pick(" ausgewählt", " selected");
-		if (dupCount > 0 && m_Closed.Contains(gid))
+		if (dupCount > 0 && closed)
 			sub += " · " + dupCount + DZS_Texts.Pick(" doppelt", " duplicate");
-		if (m_Closed.Contains(gid))
+		if (closed)
 			sub += HeldBy(inst, gid);
 		r.m_Sub.SetText(DZS_W.Literal(sub));
 		DZS_W.Place(r.m_Sub, tx + DZS_Scale.Px(14), DZS_Scale.Px(20), textW + DZS_Scale.Px(50), DZS_Scale.Px(18));
@@ -509,7 +610,7 @@ class DZS_ProjectBar : DZS_PanelContent
 		r.m_Tint.Show(false);
 		r.m_Lead.Show(false);
 		r.m_Swatch.Show(false);
-		float fold = PlaceFold(r, pad, rowH, !m_Closed.Contains("ext:" + g.GetKey()));
+		float fold = PlaceFold(r, pad, rowH, !IsClosed("ext:" + g.GetKey()));
 		float tx = pad + fold + DZS_Scale.Px(2);
 		r.m_Name.SetText(DZS_W.Literal(g.GetName()));
 		if (hidden)
@@ -1055,6 +1156,8 @@ class DZS_ProjectBar : DZS_PanelContent
 			k = "ext:" + r.m_Group;
 		else if (r.m_Type != "group")
 			return;
+		if (m_Query != "")
+			return;
 		if (m_Closed.Contains(k))
 			m_Closed.Remove(k);
 		else
@@ -1106,7 +1209,7 @@ class DZS_ProjectBar : DZS_PanelContent
 		ids.Insert(r.m_Obj);
 		if (r.m_Type == "object" && shift && m_LastClickGroup == r.m_Group && m_LastClickObj != "")
 		{
-			array<string> order = inst.GetChildren(r.m_Group);
+			array<string> order = ShownOf(inst, r.m_Group).m_Ids;
 			int a = order.Find(m_LastClickObj);
 			int b = order.Find(r.m_Obj);
 			if (a >= 0 && b >= 0)
@@ -1268,7 +1371,7 @@ class DZS_ProjectBar : DZS_PanelContent
 		if (what == "select" && sel)
 		{
 			array<string> all = new array<string>();
-			array<string> ids = inst.GetChildren(r.m_Group);
+			array<string> ids = ShownOf(inst, r.m_Group).m_Ids;
 			foreach (string id : ids)
 			{
 				if (!inst.IsHidden(id) && !inst.IsLocked(id))
@@ -1337,6 +1440,7 @@ class DZS_BarLayout : Managed
 	int m_Ver = -1;
 	DZS_Instance m_Inst;
 	string m_HeightSig;
+	string m_Query;
 	ref array<string> m_Ids = new array<string>();
 	ref array<string> m_Cls = new array<string>();
 	ref array<int> m_Nth = new array<int>();
