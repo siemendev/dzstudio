@@ -21,6 +21,8 @@ class DZS_GroupRow : DZS_HitListener
 	string m_Group;
 	string m_Class;
 	string m_Obj;
+	// what an object row was last placed with; the same again places nothing
+	string m_Sig;
 
 	void DZS_GroupRow(Widget parent, DZS_ProjectBar bar)
 	{
@@ -394,6 +396,7 @@ class DZS_ProjectBar : DZS_PanelContent
 
 	protected void PlaceGroup(DZS_Instance inst, DZS_GroupRow r, string gid, bool isActive, float width, float y, DZS_SelectionApi sel)
 	{
+		r.m_Sig = "";
 		r.m_Type = "group";
 		r.m_Group = gid;
 		r.m_Class = "";
@@ -492,6 +495,7 @@ class DZS_ProjectBar : DZS_PanelContent
 	// A plugin's group (the loot group): no colour, no object count, no "select all", always last.
 	protected void PlaceExt(DZS_Instance inst, DZS_GroupRow r, DZS_BarGroup g, float width, float y)
 	{
+		r.m_Sig = "";
 		r.m_Type = "ext";
 		r.ShowHolder(false);
 		r.m_Group = g.GetKey();
@@ -528,6 +532,7 @@ class DZS_ProjectBar : DZS_PanelContent
 
 	protected void PlaceExtRow(DZS_GroupRow r, DZS_BarGroup g, DZS_BarGroupRow item, float width, float y)
 	{
+		r.m_Sig = "";
 		r.m_Type = "extrow";
 		r.ShowHolder(false);
 		r.m_Group = g.GetKey();
@@ -667,13 +672,32 @@ class DZS_ProjectBar : DZS_PanelContent
 
 	protected void PlaceObject(DZS_Instance inst, DZS_GroupRow r, string gid, string cls, string id, int nth, float rowH, float width, float y, DZS_SelectionApi sel)
 	{
+		bool selected = sel && sel.IsSelected(id);
+		bool hover = sel && sel.GetHover() == id;
+		bool hidden = inst.IsHidden(id);
+		bool locked = inst.IsLocked(id);
+		bool isDup = m_Dups && m_Dups.Contains(id);
+		string holder = "";
+		int holderColor = 0;
+		DZS_SelectGuard guard = DZS_SelectGuard.Get();
+		if (guard && guard.Blocks(id))
+		{
+			holder = guard.HolderName(id);
+			holderColor = guard.HolderColor(id);
+		}
+		string label = Shown(cls);
+		if (nth > 1)
+			label = label + " " + nth.ToString();
+		string sig = id + "|" + gid + "|" + label + "|" + y + "|" + width + "|" + rowH + "|" + selected + hover + hidden + locked + isDup;
+		sig += "|" + holder + "|" + holderColor + "|" + DZS_Scale.Px(26) + "|" + DZS_Color.Get("text") + "|" + DZS_Texts.Pick("d", "e");
+		if (sig == r.m_Sig)
+			return;
+		r.m_Sig = sig;
 		r.m_Type = "object";
 		r.m_Group = gid;
 		r.m_Class = cls;
 		r.m_Obj = id;
 		r.m_Hit.Place(0, y, width, rowH);
-		bool selected = sel && sel.IsSelected(id);
-		bool hover = sel && sel.GetHover() == id;
 		r.m_Tint.Show(selected || hover);
 		r.m_Lead.Show(selected);
 		DZS_W.Place(r.m_Tint, 0, 0, width, rowH);
@@ -681,10 +705,6 @@ class DZS_ProjectBar : DZS_PanelContent
 		r.m_Swatch.Show(false);
 		r.m_Fold.m_W.Show(false);
 		float tx = DZS_Scale.Px(24 + 20);
-		bool hidden = inst.IsHidden(id);
-		string label = Shown(cls);
-		if (nth > 1)
-			label = label + " " + nth.ToString();
 		r.m_Name.SetText(DZS_W.Literal(label));
 		if (hidden)
 			r.m_Name.SetColor(DZS_Color.Get("textQuiet"));
@@ -700,17 +720,12 @@ class DZS_ProjectBar : DZS_PanelContent
 			DZS_W.FitText(r.m_Sub, cls, maxName);
 			DZS_W.Place(r.m_Sub, tx, DZS_Scale.Px(18), maxName, DZS_Scale.Px(18));
 		}
-		bool isDup = m_Dups && m_Dups.Contains(id);
 		r.m_Mark.Show(isDup);
 		if (isDup)
 		{
 			r.m_Mark.SetText(DZS_Texts.Upper(DZS_Texts.Pick("doppelt", "duplicate")));
 			DZS_W.Place(r.m_Mark, width - DZS_Scale.Px(8) - DZS_Scale.Px(24) * 2 - DZS_Scale.Px(70), 0, DZS_Scale.Px(66), lineH);
 		}
-		string holder = "";
-		DZS_SelectGuard guard = DZS_SelectGuard.Get();
-		if (guard && guard.Blocks(id))
-			holder = guard.HolderName(id);
 		r.ShowHolder(holder != "");
 		if (holder != "")
 		{
@@ -722,10 +737,10 @@ class DZS_ProjectBar : DZS_PanelContent
 			float hh = DZS_Scale.Px(16);
 			float hy = (lineH - hh) / 2;
 			DZS_W.Place(r.m_Holder, hx, hy, hw, hh);
-			r.m_HolderBox.SetColor(guard.HolderColor(id));
+			r.m_HolderBox.SetColor(holderColor);
 			r.m_HolderBox.Place(hx, hy, hw, hh, Math.Max(1, DZS_Scale.Px(1)));
 		}
-		Knobs(r, width, lineH, false, hidden, inst.IsLocked(id), false);
+		Knobs(r, width, lineH, false, hidden, locked, false);
 	}
 
 	// Exact duplicates: same name, position within 1 mm on each

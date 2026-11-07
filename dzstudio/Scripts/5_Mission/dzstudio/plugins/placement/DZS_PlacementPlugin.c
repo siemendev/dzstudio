@@ -103,7 +103,6 @@ class DZS_PlacementPlugin : DZS_Plugin
 	protected ref array<vector> m_BigBox = new array<vector>();
 	protected ref array<vector> m_BigCenters = new array<vector>();
 	protected ref array<bool> m_BigHidden = new array<bool>();
-	protected vector m_BigMid;
 	protected int m_GeomVer;
 	protected int m_GeomCacheVer = -1;
 	protected DZS_Instance m_GeomCacheInst;
@@ -164,6 +163,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 
 	// gesture working set
 	protected ref array<ref DZS_PlaceObj> m_Work;
+	protected ref map<string, DZS_PlaceObj> m_WorkById = new map<string, DZS_PlaceObj>();
 	protected ref array<ref DZS_PlaceObj> m_Start;
 	protected ref array<Object> m_WorkObjs;
 	protected int m_DragMode;
@@ -1581,6 +1581,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 	protected void Snapshot(DZS_Instance inst)
 	{
 		m_Work.Clear();
+		m_WorkById.Clear();
 		m_Start.Clear();
 		m_WorkObjs.Clear();
 		DZS_SceneApi scene = DZS_SceneApi.Get();
@@ -1590,6 +1591,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 			if (o.m_Locked)
 				continue;
 			m_Work.Insert(o);
+			m_WorkById.Set(id, o);
 			DZS_PlaceObj t1298 = o.Copy();
 			m_Start.Insert(t1298);
 			Object go = scene.GetObject(id);
@@ -1600,12 +1602,9 @@ class DZS_PlacementPlugin : DZS_Plugin
 
 	protected DZS_PlaceObj WorkOf(string id)
 	{
-		foreach (DZS_PlaceObj o : m_Work)
-		{
-			if (o.m_Id == id)
-				return o;
-		}
-		return null;
+		if (m_Work.Count() == 0)
+			return null;
+		return m_WorkById.Get(id);
 	}
 
 	// Lead object for moving: the lead unless locked, then the last added free one.
@@ -1918,7 +1917,14 @@ class DZS_PlacementPlugin : DZS_Plugin
 		array<float> lsc = new array<float>();
 		foreach (DZS_PlaceObj o : m_Work)
 		{
-			scene.SetView(o.m_Id, o.m_Pos, o.m_Ypr, o.m_Scale);
+			if (!o.m_Shown || o.m_ShownPos != o.m_Pos || o.m_ShownYpr != o.m_Ypr || o.m_ShownScale != o.m_Scale)
+			{
+				scene.SetView(o.m_Id, o.m_Pos, o.m_Ypr, o.m_Scale);
+				o.m_Shown = true;
+				o.m_ShownPos = o.m_Pos;
+				o.m_ShownYpr = o.m_Ypr;
+				o.m_ShownScale = o.m_Scale;
+			}
 			lids.Insert(o.m_Id);
 			lpos.Insert(o.m_Pos);
 			lypr.Insert(o.m_Ypr);
@@ -4639,12 +4645,32 @@ class DZS_PlacementPlugin : DZS_Plugin
 			{
 				float d6 = DZS_Scale.Px(6);
 				float d10 = DZS_Scale.Px(10);
+				// one dot per screen cell of half a dot: thousands of dots mostly cover each other
+				float cell = Math.Max(2, d6 * 0.5);
+				int scrW, scrH;
+				GetScreenSize(scrW, scrH);
+				map<int, bool> taken = new map<int, bool>();
 				for (int di = 0; di < m_BigCenters.Count() && di < m_Sel.Count(); di++)
 				{
 					float dd = d6;
+					vector bp = m_BigCenters[di];
 					if (m_Sel[di] == m_Lead)
 						dd = d10;
-					DZS_WorldLines.Dot(cv, m_BigCenters[di], dd, accent, m_BigHidden[di]);
+					else
+					{
+						if (DZS_WorldLines.Depth(bp) <= DZS_WorldLines.NEAR)
+							continue;
+						vector sp = DZS_PlaceMath.Project(bp);
+						if (sp[0] < -dd || sp[1] < -dd || sp[0] > scrW + dd || sp[1] > scrH + dd)
+							continue;
+						int cellKey = (Math.Floor(sp[0] / cell) * 8192 + Math.Floor(sp[1] / cell)) * 2;
+						if (m_BigHidden[di])
+							cellKey++;
+						if (taken.Contains(cellKey))
+							continue;
+						taken.Set(cellKey, true);
+					}
+					DZS_WorldLines.Dot(cv, bp, dd, accent, m_BigHidden[di]);
 				}
 			}
 			float dfo = DZS_Scale.Px(6);
@@ -4752,34 +4778,93 @@ class DZS_PlacementPlugin : DZS_Plugin
 	protected void BigSelection(DZS_Instance inst)
 	{
 		bool live = m_Gesture != G_NONE || m_KeyGesture;
+		if (!live)
+			m_BigBaseSet = false;
 		int n = m_Sel.Count();
 		string sg = m_GeomVer.ToString();
 		string sn = n.ToString();
 		string sig = sg + "|" + sn + "|" + m_Lead;
 		if (n > 0)
 			sig += "|" + m_Sel[0] + "|" + m_Sel[n - 1];
+		vector shift;
+		if (live && (m_BigBaseSet || sig == m_BigSig) && WorkShift(shift))
+		{
+			ShiftBig(shift);
+			return;
+		}
 		if (!live && sig == m_BigSig)
 			return;
 		m_BigSig = sig;
-		array<vector> all = new array<vector>();
+		if (live)
+			m_BigSig = "";
+		m_BigBaseSet = false;
+		bool keepHidden = live && m_BigHidden.Count() == n;
 		array<vector> c = new array<vector>();
 		m_BigCenters.Clear();
-		m_BigHidden.Clear();
-		vector sum = "0 0 0";
+		if (!keepHidden)
+			m_BigHidden.Clear();
+		vector lo = Vector(1000000000.0, 1000000000.0, 1000000000.0);
+		vector hi = Vector(-1000000000.0, -1000000000.0, -1000000000.0);
 		foreach (string id : m_Sel)
 		{
 			CornersOf(inst, id, c);
 			foreach (vector bc : c)
-				all.Insert(bc);
-			vector centre = CenterOf(inst, id);
-			m_BigCenters.Insert(centre);
-			sum = sum + centre;
-			bool hid = inst.IsHidden(id) || inst.IsHidden(inst.GetParent(id));
-			m_BigHidden.Insert(hid);
+			{
+				for (int k = 0; k < 3; k++)
+				{
+					if (bc[k] < lo[k])
+						lo[k] = bc[k];
+					if (bc[k] > hi[k])
+						hi[k] = bc[k];
+				}
+			}
+			m_BigCenters.Insert(CenterOf(inst, id));
+			if (!keepHidden)
+				m_BigHidden.Insert(inst.IsHidden(id) || inst.IsHidden(inst.GetParent(id)));
 		}
+		array<vector> span = new array<vector>();
 		if (n > 0)
-			m_BigMid = sum * (1.0 / n);
-		DZS_WorldLines.Around(all, m_BigBox);
+		{
+			span.Insert(lo);
+			span.Insert(hi);
+		}
+		DZS_WorldLines.Around(span, m_BigBox);
+	}
+
+	// Box and dots of a large selection at the start of a gesture; while the gesture only moves the whole selection,
+	// they are shifted instead of rebuilt from every object.
+	protected ref array<vector> m_BigBaseBox = new array<vector>();
+	protected ref array<vector> m_BigBaseCenters = new array<vector>();
+	protected bool m_BigBaseSet;
+
+	// Shift of the whole selection since the gesture began, when it is nothing but a shift.
+	protected bool WorkShift(out vector shift)
+	{
+		if (m_Work.Count() == 0 || m_Work.Count() != m_Sel.Count() || m_Start.Count() != m_Work.Count())
+			return false;
+		DZS_PlaceObj o = m_Work[0];
+		DZS_PlaceObj s = m_Start[0];
+		if (o.m_Ypr != s.m_Ypr || o.m_Scale != s.m_Scale)
+			return false;
+		shift = o.m_Pos - s.m_Pos;
+		return true;
+	}
+
+	protected void ShiftBig(vector shift)
+	{
+		if (!m_BigBaseSet)
+		{
+			m_BigBaseBox.Copy(m_BigBox);
+			m_BigBaseCenters.Copy(m_BigCenters);
+			m_BigBaseSet = true;
+		}
+		m_BigSig = "";
+		m_BigBox.Clear();
+		foreach (vector b : m_BigBaseBox)
+			m_BigBox.Insert(b + shift);
+		m_BigCenters.Clear();
+		foreach (vector c : m_BigBaseCenters)
+			m_BigCenters.Insert(c + shift);
 	}
 
 	string SelectionSignature()

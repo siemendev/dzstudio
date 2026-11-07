@@ -12,6 +12,11 @@ class DZS_PlaceObj : Managed
 	vector m_U;
 	vector m_F;
 	bool m_Locked;
+	// pose last handed to the scene during a gesture
+	bool m_Shown;
+	vector m_ShownPos;
+	vector m_ShownYpr;
+	float m_ShownScale;
 
 	void UpdateAxes()
 	{

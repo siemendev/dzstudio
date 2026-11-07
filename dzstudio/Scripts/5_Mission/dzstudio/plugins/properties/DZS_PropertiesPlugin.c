@@ -348,7 +348,7 @@ class DZS_PropertiesPlugin : DZS_Plugin
 		{
 			if (m_Physics)
 				return true;
-			if (PhysicsCandidates().Count() == 0)
+			if (PhysicsCandidates(1).Count() == 0)
 			{
 				reasonDe = "Keine Objekte mit Physik ausgewählt";
 				reasonEn = "No objects with physics selected";
@@ -404,7 +404,8 @@ class DZS_PropertiesPlugin : DZS_Plugin
 	bool PhysicsRunning() { return m_Physics; }
 
 	// Selected, unlocked objects the game simulates as moving bodies: items (things one can pick up).
-	array<string> PhysicsCandidates()
+	// max > 0: stops after that many (enough to know whether the button is on).
+	array<string> PhysicsCandidates(int max = 0)
 	{
 		array<string> r = new array<string>();
 		DZS_Instance inst = Inst();
@@ -414,12 +415,17 @@ class DZS_PropertiesPlugin : DZS_Plugin
 		array<string> ids = SelIds();
 		foreach (string id : ids)
 		{
-			DZS_PropObj o = DZS_PropObj.Read(inst, id);
-			if (!o || o.m_Locked)
+			if (!inst.Has(id) || inst.GetKind(id) != DZS_KIND_OBJECT)
+				continue;
+			if (inst.IsLocked(id) || inst.IsLocked(inst.GetParent(id)))
 				continue;
 			Object go = scene.GetObject(id);
 			if (go && ItemBase.Cast(go) && !BaseBuildingBase.Cast(go))
+			{
 				r.Insert(id);
+				if (max > 0 && r.Count() >= max)
+					break;
+			}
 		}
 		return r;
 	}

@@ -157,6 +157,16 @@ class DZS_ScenePlugin : DZS_Plugin
 	{
 		if (!m_World || inst != m_Kernel.GetShown())
 			return;
+		map<string, bool> poseOnly = new map<string, bool>();
+		for (int p = 0; p < op.CountChanges(); p++)
+		{
+			DZS_Change pc = op.PeekChange(p);
+			string key = pc.GetKey();
+			bool pose = pc.GetKind() == DZS_ChangeKind.SET_FIELD && (key == DZS_Obj.POS || key == DZS_Obj.YPR || key == DZS_Obj.SCALE);
+			bool had;
+			if (!poseOnly.Find(pc.GetId(), had) || had)
+				poseOnly.Set(pc.GetId(), pose);
+		}
 		map<string, bool> done = new map<string, bool>();
 		for (int i = 0; i < op.CountChanges(); i++)
 		{
@@ -172,9 +182,39 @@ class DZS_ScenePlugin : DZS_Plugin
 				foreach (string cid : ids)
 					Sync(inst, cid);
 			}
-			else
+			else if (!poseOnly.Get(id) || !Repose(inst, id))
 				Sync(inst, id);
 		}
+	}
+
+	// A new pose for an object that is already shown: moved in place instead of made again (moving thousands at once).
+	protected bool Repose(DZS_Instance inst, string id)
+	{
+		Object o = m_Objects.Get(id);
+		if (!o || inst.GetKind(id) != DZS_KIND_OBJECT)
+			return false;
+		if (dBodyIsSet(o) && dBodyIsDynamic(o))
+			return false;
+		string name, pos, ypr, scale;
+		inst.GetField(id, DZS_Obj.NAME, name);
+		if (DZS_Obj.IsModelPath(name))
+			return false;
+		inst.GetField(id, DZS_Obj.POS, pos);
+		inst.GetField(id, DZS_Obj.YPR, ypr);
+		inst.GetField(id, DZS_Obj.SCALE, scale);
+		float s = 1;
+		if (scale != "")
+			s = scale.ToFloat();
+		if (s == 0)
+			s = 1;
+		ForgetView(id);
+		DZS_WorldLines.Moved();
+		o.SetPosition(DZS_Obj.QuickVec(pos));
+		o.SetOrientation(DZS_Obj.QuickVec(ypr));
+		if (o.GetScale() != s)
+			o.SetScale(s);
+		o.Update();
+		return true;
 	}
 
 	// Model box of a name in its own axes, unscaled; measured once on an object made only for that.
@@ -590,8 +630,13 @@ class DZS_ScenePlugin : DZS_Plugin
 			}
 			return;
 		}
-		o.SetPosition(pos);
-		o.SetOrientation(ypr);
+		vector mat[4];
+		Math3D.YawPitchRollMatrix(ypr, mat);
+		mat[0] = mat[0] * scale;
+		mat[1] = mat[1] * scale;
+		mat[2] = mat[2] * scale;
+		mat[3] = pos;
+		o.SetTransform(mat);
 		if (o.GetScale() != scale)
 			o.SetScale(scale);
 		o.Update();
