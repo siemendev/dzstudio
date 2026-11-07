@@ -87,7 +87,8 @@ class DZS_CameraChar : Managed
 		return w;
 	}
 
-	// A new figure gets the test loadout of its map.
+	// A new figure gets the test loadout of its map. Worn and held items come first, then grenades, then the rest;
+	// what finds no room on the figure goes into a second backpack at its feet, or onto the ground.
 	protected void GiveLoadout(Man man)
 	{
 		PlayerBase pb = PlayerBase.Cast(man);
@@ -106,12 +107,8 @@ class DZS_CameraChar : Managed
 		while (FGets(fh, line) >= 0)
 			lines.Insert(line);
 		CloseFile(fh);
-		EntityAI base = null;
-		EntityAI weapon = null;
-		int made = 0;
-		int loose = 0;
+		array<ref array<ref array<string>>> groups = new array<ref array<ref array<string>>>();
 		int unknown = 0;
-		int failed = 0;
 		foreach (string raw : lines)
 		{
 			string ln = raw.Trim();
@@ -128,27 +125,77 @@ class DZS_CameraChar : Managed
 			}
 			if (cols.Count() < 2)
 				continue;
-			string where = LoadoutWhere(cols[0]);
+			cols[0] = LoadoutWhere(cols[0]);
 			string cls = cols[1];
-			int count = 1;
-			if (cols.Count() > 2)
-				count = Math.Max(1, cols[2].ToInt());
 			if (!GetGame().ConfigIsExisting("CfgVehicles " + cls) && !GetGame().ConfigIsExisting("CfgWeapons " + cls) && !GetGame().ConfigIsExisting("CfgMagazines " + cls))
 			{
 				DZS_Log.Warn("character loadout " + key + ": unknown class " + cls);
 				unknown++;
 				continue;
 			}
+			bool follows = cols[0] == "attach" || cols[0] == "load";
+			if (!follows || groups.Count() == 0)
+				groups.Insert(new array<ref array<string>>());
+			groups[groups.Count() - 1].Insert(cols);
+		}
+		array<ref array<ref array<string>>> ordered = new array<ref array<ref array<string>>>();
+		for (int pass = 0; pass < 3; pass++)
+		{
+			foreach (array<ref array<string>> g : groups)
+			{
+				array<string> first = g[0];
+				string head = first[0];
+				int rank = 2;
+				if (head == "wear" || head == "hand" || head == "shoulder")
+					rank = 0;
+				else if (IsGrenade(first[1]))
+					rank = 1;
+				if (rank == pass)
+					ordered.Insert(g);
+			}
+		}
+		m_Made = 0;
+		m_Spare = 0;
+		m_Dropped = 0;
+		m_Failed = 0;
+		m_SpareBag = null;
+		foreach (array<ref array<string>> og : ordered)
+			GiveGroup(pb, key, og);
+		DZS_Log.Info("character loadout " + key + " from " + path + ": " + m_Made + " made, " + m_Spare + " in the second backpack, " + m_Dropped + " dropped, " + m_Failed + " not placed, " + unknown + " unknown class(es)");
+	}
+
+	protected int m_Made;
+	protected int m_Spare;
+	protected int m_Dropped;
+	protected int m_Failed;
+	protected EntityAI m_SpareBag;
+
+	static bool IsGrenade(string cls)
+	{
+		string low = cls;
+		low.ToLower();
+		return GetGame().IsKindOf(cls, "Grenade_Base") || low.Contains("40mm");
+	}
+
+	protected void GiveGroup(PlayerBase pb, string key, array<ref array<string>> group)
+	{
+		EntityAI base = null;
+		EntityAI weapon = null;
+		foreach (array<string> cols : group)
+		{
+			string where = cols[0];
+			string cls = cols[1];
+			int count = 1;
+			if (cols.Count() > 2)
+				count = Math.Max(1, cols[2].ToInt());
 			for (int k = 0; k < count; k++)
 			{
 				EntityAI e = null;
 				bool done = false;
-				if (where == "wear")
+				if (where == "wear" || where == "shoulder")
 					e = pb.GetInventory().CreateAttachment(cls);
 				else if (where == "hand")
 					e = pb.GetHumanInventory().CreateInHands(cls);
-				else if (where == "shoulder")
-					e = pb.GetInventory().CreateAttachment(cls);
 				else if (where == "attach" && base)
 					e = base.GetInventory().CreateAttachment(cls);
 				else if (where == "load")
@@ -166,16 +213,14 @@ class DZS_CameraChar : Managed
 						e = holder.GetInventory().CreateInInventory(cls);
 				}
 				if (!e && !done && where != "load" && where != "attach")
-				{
 					e = pb.GetInventory().CreateInInventory(cls);
-					if (e)
-						loose++;
-				}
+				if (!e && !done && where != "load" && where != "attach")
+					e = Overflow(pb, cls);
 				if (e || done)
-					made++;
+					m_Made++;
 				else
 				{
-					failed++;
+					m_Failed++;
 					DZS_Log.Warn("character loadout " + key + ": " + cls + " (" + where + ") not placed");
 				}
 				if (e && where != "attach")
@@ -184,7 +229,32 @@ class DZS_CameraChar : Managed
 					weapon = e;
 			}
 		}
-		DZS_Log.Info("character loadout " + key + " from " + path + ": " + made + " made, " + loose + " where room was, " + failed + " not placed, " + unknown + " unknown class(es)");
+	}
+
+	// Into a second backpack of the worn kind at the figure's feet; when that is full, onto the ground beside it.
+	protected EntityAI Overflow(PlayerBase pb, string cls)
+	{
+		vector at = pb.GetPosition() + pb.GetDirection() * 0.8;
+		if (!m_SpareBag)
+		{
+			string bag = "AliceBag_Green";
+			EntityAI worn = pb.FindAttachmentBySlotName("Back");
+			if (worn)
+				bag = worn.GetType();
+			m_SpareBag = EntityAI.Cast(GetGame().CreateObjectEx(bag, at, ECE_PLACE_ON_SURFACE));
+		}
+		EntityAI e = null;
+		if (m_SpareBag)
+			e = m_SpareBag.GetInventory().CreateInInventory(cls);
+		if (e)
+		{
+			m_Spare++;
+			return e;
+		}
+		e = EntityAI.Cast(GetGame().CreateObjectEx(cls, at, ECE_PLACE_ON_SURFACE));
+		if (e)
+			m_Dropped++;
+		return e;
 	}
 
 	void Toggle()
