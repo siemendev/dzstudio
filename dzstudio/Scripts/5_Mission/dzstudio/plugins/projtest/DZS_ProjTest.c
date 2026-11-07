@@ -200,6 +200,13 @@ class DZS_ProjTest : DZS_Plugin
 		return f;
 	}
 
+	protected ref DZS_LootVanilla m_Vanilla;
+
+	protected void VanillaDone(DZS_LootVanilla v)
+	{
+		Log("vanillamission " + v.m_Map + " ok " + v.m_Ok + " " + v.m_Why + ", complete " + DZS_LootVanilla.HaveMission(v.m_Map) + " in " + DZS_LootVanilla.MissionDir(v.m_Map));
+	}
+
 	protected void Run(string cmd)
 	{
 		Log("cmd " + cmd);
@@ -494,6 +501,14 @@ class DZS_ProjTest : DZS_Plugin
 		if (c == "save")
 		{
 			pp0.StartSave(false, "");
+			return;
+		}
+		if (c == "vanillamission")
+		{
+			// vanillamission MAP — fetch the whole vanilla mission of a map (a patch base)
+			m_Vanilla = new DZS_LootVanilla();
+			m_Vanilla.m_OnDone.Insert(VanillaDone);
+			Log("vanillamission " + a[1] + " started " + m_Vanilla.StartMission(a[1]));
 			return;
 		}
 		if (c == "lootedit")
