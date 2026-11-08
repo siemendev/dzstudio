@@ -1790,6 +1790,15 @@ class DZS_DzbotPlugin : DZS_Plugin
 			files.Add(fj);
 		}
 		st.Set("files", files);
+		DZS_DzbotFile pf = dp.m_ProjectFile;
+		if (pf)
+		{
+			DZS_Json pj = DZS_Json.Obj();
+			pj.Set("key", DZS_Json.Str(pf.m_Key));
+			pj.Set("path", DZS_Json.Str(pf.m_Path));
+			pj.Set("rev", DZS_Json.Int(pf.m_Rev));
+			st.Set("project", pj);
+		}
 		return st;
 	}
 
@@ -1818,6 +1827,16 @@ class DZS_DzbotPlugin : DZS_Plugin
 				f.m_Role = fj.GetStr("role");
 				dp.m_Files.Insert(f);
 			}
+		}
+		DZS_Json pj = st.Get("project");
+		if (pj)
+		{
+			DZS_DzbotFile pf = new DZS_DzbotFile();
+			pf.m_Key = pj.GetStr("key");
+			pf.m_Path = pj.GetStr("path");
+			pf.m_Rev = pj.GetInt("rev");
+			pf.m_Role = "project";
+			dp.m_ProjectFile = pf;
 		}
 		dp.m_Loot = new DZS_DzbotLootState();
 		if (dp.m_Kind != "mod")
@@ -2075,11 +2094,13 @@ class DZS_DzbotPlugin : DZS_Plugin
 				string key = DZS_DzbotCatalog.Text(f, "key");
 				DZS_DzbotFile df = dp.FileByKey(key);
 				DZS_DzbotSection sec = r.Find("file", key);
-				if (!df || !sec || df.m_Role == "project")
+				if (!df || !sec)
 					continue;
 				DZS_SrcNode rn = f.Get("revision");
 				if (rn)
 					df.m_Rev = rn.m_Str.ToInt();
+				if (df.m_Role == "project")
+					continue;
 				WriteText(m_OpenFolder, df.m_Path, sec.m_Chunks);
 				pp.ReloadGroup(df.m_Path, sec.m_Chunks);
 				n++;
@@ -2114,6 +2135,11 @@ class DZS_DzbotPlugin : DZS_Plugin
 		sv.m_Files = files;
 		sv.m_SaveId = DZS_Random.Code(24);
 		bool asProject = dp.m_ModKind == "project";
+		if (asProject && !dp.m_ProjectFile)
+		{
+			pp.ProviderSaved("Projektdatei fehlt — Projekt neu öffnen, nichts gespeichert", "Project file missing — open the project again, nothing saved");
+			return;
+		}
 		foreach (DZS_SaveFile f : files)
 		{
 			if (f.m_Delete || (asProject && f.m_Rel != DZS_ProjectFile.NAME))
