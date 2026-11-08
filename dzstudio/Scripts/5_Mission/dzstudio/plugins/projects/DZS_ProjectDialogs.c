@@ -277,7 +277,7 @@ class DZS_RenameDialog : DZS_NameDialog
 		m_Folder = folder;
 		string tx116 = DZS_Texts.Pick("Projekt", "Project");
 		string tx117 = DZS_Texts.Pick("Umbenennen", "Rename");
-		string tx118 = DZS_Texts.Pick("Der Ordner behält seinen Namen", "The folder keeps its name");
+		string tx118 = DZS_Texts.Pick("Die Projektdatei wird mit umbenannt", "The project file is renamed too");
 		string tx119 = DZS_Texts.Pick("Umbenennen", "Rename");
 		SetupName(tx116, tx117, oldName, tx118, "rename", tx119);
 	}
@@ -655,7 +655,7 @@ class DZS_BrowserDialog : DZS_Dialog
 		if (p && sp)
 			m_Path.SetText(DZS_W.Literal(sp.Address()));
 		else if (p)
-			m_Path.SetText(DZS_W.Literal(DZS_LocalStore.ShownRoot() + "\\" + p.m_Folder));
+			m_Path.SetText(DZS_W.Literal(DZS_LocalStore.ShownRoot() + "\\" + p.m_Folder + DZS_LocalStore.EXT));
 		else
 			m_Path.SetText("");
 		bool any = row != null;
@@ -719,7 +719,7 @@ class DZS_BrowserDialog : DZS_Dialog
 		{
 			string tx111 = DZS_Texts.Pick("Projekt", "Project");
 			string tx112 = DZS_Texts.Pick("Löschen", "Delete");
-			string tx113 = DZS_Texts.Pick(p.m_Name + " endgültig löschen? Der Ordner mit allen Dateien wird gelöscht.", "Delete " + p.m_Name + " for good? The folder with all files is deleted.");
+			string tx113 = DZS_Texts.Pick(p.m_Name + " endgültig löschen? Die Projektdatei wird gelöscht.", "Delete " + p.m_Name + " for good? The project file is deleted.");
 			DZS_ConfirmDialog c = new DZS_ConfirmDialog(tx111, tx112, tx113);
 			c.m_Tag = p.m_Folder;
 			c.AddFootButton("cancel", DZS_Texts.Get("core.dialog.cancel"), "side");

@@ -30,9 +30,6 @@ class DZS_LegacyNames
 		MoveFolder(p + "sicherung", p + "backups");
 		MoveFolder("$saves:dzstudio\\Projekte", "$saves:dzstudio\\Projects");
 
-		string projects = "$saves:dzstudio\\Projects";
-		RenameInFolders(projects, PROJECT_FILE, "project.dzstudio.json");
-		RenameInFolders(projects, "vanilla\\" + VANILLA_SOURCE, "vanilla\\source.json");
 		RenameInFolders(p + "backups", PROJECT_FILE, "project.dzstudio.json");
 		RenameInFolders(p + "backups", BACKUP_HEAD, "backup.dzstudio");
 		RenameInFolders(p + "vanilla", VANILLA_SOURCE, "source.json");

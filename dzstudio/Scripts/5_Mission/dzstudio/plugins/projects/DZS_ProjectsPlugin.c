@@ -158,14 +158,12 @@ class DZS_SavePlan : Managed
 	// what to do after success: "", "leave"
 	string m_Then;
 	bool m_Auto;
-	ref array<string> m_CopyRaw;
 	ref DZS_SaveMark m_Mark;
 
 	void DZS_SavePlan()
 	{
 		m_Files = new array<ref DZS_SaveFile>();
 		m_Issues = new DZS_Issues();
-		m_CopyRaw = new array<string>();
 	}
 }
 
@@ -1294,8 +1292,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	// Map available and loaded? Otherwise load its world first.
 	protected void OpenChecked(string folder)
 	{
-		DZS_ProjectFile.Adopt(DZS_LocalStore.Dir(folder));
-		DZS_PFData pf = DZS_ProjectFile.Read(DZS_Files.Read(DZS_LocalStore.Path(folder, DZS_ProjectFile.NAME)));
+		DZS_PFData pf = DZS_ProjectFile.Read(DZS_Files.Read(DZS_LocalStore.File(folder)));
 		if (pf.m_Status == "newer")
 		{
 			Message("projects.open", "danger", "Diese Projektdatei stammt aus einer neueren Version des Editors. Aktualisiere den Editor, um das Projekt zu öffnen.", "This project file comes from a newer version of the editor. Update the editor to open the project.", 5.0);
@@ -1350,7 +1347,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	void LoadProject(string folder, bool sliced = false, DZS_Json backupHead = null)
 	{
 		DZS_Log.Info("open project " + folder);
-		array<string> pchunks = DZS_Files.Read(DZS_LocalStore.Path(folder, DZS_ProjectFile.NAME));
+		array<string> pchunks = DZS_Files.Read(DZS_LocalStore.File(folder));
 		bool v2 = DZS_ProjectFile.IsV2(pchunks);
 		if (v2 && WaitForBase(DZS_WorkFolder.RootOf(pchunks), folder, sliced, backupHead))
 			return;
@@ -1376,6 +1373,9 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		else
 			op.Remember(DZS_ProjectFile.NAME, "");
 		string src = folder;
+		// an older project's files, taken along when its folder was converted, are not read any more once it is saved
+		if (v2 && !lp && folder.IndexOf("$profile:") != 0 && DZS_Files.IsFolder(DZS_LocalStore.Dir(folder)))
+			DZS_Files.DeleteTree(DZS_LocalStore.Dir(folder));
 		if (v2)
 		{
 			DZS_WorkResult wr = DZS_WorkFolder.Build(folder, pchunks, LoadedMapKey(), issues);
@@ -2084,7 +2084,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	protected void FinishNew(string folder)
 	{
 		DZS_CameraPlugin cam = Cam();
-		string path = DZS_LocalStore.Path(folder, DZS_ProjectFile.NAME);
+		string path = DZS_LocalStore.File(folder);
 		array<string> cur = DZS_Files.Read(path);
 		DZS_PFData pf = DZS_ProjectFile.Read(cur);
 		if (cam && pf.m_Status == "ok" && pf.m_RawView == "")
@@ -2430,16 +2430,6 @@ class DZS_ProjectsPlugin : DZS_Plugin
 					plan.m_Files.Remove(di);
 			}
 			folder = DZS_LocalStore.FolderFor(plan.m_Name);
-			DZS_Files.MakeDirs(DZS_LocalStore.Dir(folder));
-			foreach (string raw : plan.m_CopyRaw)
-			{
-				int slash = raw.LastIndexOf("/");
-				if (slash > 0)
-					DZS_Files.MakeDirs(DZS_LocalStore.Path(folder, raw.Substring(0, slash)));
-				string from = DZS_LocalStore.Path(m_Open.m_Folder, raw);
-				string to = DZS_LocalStore.Path(folder, raw);
-				DZS_Files.Copy(from, to);
-			}
 			// the project file carries the new name
 			DZS_SaveFile pfile = plan.m_Files[plan.m_Files.Count() - 1];
 			pfile.m_Chunks = DZS_ProjectFile.ComposeV2(plan.m_Blocks, plan.m_Name, m_Open.m_MapKey, plan.m_Base, plan.m_ProjectPart, CameraView());
@@ -2669,8 +2659,6 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			DZS_SaveContributor dropped = DZS_SaveContributor.Cast(m_Kernel.GetService("save.loot"));
 			if (plan.m_NoLoot && dropped && inst)
 				dropped.Dropped(inst);
-			foreach (string rc : plan.m_CopyRaw)
-				m_Open.Remember(rc, DZS_Files.Checksum(DZS_Files.Read(DZS_LocalStore.Path(folder, rc))));
 			if (m_SaveAsNoteDe != "")
 			{
 				Message("projects.save", "warning", m_SaveAsNoteDe, m_SaveAsNoteEn, 4.0);
@@ -2918,7 +2906,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		m_Open.m_Base = key;
 		if (ProviderOf(m_Open.m_Folder) || m_Open.m_Provider == "shared")
 			return;
-		string path = DZS_LocalStore.Path(m_Open.m_Folder, DZS_ProjectFile.NAME);
+		string path = DZS_LocalStore.File(m_Open.m_Folder);
 		array<string> cur = DZS_Files.Read(path);
 		if (!cur || DZS_Files.Checksum(cur) != m_Open.Remembered(DZS_ProjectFile.NAME))
 			return;
@@ -3045,19 +3033,71 @@ class DZS_ProjectsPlugin : DZS_Plugin
 
 	bool RenameProject(string folder, string newName)
 	{
+		bool isOpen = m_Open && m_Open.m_Folder == folder;
+		if (isOpen && (m_Busy || m_Plan || m_Building || m_Outside || m_Writing))
+		{
+			Message("projects.rename", "warning", "Erst nach dem Speichern umbenennen", "Rename after saving");
+			return false;
+		}
+		if (!isOpen && FindBackup("local", folder) != "")
+		{
+			Message("projects.rename", "warning", "Für das Projekt gibt es eine Sicherung — erst öffnen", "The project has a backup — open it first", 5.0);
+			return false;
+		}
 		string sum;
-		if (!DZS_LocalStore.Rename(folder, newName, sum))
+		string newId;
+		if (!DZS_LocalStore.Rename(folder, newName, newId, sum))
 		{
 			Message("projects.rename", "danger", "Umbenennen fehlgeschlagen", "Renaming failed");
 			return false;
 		}
-		if (m_Open && m_Open.m_Folder == folder)
+		if (newId != folder)
 		{
+			if (isOpen)
+				DeleteBackup();
+			Relocate(folder, newId);
+			string work = DZS_WorkFolder.DirOf(folder);
+			if (!isOpen && DZS_Files.IsFolder(work))
+				DZS_Files.DeleteTree(work);
+		}
+		if (isOpen)
+		{
+			m_Open.m_Folder = newId;
 			m_Open.m_Name = newName;
 			m_Open.Remember(DZS_ProjectFile.NAME, sum);
+			if (Shown() && Shown().IsUnsaved())
+				WriteBackup();
 		}
-		DZS_Log.Info("renamed " + folder + " to '" + newName + "'");
+		DZS_Log.Info("renamed " + folder + " to '" + newName + "' (" + newId + DZS_LocalStore.EXT + ")");
 		return true;
+	}
+
+	// The recently opened entry and the remembered base of a project follow it to its new id.
+	protected void Relocate(string from, string to)
+	{
+		DZS_Json rec = m_Kernel.GetSettings().Get("projects.recent");
+		if (rec && rec.IsArr())
+		{
+			DZS_Json next = rec.Clone();
+			for (int i = 0; i < next.Count(); i++)
+			{
+				if (next.At(i).GetStr("loc") == from)
+				{
+					DZS_Json loc = DZS_Json.Str(to);
+					next.At(i).Set("loc", loc);
+				}
+			}
+			m_Kernel.GetSettings().Set("projects.recent", next);
+		}
+		DZS_Json bases = m_Kernel.GetSettings().Get(DZS_PatchApply.SETTING);
+		if (bases && bases.IsObj() && bases.Has(from))
+		{
+			DZS_Json moved = bases.Clone();
+			DZS_Json key = bases.Get(from).Clone();
+			moved.Set(to, key);
+			moved.Remove(from);
+			m_Kernel.GetSettings().Set(DZS_PatchApply.SETTING, moved);
+		}
 	}
 
 	bool DeleteProject(string folder)
@@ -3072,7 +3112,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		DZS_Files.Delete(BackupFile("local", folder) + ".state");
 		DZS_Files.Delete(BackupFile("local", folder) + ".state2");
 		Forget(folder);
-		DZS_Log.Info("deleted project folder " + folder + ": " + ok);
+		DZS_Log.Info("deleted project " + folder + DZS_LocalStore.EXT + ": " + ok);
 		return ok;
 	}
 
@@ -3356,13 +3396,6 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				{
 					if (!f.m_Delete)
 						m_BFiles.Insert(f);
-				}
-				foreach (string raw : plan.m_CopyRaw)
-				{
-					int slash = raw.LastIndexOf("/");
-					if (slash > 0)
-						DZS_Files.MakeDirs(DZS_LocalStore.Path(m_BDir, raw.Substring(0, slash)));
-					DZS_Files.Copy(DZS_LocalStore.Path(m_Open.m_Folder, raw), DZS_LocalStore.Path(m_BDir, raw));
 				}
 				m_BKeep.Clear();
 				DZS_Json head = BackupHead(m_BInst);

@@ -12,9 +12,9 @@ class DZS_LootOrigin : Managed
 	string m_NoEn;
 }
 
-// A storage provider besides the local folder. Its projects are mirrored into a folder
-// under the local root whose name starts with "@" (not listed as local projects); opening fetches them first, saving
-// hands the planned files to the provider, which answers with DZS_ProjectsPlugin.ProviderSaved.
+// A storage provider besides the local folder. Its projects are mirrored under an id starting with "@" (not listed
+// as local projects): the project file in the project list, the store's other files in DZS_LocalStore.Dir. Opening
+// fetches them first, saving hands the planned files to the provider, which answers with DZS_ProjectsPlugin.ProviderSaved.
 class DZS_StoreProvider : Managed
 {
 	// Providers register in their plugin's OnRegister, before any project opens (also after a world change).
@@ -57,7 +57,7 @@ class DZS_StoreProvider : Managed
 	// with 1 unsaved change; asked once per opening.
 	bool PartChanged(string folder) { return false; }
 	void Closed(string folder) {}
-	// Tab in the project browser ("" = none) and its rows (m_Folder = the provider's cache folder).
+	// Tab in the project browser ("" = none) and its rows (m_Folder = the provider's project id).
 	string TabLabel() { return ""; }
 	void RefreshRows() {}
 	bool RowsLoading() { return false; }

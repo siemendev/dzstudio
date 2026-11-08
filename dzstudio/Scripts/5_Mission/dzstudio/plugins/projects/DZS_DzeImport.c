@@ -691,7 +691,7 @@ class DZS_DzeImport : Managed
 	}
 }
 
-// Dialog "Import .dze": every .dze under $saves: and its subfolders (not the project folders), path and size,
+// Dialog "Import .dze": every .dze under $saves: and its subfolders (not the project list), path and size,
 // a search field; the sentence above names the folder actually used.
 class DZS_DzeFileDialog : DZS_Dialog
 {

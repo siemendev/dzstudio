@@ -1066,7 +1066,7 @@ class DZS_CollabPlugin : DZS_Plugin
 		if (why != "")
 			m_Kernel.GetScreen().ShowMessage(MSG, "danger", DZS_W.Literal(why), 4);
 		if (p)
-			DZS_Files.DeleteTree(DZS_LocalStore.Dir(p.m_Folder));
+			DZS_LocalStore.Delete(p.m_Folder);
 		DZS_Log.Warn("collab: new server project not made: " + why);
 	}
 
@@ -1089,7 +1089,7 @@ class DZS_CollabPlugin : DZS_Plugin
 			n.Send("session/end", "session/end", body);
 		}
 		EndLocally("server project not made");
-		DZS_Files.DeleteTree(DZS_LocalStore.Dir(p.m_Folder));
+		DZS_LocalStore.Delete(p.m_Folder);
 	}
 
 	bool IsCreating() { return m_Creating != null; }

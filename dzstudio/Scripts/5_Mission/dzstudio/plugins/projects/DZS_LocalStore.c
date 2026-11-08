@@ -1,7 +1,10 @@
-// Storage provider "Local folder": one folder per project under $saves:dzstudio\Projects\ holding the project file
-// (version 2); the files the open path reads come from the project's working folder (DZS_WorkFolder).
+// Storage provider "Local folder": one file per project, $saves:dzstudio\Projects\<id>.dzstudio.json (version 2). A
+// project is named by its id, the file name without the extension; the files the open path reads come from the
+// project's working folder (DZS_WorkFolder). Other providers keep their project file there too, under an id starting
+// with "@", and the files of their store in a private folder (Dir).
 class DZS_ProjectInfo : Managed
 {
+	// the project id: its file name without .dzstudio.json
 	string m_Folder;
 	string m_Name;
 	string m_MapKey;
@@ -13,6 +16,7 @@ class DZS_ProjectInfo : Managed
 class DZS_OpenProject : Managed
 {
 	string m_Provider = "local";
+	// the project id (DZS_LocalStore.File); a backup's folder while it is restored
 	string m_Folder;
 	string m_Name;
 	string m_MapKey;
@@ -72,6 +76,8 @@ class DZS_SaveFile : Managed
 class DZS_LocalStore
 {
 	static const string ROOT = "$saves:dzstudio\\Projects";
+	static const string EXT = ".dzstudio.json";
+	static const string MIRRORS = "$profile:dzstudio\\Mirrors";
 	static const string GROUP_PLUGINS = "projects:plugins";
 	static const string GROUP_ENTRY = "projects:entry";
 
@@ -81,12 +87,26 @@ class DZS_LocalStore
 		return c == "." || c == " ";
 	}
 
-	// A folder under $profile: (the backup of a project) is taken as it is.
-	static string Dir(string folder)
+	protected static bool IsProfilePath(string id)
 	{
-		if (folder.IndexOf("$profile:") == 0)
-			return folder;
-		return ROOT + "\\" + folder;
+		return id.IndexOf("$profile:") == 0;
+	}
+
+	// The project file of an id; a folder under $profile: (the backup of a project) holds it under its usual name.
+	static string File(string id)
+	{
+		if (IsProfilePath(id))
+			return id + "\\" + DZS_ProjectFile.NAME;
+		return ROOT + "\\" + id + EXT;
+	}
+
+	// The private folder of an id for files besides the project file (a provider's store files, an older project's
+	// group and loot files); a folder under $profile: is taken as it is.
+	static string Dir(string id)
+	{
+		if (IsProfilePath(id))
+			return id;
+		return MIRRORS + "\\" + id;
 	}
 
 	protected static string s_Shown;
@@ -119,21 +139,39 @@ class DZS_LocalStore
 		return s_Shown;
 	}
 
-	static string Path(string folder, string rel)
+	// A file of a project: the project file's own name stands for the project file (File), every other one lies in Dir.
+	static string Path(string id, string rel)
 	{
+		if (rel == DZS_ProjectFile.NAME)
+			return File(id);
 		string r = rel;
 		r.Replace("/", "\\");
-		return Dir(folder) + "\\" + r;
+		return Dir(id) + "\\" + r;
 	}
 
 	static void EnsureRoot()
 	{
 		DZS_Files.MakeDirs(ROOT);
+		Convert();
 	}
 
 	// ---- listing ----
 
-	// Folders whose name starts with "@" belong to other providers (DZS_StoreProvider).
+	// The id of a file name in ROOT, "" when it is no project file (also ‹file›.new and ‹file›.old of a save).
+	static string IdOf(string fileName)
+	{
+		int n = fileName.Length();
+		int e = EXT.Length();
+		if (n <= e)
+			return "";
+		string tail = fileName.Substring(n - e, e);
+		tail.ToLower();
+		if (tail != EXT)
+			return "";
+		return fileName.Substring(0, n - e);
+	}
+
+	// Ids starting with "@" belong to other providers (DZS_StoreProvider).
 	static array<ref DZS_ProjectInfo> List(bool withProviders = false)
 	{
 		EnsureRoot();
@@ -143,11 +181,14 @@ class DZS_LocalStore
 		DZS_Files.List(ROOT, names, folders);
 		for (int i = 0; i < names.Count(); i++)
 		{
-			if (!folders[i])
+			if (folders[i])
 				continue;
-			if (!withProviders && names[i].IndexOf("@") == 0)
+			string id = IdOf(names[i]);
+			if (id == "")
 				continue;
-			DZS_ProjectInfo t121 = Info(names[i]);
+			if (!withProviders && id.IndexOf("@") == 0)
+				continue;
+			DZS_ProjectInfo t121 = Info(id);
 			r.Insert(t121);
 		}
 		return r;
@@ -158,8 +199,7 @@ class DZS_LocalStore
 		DZS_ProjectInfo info = new DZS_ProjectInfo();
 		info.m_Folder = folder;
 		info.m_Name = folder;
-		DZS_ProjectFile.Adopt(Dir(folder));
-		DZS_PFData pf = DZS_ProjectFile.Read(DZS_Files.Read(Path(folder, DZS_ProjectFile.NAME)));
+		DZS_PFData pf = DZS_ProjectFile.Read(DZS_Files.Read(File(folder)));
 		info.m_Status = pf.m_Status;
 		if (pf.m_Status == "ok")
 		{
@@ -176,10 +216,10 @@ class DZS_LocalStore
 
 	static bool Exists(string folder)
 	{
-		return DZS_Files.IsFolder(Dir(folder));
+		return FileExist(File(folder));
 	}
 
-	// Files that become object groups.
+	// Files that become object groups (an older project's or a placement's files in Dir).
 	static array<string> GroupFiles(string folder)
 	{
 		array<string> r = new array<string>();
@@ -195,9 +235,67 @@ class DZS_LocalStore
 		return r;
 	}
 
-	// ---- folder names ----
+	// ---- older project folders, converted once per game start ----
 
-	static string FolderFor(string name)
+	protected static bool s_Converted;
+
+	// A folder in ROOT with a project file becomes the file <folder>.dzstudio.json; an older project (version 1) also
+	// takes its other files along into Dir, where it reads them until its first save. The old folder stays as it is
+	// unless it is empty by then.
+	static void Convert()
+	{
+		if (s_Converted)
+			return;
+		s_Converted = true;
+		array<string> names;
+		array<bool> folders;
+		DZS_Files.List(ROOT, names, folders);
+		for (int i = 0; i < names.Count(); i++)
+		{
+			string id = names[i];
+			if (!folders[i] || id.IndexOf("@") == 0 || FileExist(File(id)))
+				continue;
+			string old = ROOT + "\\" + id;
+			string pfile = old + "\\" + DZS_ProjectFile.NAME;
+			if (!FileExist(pfile))
+				pfile = old + "\\" + DZS_LegacyNames.PROJECT_FILE;
+			if (!FileExist(pfile))
+				continue;
+			array<string> chunks = DZS_Files.Read(pfile);
+			if (!chunks)
+				continue;
+			bool v2 = DZS_ProjectFile.IsV2(chunks);
+			if (!v2)
+			{
+				array<string> rels = DZS_Files.ListTree(old);
+				foreach (string rel : rels)
+				{
+					string low = rel;
+					low.ToLower();
+					if (low == DZS_ProjectFile.NAME || low == DZS_LegacyNames.PROJECT_FILE)
+						continue;
+					string dst = Path(id, rel);
+					DZS_Files.MakeDirs(dst.Substring(0, dst.LastIndexOf("\\")));
+					string src = old + "\\" + rel;
+					src.Replace("/", "\\");
+					DZS_Files.Copy(src, dst);
+				}
+			}
+			if (!DZS_Files.Write(File(id), chunks))
+				continue;
+			if (v2)
+			{
+				DZS_Files.Delete(pfile);
+				DZS_Files.Delete(old);
+			}
+			DZS_Log.Info("projects: folder " + id + " converted into " + id + EXT + " (version 2 " + v2 + ")");
+		}
+	}
+
+	// ---- file names ----
+
+	// A name as it may stand in a file name.
+	static string Sanitize(string name)
 	{
 		string bad = "\\/:*?\"<>|";
 		string res = "";
@@ -205,7 +303,7 @@ class DZS_LocalStore
 		{
 			string c = name.Get(i);
 			int b = DZS_Utf8.Byte(name, i);
-			if (bad.Contains(c) || b < 32)
+			if (bad.Contains(c) || b < 32 || (i == 0 && c == "@"))
 				res += "_";
 			else
 				res += c;
@@ -221,7 +319,13 @@ class DZS_LocalStore
 				tail += "_";
 			res = res.Substring(0, keep) + tail;
 		}
-		string base = res;
+		return res;
+	}
+
+	// A free id for a project name.
+	static string FolderFor(string name)
+	{
+		string base = Sanitize(name);
 		string cand = base;
 		int k = 2;
 		while (Exists(cand))
@@ -267,37 +371,61 @@ class DZS_LocalStore
 	{
 		EnsureRoot();
 		string folder = FolderFor(name);
-		DZS_Files.MakeDirs(Dir(folder));
 		array<string> chunks = NewFile(name, mapKey, viewPart, groupFile, groupName);
-		DZS_Files.Write(Path(folder, DZS_ProjectFile.NAME), chunks);
-		DZS_Log.Info("project created: folder '" + folder + "', name '" + name + "', map " + mapKey);
+		DZS_Files.Write(File(folder), chunks);
+		DZS_Log.Info("project created: '" + folder + EXT + "', name '" + name + "', map " + mapKey);
 		return folder;
 	}
 
-	// ---- rename: only the name (and the slug of a version 2 file) changes ----
+	// ---- rename: the name (and the slug of a version 2 file) changes, and the file takes the new name ----
 
-	static bool Rename(string folder, string newName, out string newSum)
+	// newId: the id afterwards (the same one when the name gives the same file name, or for an older project whose
+	// files lie in Dir).
+	static bool Rename(string folder, string newName, out string newId, out string newSum)
 	{
-		string path = Path(folder, DZS_ProjectFile.NAME);
+		newId = folder;
+		string path = File(folder);
 		array<string> cur = DZS_Files.Read(path);
 		DZS_PFData pf = DZS_ProjectFile.Read(cur);
 		if (pf.m_Status == "newer")
 			return false;
 		array<string> v2 = DZS_ProjectFile.RewriteV2(cur, newName, "", "");
-		if (v2)
-			return Replace(path, v2, newSum);
-		string mapKey = pf.m_MapKey;
-		if (mapKey == "")
-			mapKey = pf.m_MapRaw;
-		string proj = "";
-		string view = "";
-		if (pf.m_Status == "ok")
+		if (!v2)
 		{
-			proj = pf.m_RawProject;
-			view = pf.m_RawView;
+			string mapKey = pf.m_MapKey;
+			if (mapKey == "")
+				mapKey = pf.m_MapRaw;
+			string proj = "";
+			string view = "";
+			if (pf.m_Status == "ok")
+			{
+				proj = pf.m_RawProject;
+				view = pf.m_RawView;
+			}
+			array<string> chunks = DZS_ProjectFile.Compose(newName, mapKey, proj, view);
+			return Replace(path, chunks, newSum);
 		}
-		array<string> chunks = DZS_ProjectFile.Compose(newName, mapKey, proj, view);
-		return Replace(path, chunks, newSum);
+		string want = Sanitize(newName);
+		string wantLow = want;
+		wantLow.ToLower();
+		string curLow = folder;
+		curLow.ToLower();
+		if (wantLow == curLow)
+			return Replace(path, v2, newSum);
+		string target = FolderFor(newName);
+		string tpath = File(target);
+		if (!DZS_Files.Write(tpath, v2))
+			return false;
+		array<string> back = DZS_Files.Read(tpath);
+		if (!DZS_Files.SameContent(back, v2))
+		{
+			DZS_Files.Delete(tpath);
+			return false;
+		}
+		DZS_Files.Delete(path);
+		newId = target;
+		newSum = DZS_Files.Checksum(v2);
+		return true;
 	}
 
 	protected static bool Replace(string path, array<string> chunks, out string newSum)
@@ -311,9 +439,16 @@ class DZS_LocalStore
 		return ok;
 	}
 
+	// The project file, its private folder and its working folder.
 	static bool Delete(string folder)
 	{
-		return DZS_Files.DeleteTree(Dir(folder));
+		bool ok = !FileExist(File(folder)) || DZS_Files.Delete(File(folder));
+		if (DZS_Files.IsFolder(Dir(folder)))
+			DZS_Files.DeleteTree(Dir(folder));
+		string work = DZS_WorkFolder.DirOf(folder);
+		if (DZS_Files.IsFolder(work))
+			DZS_Files.DeleteTree(work);
+		return ok;
 	}
 
 	// ---- opening ----

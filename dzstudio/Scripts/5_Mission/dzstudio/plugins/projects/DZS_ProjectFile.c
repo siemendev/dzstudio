@@ -1,4 +1,5 @@
-// project.dzstudio.json. Version 2 (the saved form): the building blocks of the project ({format, version, map, slug,
+// The project file: <id>.dzstudio.json in the project list, project.dzstudio.json inside a folder (a backup, the
+// working folder). Version 2 (the saved form): the building blocks of the project ({format, version, map, slug,
 // blocks, changes}, DZS_ProjectV2) plus "editor" with what only dzStudio needs: provider part, base, project part
 // (groups by block id, loot switches, plugin parts) and view part. Version 1 (read when an older project opens, and the
 // form of the working folder and of dzbot placements): provider part, project part and view part.
@@ -205,12 +206,6 @@ class DZS_ProjectFile
 	static const string NAME = "project.dzstudio.json";
 	static const int VERSION = 1;
 	static const int VERSION2 = 2;
-
-	// A project folder copied in from an older version still has its file under the old name.
-	static void Adopt(string dir)
-	{
-		DZS_LegacyNames.MoveFile(dir + "\\" + DZS_LegacyNames.PROJECT_FILE, dir + "\\" + NAME);
-	}
 
 	static bool IsNeverGroup(string relPath)
 	{

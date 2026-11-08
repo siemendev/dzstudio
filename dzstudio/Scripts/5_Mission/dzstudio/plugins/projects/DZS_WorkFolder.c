@@ -1,7 +1,7 @@
 // The hidden working folder of a project saved in version 2: the project file holds only building blocks and the
 // editor part, so opening builds below $profile:dzstudio\Work what the open path reads — one spawner file per
 // spawner group, the loot files of the project's base with the project's loot applied by the patcher, and a project
-// file of version 1 composed from the editor part. Saving never writes here; the project folder keeps the one file.
+// file of version 1 composed from the editor part. Saving never writes here, only the project file.
 class DZS_WorkResult : Managed
 {
 	string m_Dir;
@@ -16,7 +16,7 @@ class DZS_WorkFolder
 {
 	static const string ROOT = "$profile:dzstudio\\Work";
 
-	// One folder per project folder (a project's backup folder gets its own).
+	// One folder per project id (a project's backup folder gets its own).
 	static string DirOf(string folder)
 	{
 		string safe = "";
@@ -145,17 +145,25 @@ class DZS_WorkFolder
 	}
 
 	// Copies the loot files of a base into the working folder (cfglimitsdefinition.xml from the fetched vanilla state
-	// when the base has none; the vanilla mission also as vanilla\). False when mapgroupproto.xml or mapgrouppos.xml
-	// is missing there.
+	// when the base has none; the vanilla mission also as vanilla\). A file projects were applied to counts as its
+	// .original. False when mapgroupproto.xml or mapgrouppos.xml is missing there.
 	static bool CopyLoot(string baseDir, string mapKey, string work)
 	{
 		DZS_PatchFiles look = new DZS_PatchFiles(baseDir);
+		look.m_Over.Copy(DZS_ApplyStore.Originals(baseDir));
 		array<string> names = {DZS_LootFiles.PROTO, DZS_LootFiles.POS, DZS_LootFiles.LIMITS};
 		bool ok = true;
 		foreach (string rel : names)
 		{
 			string real = look.Resolve(rel);
 			string dst = work + "\\" + rel;
+			string alt;
+			if (look.m_Over.Find(rel, alt))
+			{
+				real = "";
+				if (alt != "" && DZS_Files.Copy(alt, dst))
+					continue;
+			}
 			if (real != "")
 			{
 				string src = baseDir + "\\" + real;
@@ -438,7 +446,8 @@ class DZS_WorkFolder
 		}
 		if (lp.m_Blocks.Count() + lp.m_Changes.Count() == 0)
 			return;
-		DZS_Patcher p = DZS_Patcher.Run(lp, baseDir);
+		map<string, string> originals = DZS_ApplyStore.Originals(baseDir);
+		DZS_Patcher p = DZS_Patcher.Run(lp, baseDir, originals);
 		foreach (string rel : p.m_OutPaths)
 		{
 			string low = DZS_PatchText.Lower(rel);
@@ -462,8 +471,11 @@ class DZS_WorkFolder
 		if (types.Count() == 0)
 			return;
 		DZS_PatchFiles look = new DZS_PatchFiles(baseDir);
-		string protoReal = look.Resolve(DZS_LootFiles.PROTO);
-		DZS_LootFiles basis = DZS_LootFiles.ReadBase(baseDir + "\\" + protoReal, dir + "\\" + DZS_LootFiles.LIMITS);
+		string protoPath = baseDir + "\\" + look.Resolve(DZS_LootFiles.PROTO);
+		string protoAlt;
+		if (originals.Find(DZS_LootFiles.PROTO, protoAlt) && protoAlt != "")
+			protoPath = protoAlt;
+		DZS_LootFiles basis = DZS_LootFiles.ReadBase(protoPath, dir + "\\" + DZS_LootFiles.LIMITS);
 		foreach (string t : types)
 		{
 			string orig = "";
