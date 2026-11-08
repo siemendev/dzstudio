@@ -97,6 +97,10 @@ class DZS_PKind : Managed
 	bool m_RemoveAll;
 	// own blocks may repeat an existing key (a second container named like the first)
 	bool m_Repeats;
+	// the file is part of the key ("file": "env/wolf_territories.xml"): one kind for every territory file
+	bool m_FileInKey;
+	// a key without its parent part searches the members of every parent element (a zone anywhere in its file)
+	bool m_AnyParent;
 	int m_Dups = SINGLE;
 	string m_SelfClose = "/>";
 	bool m_Singleton;
@@ -138,6 +142,26 @@ class DZS_PKind : Managed
 	bool IsVec()
 	{
 		return m_Tol >= 0 && m_Vec != "";
+	}
+
+	// A territory file path as the key names it, lower-cased; "" when it is no env/<name>_territories.xml.
+	static string EnvFile(string p)
+	{
+		string low = DZS_PatchText.Lower(p);
+		low.Replace("\\", "/");
+		string ok = "abcdefghijklmnopqrstuvwxyz0123456789_";
+		if (low.IndexOf("env/") != 0)
+			return "";
+		string tail = "_territories.xml";
+		int at = low.Length() - tail.Length();
+		if (at <= 4 || low.Substring(at, tail.Length()) != tail)
+			return "";
+		for (int i = 4; i < at; i++)
+		{
+			if (!ok.Contains(low.Get(i)))
+				return "";
+		}
+		return low;
 	}
 
 	// Extra rules for an own block of this kind; "" when it may be written. 'values' are its fields by name.
@@ -435,6 +459,39 @@ class DZS_PKinds
 		lr.F("@rpy", DZS_PField.VEC3, true);
 		lr.F("@a", DZS_PField.FIX6, true);
 		Add(lr);
+
+		DZS_PKind tt = new DZS_PKind();
+		tt.m_Name = "territory";
+		tt.m_FileInKey = true;
+		tt.m_Root = "territory-type";
+		tt.m_Elem = "territory";
+		tt.m_KeyAttr = "color";
+		tt.m_RemoveAll = true;
+		tt.m_Repeats = true;
+		tt.F("@color", DZS_PField.STR, true);
+		tt.m_Order = {"zone"};
+		Add(tt);
+
+		DZS_PKind tz = new DZS_PKind();
+		tz.m_Name = "territoryZone";
+		tz.m_FileInKey = true;
+		tz.m_Elem = "zone";
+		tz.m_ParentKind = "territory";
+		tz.m_ParentKey = "color";
+		tz.m_ParentMap = {"color=color", "territoryOrdinal=ordinal"};
+		tz.m_AnyParent = true;
+		tz.m_KeyAttr = "name";
+		tz.m_Tol = 50000;
+		tz.m_RemoveAll = true;
+		tz.F("@name", DZS_PField.STR, true);
+		tz.F("@smin", DZS_PField.INT, true);
+		tz.F("@smax", DZS_PField.INT, true);
+		tz.F("@dmin", DZS_PField.INT, true);
+		tz.F("@dmax", DZS_PField.INT, true);
+		tz.F("@x", DZS_PField.NUM, true);
+		tz.F("@z", DZS_PField.NUM, true);
+		tz.F("@r", DZS_PField.NUM, true);
+		Add(tz);
 
 		DZS_PKind we = new DZS_PKind();
 		we.m_Name = "weather";

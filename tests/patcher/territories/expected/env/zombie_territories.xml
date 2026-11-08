@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<territory-type>
+    <territory color="2193199729">
+        <zone name="InfectedVillageTier1" smin="0" smax="0" dmin="8" dmax="15" x="12913.3" z="8020" r="80"/>
+    </territory>
+    <territory color="1124502272">
+        <zone name="InfectedArmy" smin="0" smax="0" dmin="4" dmax="5" x="4500" z="10200" r="120"/>
+        <zone name="InfectedArmy" smin="0" smax="0" dmin="2" dmax="4" x="4700.5" z="10300" r="50"/>
+    </territory>
+    <territory color="4278190335">
+        <zone name="InfectedCity" smin="0" smax="0" dmin="3" dmax="5" x="6500" z="2500" r="80"/>
+    </territory>
+</territory-type>

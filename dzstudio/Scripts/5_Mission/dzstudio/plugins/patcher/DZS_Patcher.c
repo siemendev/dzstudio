@@ -11,11 +11,13 @@ class DZS_Patcher : DZS_PatcherJson
 	protected ref array<DZS_PatchEntry> m_SpawnerEntries = new array<DZS_PatchEntry>();
 	protected bool m_Gameplay;
 
-	static DZS_Patcher Run(DZS_PatchProject project, string baseDir)
+	static DZS_Patcher Run(DZS_PatchProject project, string baseDir, map<string, string> over = null)
 	{
 		DZS_Patcher p = new DZS_Patcher();
 		p.m_Project = project;
 		p.m_Files = new DZS_PatchFiles(baseDir);
+		if (over)
+			p.m_Files.m_Over.Copy(over);
 		p.Work();
 		return p;
 	}
@@ -72,7 +74,16 @@ class DZS_Patcher : DZS_PatcherJson
 
 	protected void ChangeXml(DZS_PatchEntry e, DZS_PatchChange c, DZS_PKind k)
 	{
-		DZS_PatchFile f = File(k.m_File);
+		string rel = k.m_File;
+		if (k.m_FileInKey)
+			rel = DZS_PKind.EnvFile(KeyStr(c.m_Key, "file"));
+		if (rel == "")
+		{
+			e.m_Status = "invalid";
+			e.m_Detail = "bad-key";
+			return;
+		}
+		DZS_PatchFile f = File(rel);
 		if (!Usable(e, f))
 			return;
 		bool remove = c.m_Op == "remove";
@@ -343,7 +354,7 @@ class DZS_Patcher : DZS_PatcherJson
 		{
 			if (!o.m_Ok)
 				continue;
-			DZS_PatchFile f = File(o.m_Kind.m_File);
+			DZS_PatchFile f = File(o.m_File);
 			// one level below the root is the neighbours' indent, also where it differs from the rest of the file
 			string unit = f.m_Unit;
 			string near = f.ChildIndent(f.m_Xml.m_Root);
@@ -402,9 +413,10 @@ class DZS_Patcher : DZS_PatcherJson
 			DependsAll(kid, file);
 	}
 
-	protected DZS_POwn NewOwn(DZS_PatchBlock b, DZS_PatchEntry e, DZS_PKind k, map<string, ref DZS_Json> values)
+	protected DZS_POwn NewOwn(DZS_PatchBlock b, DZS_PatchEntry e, DZS_PKind k, map<string, ref DZS_Json> values, string file)
 	{
 		DZS_POwn o = new DZS_POwn();
+		o.m_File = file;
 		o.m_Block = b;
 		o.m_Entry = e;
 		o.m_Kind = k;
@@ -432,7 +444,16 @@ class DZS_Patcher : DZS_PatcherJson
 
 	protected void OwnTop(DZS_PatchEntry e, DZS_PatchBlock b, DZS_PKind k)
 	{
-		DZS_PatchFile f = File(k.m_File);
+		string rel = k.m_File;
+		if (k.m_FileInKey)
+			rel = DZS_PKind.EnvFile(b.m_Data.GetStr("file"));
+		if (rel == "")
+		{
+			e.m_Status = "invalid";
+			e.m_Detail = "bad-file";
+			return;
+		}
+		DZS_PatchFile f = File(rel);
 		if (!Usable(e, f))
 			return;
 		string err;
@@ -463,14 +484,35 @@ class DZS_Patcher : DZS_PatcherJson
 		}
 		if (t.m_Case)
 			e.m_Detail = "case-mismatch";
-		DZS_POwn o = NewOwn(b, e, k, values);
+		DZS_POwn o = NewOwn(b, e, k, values, rel);
 		m_Owns.Insert(o);
 		e.m_Status = "applied";
 	}
 
 	protected void OwnNested(DZS_PatchEntry e, DZS_PatchBlock b, DZS_PKind k)
 	{
-		DZS_PatchFile f = File(k.m_File);
+		string rel = k.m_File;
+		if (k.m_FileInKey)
+		{
+			rel = "";
+			if (b.m_ParentId != "")
+			{
+				foreach (DZS_POwn po : m_AllOwns)
+				{
+					if (po.m_Block && po.m_Block.m_Id == b.m_ParentId)
+						rel = po.m_File;
+				}
+			}
+			else
+				rel = DZS_PKind.EnvFile(KeyStr(b.m_Parent, "file"));
+		}
+		if (rel == "")
+		{
+			e.m_Status = "invalid";
+			e.m_Detail = "bad-parent";
+			return;
+		}
+		DZS_PatchFile f = File(rel);
 		if (!Usable(e, f))
 			return;
 		string err;
@@ -560,7 +602,7 @@ class DZS_Patcher : DZS_PatcherJson
 					map<string, ref DZS_Json> listValues = new map<string, ref DZS_Json>();
 					DZS_Json listJ = DZS_Json.Str(pname);
 					listValues.Set("name", listJ);
-					own = NewOwn(null, null, pk, listValues);
+					own = NewOwn(null, null, pk, listValues, rel);
 					m_Owns.Insert(own);
 				}
 				if (!own)
@@ -586,7 +628,7 @@ class DZS_Patcher : DZS_PatcherJson
 				return;
 			}
 			RememberAttached(k, values, into.m_Start);
-			DZS_POwn placed = NewOwn(b, e, k, values);
+			DZS_POwn placed = NewOwn(b, e, k, values, rel);
 			placed.m_Into = into;
 			m_Owns.Insert(placed);
 			e.m_Status = "applied";
@@ -597,7 +639,7 @@ class DZS_Patcher : DZS_PatcherJson
 			e.m_Status = "collision";
 			return;
 		}
-		DZS_POwn child = NewOwn(b, e, k, values);
+		DZS_POwn child = NewOwn(b, e, k, values, rel);
 		own.m_Kids.Insert(child);
 		e.m_Status = "applied";
 	}

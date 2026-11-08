@@ -18,6 +18,8 @@ class DZS_POwn : Managed
 	ref array<ref DZS_POwn> m_Kids = new array<ref DZS_POwn>();
 	// the base element it goes into; null at the top level of its file or inside another own block
 	DZS_XmlNode m_Into;
+	// the file it goes into (a kind's own file, or the territory file its key names)
+	string m_File;
 	bool m_Ok;
 }
 
@@ -68,6 +70,18 @@ class DZS_PatcherXml : DZS_PatcherBase
 			DZS_PKind pk = DZS_PKinds.Get(k.m_ParentKind);
 			string pname;
 			DZS_Json pkey = ParentKeyOf(k, pk, key, pname);
+			if (pname == "" && k.m_AnyParent)
+			{
+				if (root.m_Name != pk.m_Root)
+					return t;
+				foreach (DZS_XmlNode anyParent : root.m_Children)
+				{
+					if (anyParent.m_Name == pk.m_Elem)
+						Members(f, anyParent, k, pool, true);
+				}
+				Filter(f, k, key, pool, t);
+				return Narrow(f, k, key, t, all);
+			}
 			if (pname == "")
 			{
 				t.m_BadKey = true;
@@ -89,6 +103,12 @@ class DZS_PatcherXml : DZS_PatcherBase
 				Members(f, p, k, pool, true);
 		}
 		Filter(f, k, key, pool, t);
+		return Narrow(f, k, key, t, all);
+	}
+
+	// The matches by ordinal, without removed elements, and by the per-file rule for equal keys.
+	protected DZS_PTarget Narrow(DZS_PatchFile f, DZS_PKind k, DZS_Json key, DZS_PTarget t, bool all)
+	{
 		if (t.m_BadKey)
 			return t;
 		// ordinals count the base's elements, also those an earlier change removed
@@ -699,6 +719,8 @@ class DZS_PatcherXml : DZS_PatcherBase
 		}
 		foreach (string key : obj.m_Keys)
 		{
+			if (prefix == "" && key == "file" && k.m_FileInKey)
+				continue;
 			string name = prefix + key;
 			DZS_Json v = obj.Get(key);
 			if (k.Field(name))

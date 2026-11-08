@@ -1,0 +1,181 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "territoryZone",
+            "key": {
+                "file": "env/zombie_territories.xml",
+                "name": "InfectedVillageTier1",
+                "x": 12913.3,
+                "z": 8020
+            },
+            "field": "dmax",
+            "status": "applied",
+            "file": "env/zombie_territories.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "territoryZone",
+            "key": {
+                "file": "env/zombie_territories.xml",
+                "name": "InfectedArmy",
+                "x": 4500.03,
+                "z": 10200
+            },
+            "field": "r",
+            "status": "applied",
+            "file": "env/zombie_territories.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "remove",
+            "kind": "territoryZone",
+            "key": {
+                "file": "env/zombie_territories.xml",
+                "name": "InfectedVillageTier1",
+                "x": 13296.3,
+                "z": 12996.3
+            },
+            "status": "applied",
+            "file": "env/zombie_territories.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "territoryZone",
+            "key": {
+                "file": "env/../cfggameplay.json",
+                "name": "InfectedVillageTier1",
+                "x": 1,
+                "z": 1
+            },
+            "field": "dmax",
+            "status": "invalid",
+            "detail": "bad-key"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "territoryZone",
+            "key": {
+                "file": "env/zombie_territories.xml",
+                "name": "InfectedArmy",
+                "x": 4500,
+                "z": 10200,
+                "color": "1124502272"
+            },
+            "field": "dmin",
+            "status": "applied",
+            "file": "env/zombie_territories.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "set",
+            "kind": "territoryZone",
+            "key": {
+                "file": "env/zombie_territories.xml",
+                "name": "InfectedArmy",
+                "x": 4600,
+                "z": 10200
+            },
+            "field": "dmin",
+            "status": "orphaned",
+            "file": "env/zombie_territories.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "territoryZone",
+            "key": {
+                "file": "env/wolf_territories.xml",
+                "name": "Water",
+                "x": 10597.5,
+                "z": 13432.5
+            },
+            "field": "r",
+            "status": "ambiguous",
+            "file": "env/wolf_territories.xml"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "remove",
+            "kind": "territoryZone",
+            "key": {
+                "file": "env/wolf_territories.xml",
+                "name": "Water",
+                "x": 10597.5,
+                "z": 13432.5
+            },
+            "status": "applied",
+            "file": "env/wolf_territories.xml"
+        },
+        {
+            "what": "change",
+            "index": 8,
+            "op": "remove",
+            "kind": "territory",
+            "key": {
+                "file": "env/wolf_territories.xml",
+                "color": "4291611852",
+                "ordinal": 2
+            },
+            "status": "applied",
+            "file": "env/wolf_territories.xml"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "territoryZone",
+            "id": "b-z",
+            "status": "applied",
+            "file": "env/zombie_territories.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "territory",
+            "id": "b-t",
+            "status": "applied",
+            "file": "env/zombie_territories.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "territoryZone",
+            "id": "b-t-z",
+            "status": "applied",
+            "file": "env/zombie_territories.xml"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "territory",
+            "id": "b-bad",
+            "status": "invalid",
+            "detail": "bad-file"
+        }
+    ],
+    "files": [
+        {
+            "path": "env/wolf_territories.xml",
+            "status": "written"
+        },
+        {
+            "path": "env/zombie_territories.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

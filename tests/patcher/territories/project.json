@@ -1,0 +1,165 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-z",
+            "kind": "territoryZone",
+            "parent": {
+                "file": "env/zombie_territories.xml",
+                "color": "1124502272"
+            },
+            "data": {
+                "name": "InfectedArmy",
+                "smin": 0,
+                "smax": 0,
+                "dmin": 2,
+                "dmax": 4,
+                "x": 4700.5,
+                "z": 10300,
+                "r": 50
+            }
+        },
+        {
+            "id": "b-t",
+            "kind": "territory",
+            "parent": null,
+            "data": {
+                "file": "env/zombie_territories.xml",
+                "color": "4278190335"
+            }
+        },
+        {
+            "id": "b-t-z",
+            "kind": "territoryZone",
+            "parent": "b-t",
+            "data": {
+                "name": "InfectedCity",
+                "smin": 0,
+                "smax": 0,
+                "dmin": 3,
+                "dmax": 5,
+                "x": 6500,
+                "z": 2500,
+                "r": 80
+            }
+        },
+        {
+            "id": "b-bad",
+            "kind": "territory",
+            "parent": null,
+            "data": {
+                "file": "cfggameplay.json",
+                "color": "1"
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "territoryZone",
+            "key": {
+                "file": "env/zombie_territories.xml",
+                "name": "InfectedVillageTier1",
+                "x": 12913.3,
+                "z": 8020
+            },
+            "field": "dmax",
+            "from": 12,
+            "to": 15
+        },
+        {
+            "op": "set",
+            "block": "territoryZone",
+            "key": {
+                "file": "env/zombie_territories.xml",
+                "name": "InfectedArmy",
+                "x": 4500.03,
+                "z": 10200
+            },
+            "field": "r",
+            "from": 100,
+            "to": 120
+        },
+        {
+            "op": "remove",
+            "block": "territoryZone",
+            "key": {
+                "file": "env/zombie_territories.xml",
+                "name": "InfectedVillageTier1",
+                "x": 13296.3,
+                "z": 12996.3
+            }
+        },
+        {
+            "op": "set",
+            "block": "territoryZone",
+            "key": {
+                "file": "env/../cfggameplay.json",
+                "name": "InfectedVillageTier1",
+                "x": 1,
+                "z": 1
+            },
+            "field": "dmax",
+            "to": 1
+        },
+        {
+            "op": "set",
+            "block": "territoryZone",
+            "key": {
+                "file": "env/zombie_territories.xml",
+                "name": "InfectedArmy",
+                "x": 4500,
+                "z": 10200,
+                "color": "1124502272"
+            },
+            "field": "dmin",
+            "from": 3,
+            "to": 4
+        },
+        {
+            "op": "set",
+            "block": "territoryZone",
+            "key": {
+                "file": "env/zombie_territories.xml",
+                "name": "InfectedArmy",
+                "x": 4600,
+                "z": 10200
+            },
+            "field": "dmin",
+            "to": 4
+        },
+        {
+            "op": "set",
+            "block": "territoryZone",
+            "key": {
+                "file": "env/wolf_territories.xml",
+                "name": "Water",
+                "x": 10597.5,
+                "z": 13432.5
+            },
+            "field": "r",
+            "to": 80
+        },
+        {
+            "op": "remove",
+            "block": "territoryZone",
+            "key": {
+                "file": "env/wolf_territories.xml",
+                "name": "Water",
+                "x": 10597.5,
+                "z": 13432.5
+            }
+        },
+        {
+            "op": "remove",
+            "block": "territory",
+            "key": {
+                "file": "env/wolf_territories.xml",
+                "color": "4291611852",
+                "ordinal": 2
+            }
+        }
+    ]
+}

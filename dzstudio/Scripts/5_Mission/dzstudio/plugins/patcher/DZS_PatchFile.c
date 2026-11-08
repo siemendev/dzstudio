@@ -762,6 +762,9 @@ class DZS_PatchFiles : Managed
 	ref map<string, ref DZS_PatchFile> m_Files = new map<string, ref DZS_PatchFile>();
 	ref array<string> m_Order = new array<string>();
 	ref map<string, ref array<string>> m_Dirs = new map<string, ref array<string>>();
+	// files read from elsewhere, by lower-case path: the original a project kept when it first changed the file;
+	// "" hides a file the project itself created
+	ref map<string, string> m_Over = new map<string, string>();
 
 	void DZS_PatchFiles(string baseDir)
 	{
@@ -817,7 +820,28 @@ class DZS_PatchFiles : Managed
 		f = new DZS_PatchFile();
 		string real = Resolve(rel);
 		bool json = low.IndexOf(".json") == low.Length() - 5;
-		if (real == "")
+		string alt = "";
+		bool over = m_Over.Find(low, alt);
+		if (over && alt == "")
+			real = "";
+		if (over && alt != "")
+		{
+			if (real == "")
+				real = rel;
+			f.m_Path = real;
+			array<string> kept = DZS_Files.Read(alt);
+			if (!kept)
+			{
+				f.m_Exists = false;
+				f.m_Error = "unreadable";
+			}
+			else
+			{
+				f.m_Exists = true;
+				f.Load(kept, json);
+			}
+		}
+		else if (real == "")
 		{
 			f.m_Path = rel;
 			f.m_Exists = false;
