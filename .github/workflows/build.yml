@@ -23,6 +23,8 @@ jobs:
           src=$(sed -n 's/^const string DZS_VERSION = "\([^"]*\)";.*/\1/p' dzstudio/Scripts/3_Game/dzstudio/core/00_Base.c | head -1)
           [ "$cfg" = "$src" ] || { echo "::error::config.cpp says $cfg, DZS_VERSION says $src"; exit 1; }
           echo "version=$cfg" >> "$GITHUB_OUTPUT"
+      - name: Check the scripts
+        run: python3 tools/escheck.py dzstudio/Scripts
       - name: Pack
         run: |
           mkdir -p stage out/@dzstudio/Addons out/@dzstudio/Keys
