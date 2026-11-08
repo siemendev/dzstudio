@@ -33,6 +33,8 @@ class DZS_OpenJob : Managed
 	static const int SHOW = 2;
 
 	string m_Folder;
+	// where the group files are read: the folder, or the working folder of a version 2 project
+	string m_Src;
 	ref DZS_OpenProject m_Op;
 	ref DZS_PFData m_Pf;
 	DZS_StoreProvider m_Lp;
@@ -127,6 +129,8 @@ class DZS_PlanBuild : Managed
 	string m_Name;
 	string m_Color;
 	string m_GPlugins;
+	// group element id -> its spawner block id
+	ref map<string, string> m_BlockIds;
 	int m_Frames;
 	float m_Slowest;
 	float m_Started;
@@ -136,7 +140,11 @@ class DZS_SavePlan : Managed
 {
 	ref array<ref DZS_SaveFile> m_Files;
 	ref DZS_Issues m_Issues;
+	// the editor's project part and the building blocks, composed into the project file (again with the new name for
+	// Save As)
 	string m_ProjectPart;
+	ref DZS_Json m_Blocks;
+	string m_Base;
 	string m_Name;
 	bool m_SaveAs;
 	// "Save copy …": written like Save As, but the open project stays where it is
@@ -163,7 +171,7 @@ class DZS_SavePlan : Managed
 
 [DZS_RegisterPlugin(DZS_ProjectsPlugin)]
 // The group "Objects" for new objects when the project has none that takes them:
-// bound to objects.json, or objects (2).json … if that file or binding already exists; next colour of the row.
+// bound to objects.json, or objects (2).json … if that binding already exists; next colour of the row.
 class DZS_LocalGroupMaker : DZS_GroupMaker
 {
 	protected DZS_ProjectsPlugin m_P;
@@ -195,8 +203,7 @@ class DZS_LocalGroupMaker : DZS_GroupMaker
 		{
 			string low = file;
 			low.ToLower();
-			bool onDisk = m_P.m_Open && DZS_Files.Exists(DZS_LocalStore.Path(m_P.m_Open.m_Folder, file));
-			if (files.Find(low) < 0 && !onDisk)
+			if (files.Find(low) < 0)
 				break;
 			n++;
 			file = "objects (" + n + ").json";
@@ -811,8 +818,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			ln.ToLower();
 			string lf = file;
 			lf.ToLower();
-			bool onDisk = DZS_Files.Exists(DZS_LocalStore.Path(m_Open.m_Folder, file));
-			if (names.Find(ln) < 0 && files.Find(lf) < 0 && !onDisk)
+			if (names.Find(ln) < 0 && files.Find(lf) < 0)
 				break;
 			n++;
 			name = im.m_Base + " (" + n + ")";
@@ -1339,9 +1345,15 @@ class DZS_ProjectsPlugin : DZS_Plugin
 
 	// Reads every group file and the project file and brings it all in as one load. Sliced:
 	// about 4 ms per frame with "Opening … n %" over everything until the scene shows all objects (no frame over 50 ms).
+	// A project file of version 2 is opened through its working folder (DZS_WorkFolder): the group and loot files are
+	// read there, the folder stays where the project is saved.
 	void LoadProject(string folder, bool sliced = false, DZS_Json backupHead = null)
 	{
 		DZS_Log.Info("open project " + folder);
+		array<string> pchunks = DZS_Files.Read(DZS_LocalStore.Path(folder, DZS_ProjectFile.NAME));
+		bool v2 = DZS_ProjectFile.IsV2(pchunks);
+		if (v2 && WaitForBase(DZS_WorkFolder.RootOf(pchunks), folder, sliced, backupHead))
+			return;
 		DZS_OpenJob j = new DZS_OpenJob();
 		j.m_BackupHead = backupHead;
 		j.m_T0 = TickCount(0);
@@ -1359,11 +1371,28 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		if (lp)
 			op.m_Provider = lp.Id();
 		DZS_Issues issues = op.m_OpenIssues;
-		array<string> pchunks = DZS_Files.Read(DZS_LocalStore.Path(folder, DZS_ProjectFile.NAME));
 		if (pchunks)
 			op.Remember(DZS_ProjectFile.NAME, DZS_Files.Checksum(pchunks));
 		else
 			op.Remember(DZS_ProjectFile.NAME, "");
+		string src = folder;
+		if (v2)
+		{
+			DZS_WorkResult wr = DZS_WorkFolder.Build(folder, pchunks, LoadedMapKey(), issues);
+			if (wr.m_Error != "")
+			{
+				DZS_Log.Error("open: project file of " + folder + ": " + wr.m_Error);
+				Message("projects.open", "danger", "Projektdatei nicht lesbar: " + wr.m_Error, "Project file not readable: " + wr.m_Error, 6.0);
+				ShowHome(true);
+				return;
+			}
+			pchunks = wr.m_Manifest;
+			src = wr.m_Dir;
+			op.m_Work = src;
+			op.m_Base = wr.m_Base;
+			op.m_Origin = wr.m_Origin;
+		}
+		j.m_Src = src;
 		DZS_PFData pf = DZS_ProjectFile.Read(pchunks);
 		j.m_Pf = pf;
 		bool manifestMissing = pf.m_Status != "ok" || !pf.m_HasProject;
@@ -1377,7 +1406,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		if (pf.m_Status == "ok" && pf.m_Name != "")
 			op.m_Name = pf.m_Name;
 		op.m_MapKey = LoadedMapKey();
-		array<string> files = DZS_LocalStore.GroupFiles(folder);
+		array<string> files = DZS_LocalStore.GroupFiles(src);
 		array<bool> taken = new array<bool>();
 		foreach (string f0 : files)
 			taken.Insert(false);
@@ -1446,7 +1475,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		pfields.Set("lootLocked", DZS_Str.Bool(pf.m_LootLocked));
 		pfields.Set("writtenTypes", WrittenJson(pf.m_WrittenTypes, pf.m_WrittenOrig));
 		string pid = pf.m_ProjectId;
-		if (pf.m_LootEnabled && pid == "" && !ProviderOf(folder))
+		if (pf.m_LootEnabled && pid == "" && !ProviderOf(folder) && !v2)
 		{
 			pid = NewProjectId();
 			issues.Add(DZS_Issue.WARNING, "Kennung des Projekts (loot.projectId) fehlte oder war ungültig — neue Kennung " + pid, "Project id (loot.projectId) was missing or invalid — new id " + pid);
@@ -1481,6 +1510,60 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	}
 
 	protected ref DZS_OpenJob m_Opening;
+	// opening waits for the vanilla mission, the base of a project with loot
+	protected ref DZS_LootVanilla m_BaseFetch;
+	protected string m_WaitFolder;
+	protected bool m_WaitSliced;
+	protected ref DZS_Json m_WaitHead;
+
+	// True when the project needs its base's loot files and they are not here yet: the vanilla mission is fetched
+	// first and opening goes on afterwards (without the base the project's loot would be lost at the next save).
+	protected bool WaitForBase(DZS_Json root, string folder, bool sliced, DZS_Json backupHead)
+	{
+		if (!root || !DZS_WorkFolder.NeedsBase(root))
+			return false;
+		string mk = DZS_WorkFolder.MapOf(root);
+		if (DZS_Maps.WorldOf(mk) == "")
+			mk = LoadedMapKey();
+		if (DZS_WorkFolder.UsableBase(DZS_WorkFolder.BaseOf(root), mk, null) != "")
+			return false;
+		if (m_BaseFetch)
+			return true;
+		m_WaitFolder = folder;
+		m_WaitSliced = sliced;
+		m_WaitHead = backupHead;
+		m_BaseFetch = new DZS_LootVanilla();
+		m_BaseFetch.m_OnDone.Insert(OnBaseFetched);
+		if (!m_BaseFetch.StartMission(mk))
+		{
+			m_BaseFetch = null;
+			Message("projects.open", "danger", "Die Vanilla-Mission (Basis des Projekts) lässt sich nicht laden: kein Netz", "The vanilla mission (the project's base) cannot be fetched: no network", 8.0);
+			ShowHome(true);
+			return true;
+		}
+		ShowHome(false);
+		string shown = DZS_Maps.Display(mk);
+		m_Kernel.GetScreen().ShowBanner("projects.base", 20, "info", DZS_Texts.Pick("Vanilla-Mission " + shown + " wird geladen (Basis des Projekts) …", "Loading the vanilla mission " + shown + " (the project's base) …"));
+		DZS_Log.Info("open: " + folder + " waits for the vanilla mission of " + mk);
+		return true;
+	}
+
+	void OnBaseFetched(DZS_LootVanilla v)
+	{
+		m_Kernel.GetScreen().HideBanner("projects.base");
+		bool ok = v.m_Ok;
+		string why = v.m_Why;
+		m_BaseFetch = null;
+		DZS_Json head = m_WaitHead;
+		m_WaitHead = null;
+		if (!ok)
+		{
+			Message("projects.open", "danger", "Basis des Projekts nicht geladen (" + why + ") — Öffnen abgebrochen", "The project's base was not fetched (" + why + ") — opening cancelled", 8.0);
+			ShowHome(true);
+			return;
+		}
+		LoadProject(m_WaitFolder, m_WaitSliced, head);
+	}
 
 	bool IsOpening() { return m_Opening != null; }
 
@@ -1588,7 +1671,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			if (j.m_Step == 0)
 			{
 				j.m_File = j.m_OrderFile[j.m_Gi];
-				j.m_Chunks = DZS_Files.Read(DZS_LocalStore.Path(j.m_Folder, j.m_File));
+				j.m_Chunks = DZS_Files.Read(DZS_LocalStore.Path(j.m_Src, j.m_File));
 				if (!j.m_Chunks)
 					j.m_Chunks = new array<string>();
 				j.m_Sum = new DZS_FileSum();
@@ -1605,7 +1688,8 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				j.m_TSum += TickCount(0) - tk;
 				if (!summed)
 					continue;
-				op.Remember(j.m_File, j.m_Sum.Result());
+				if (j.m_Src == j.m_Folder)
+					op.Remember(j.m_File, j.m_Sum.Result());
 				j.m_Fmt = m_Kernel.FormatForFile(j.m_File);
 				j.m_Reader = j.m_Fmt.BeginRead(j.m_Chunks);
 				j.m_Step = 2;
@@ -1730,7 +1814,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		j.m_GHidden = ghidden;
 		j.m_GLocked = glocked;
 		issues.Append(rr.m_Issues, gname, file);
-		if (m_ImportNew && file == m_ImportNew.m_Base + ".json")
+		if (m_ImportNew && (file == m_ImportNew.m_Base + ".json" || Leaf(file) == DZS_ProjectV2.GroupId(m_ImportNew.m_Base)))
 		{
 			AddImported(b, gid, m_ImportNew);
 			j.m_ObjectCount += m_ImportNew.m_Read.m_Objects.Count();
@@ -2001,13 +2085,17 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	{
 		DZS_CameraPlugin cam = Cam();
 		string path = DZS_LocalStore.Path(folder, DZS_ProjectFile.NAME);
-		DZS_PFData pf = DZS_ProjectFile.Read(DZS_Files.Read(path));
+		array<string> cur = DZS_Files.Read(path);
+		DZS_PFData pf = DZS_ProjectFile.Read(cur);
 		if (cam && pf.m_Status == "ok" && pf.m_RawView == "")
 		{
 			cam.GoToStart();
 			if (m_ImportNew && m_ImportNew.CameraInside())
 				cam.SetPose(m_ImportNew.m_Data.m_Cam, cam.GetYaw(), cam.GetPitch(), false);
-			DZS_Files.Write(path, DZS_ProjectFile.Compose(pf.m_Name, pf.m_MapKey, pf.m_RawProject, CameraView()));
+			array<string> withView = DZS_ProjectFile.RewriteV2(cur, "", "", CameraView());
+			if (!withView)
+				withView = DZS_ProjectFile.Compose(pf.m_Name, pf.m_MapKey, pf.m_RawProject, CameraView());
+			DZS_Files.Write(path, withView);
 		}
 		LoadProject(folder);
 		DZS_Instance inst = Shown();
@@ -2354,7 +2442,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			}
 			// the project file carries the new name
 			DZS_SaveFile pfile = plan.m_Files[plan.m_Files.Count() - 1];
-			pfile.m_Chunks = DZS_ProjectFile.Compose(plan.m_Name, m_Open.m_MapKey, plan.m_ProjectPart, CameraView());
+			pfile.m_Chunks = DZS_ProjectFile.ComposeV2(plan.m_Blocks, plan.m_Name, m_Open.m_MapKey, plan.m_Base, plan.m_ProjectPart, CameraView());
 		}
 		m_Busy = true;
 		if (plan.m_Copy)
@@ -2566,6 +2654,9 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				m_Kernel.GetScreen().SetStatusIcon("projects.autoOff", false, "", "", "");
 			}
 			m_Open.m_Provider = "local";
+			// an older project keeps reading its loot and group files where they are
+			if (m_Open.m_Work == "")
+				m_Open.m_Work = m_Open.m_Folder;
 			if (plan.m_ToProvider)
 			{
 				DZS_StoreProvider now = ProviderOf(folder);
@@ -2649,7 +2740,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			Continue();
 	}
 
-	// Every group through its format, then the project file (last).
+	// Every group through its format (for its check list and the hidden and locked objects), then the one project file.
 	protected DZS_SavePlan BuildPlan(DZS_Instance inst, bool noLoot = false)
 	{
 		DZS_PlanBuild b = BeginPlan(inst, noLoot);
@@ -2668,6 +2759,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		b.m_Groups = new array<string>();
 		b.m_Groups.Copy(inst.GetChildren(DZS_PROJECT_ID));
 		b.m_Entries = new array<string>();
+		b.m_BlockIds = DZS_ProjectV2.GroupIds(inst);
 		b.m_Freeze = inst.BeginFreeze();
 		return b;
 	}
@@ -2727,17 +2819,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			inst.GetCompanion(gid, DZS_LocalStore.GROUP_PLUGINS, v, gplugins);
 			if (unreadable == "1")
 			{
-				plan.m_CopyRaw.Insert(file);
-				string held;
-				if (inst.GetCompanion(gid, DZS_LocalStore.GROUP_ENTRY, v, held))
-					b.m_Entries.Insert(held);
-				else
-				{
-					array<ref DZS_PFObject> none = new array<ref DZS_PFObject>();
-					string noneEntry = DZS_ProjectFile.GroupEntry(file, name, color, inst.IsHidden(gid), inst.IsLocked(gid), 0, none, gplugins);
-					b.m_Entries.Insert(noneEntry);
-				}
-				DZS_Issue skip = plan.m_Issues.Add(DZS_Issue.HINT, "Datei nicht lesbar — wird nicht geschrieben", "File not readable — not written");
+				DZS_Issue skip = plan.m_Issues.Add(DZS_Issue.WARNING, "Datei nicht lesbar — die Gruppe bleibt leer im Projekt", "File not readable — the group stays empty in the project");
 				skip.m_Group = name;
 				skip.m_File = file;
 				continue;
@@ -2761,10 +2843,6 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		b.m_Writer = null;
 		string gid = b.m_Gid;
 		plan.m_Issues.Append(wr.m_Issues, b.m_Name, b.m_File);
-		DZS_SaveFile sf = new DZS_SaveFile();
-		sf.m_Rel = b.m_File;
-		sf.m_Chunks = wr.m_Chunks;
-		plan.m_Files.Insert(sf);
 		array<ref DZS_PFObject> objs = new array<ref DZS_PFObject>();
 		array<string> ids = wr.m_Ids;
 		if (!ids)
@@ -2785,60 +2863,70 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			po.m_Locked = l;
 			objs.Insert(po);
 		}
-		string entry = DZS_ProjectFile.GroupEntry(b.m_File, b.m_Name, b.m_Color, inst.IsHidden(gid), inst.IsLocked(gid), ids.Count(), objs, b.m_GPlugins);
+		string block;
+		if (!b.m_BlockIds.Find(gid, block))
+			return;
+		string entry = DZS_ProjectFile.GroupEntry(block, b.m_Name, b.m_Color, inst.IsHidden(gid), inst.IsLocked(gid), ids.Count(), objs, b.m_GPlugins, "block");
 		b.m_Entries.Insert(entry);
 	}
 
+	// The project file: the building blocks (DZS_ProjectV2) and the editor part. Loot is written into no file; its
+	// contributor still checks the entries and follows its working state.
 	protected void FinishPlan(DZS_PlanBuild b)
 	{
 		DZS_Instance inst = b.m_Inst;
 		DZS_SavePlan plan = b.m_Plan;
 		bool noLoot = b.m_NoLoot;
 		array<string> entries = b.m_Entries;
-		DeletedGroupFiles(inst, plan);
-		string le, lh, ll, wts;
+		string le, lh, ll;
 		inst.GetField(DZS_PROJECT_ID, "lootEnabled", le);
 		inst.GetField(DZS_PROJECT_ID, "lootHidden", lh);
 		inst.GetField(DZS_PROJECT_ID, "lootLocked", ll);
-		inst.GetField(DZS_PROJECT_ID, "writtenTypes", wts);
 		array<string> types = new array<string>();
 		array<string> origs = new array<string>();
-		ReadWritten(wts, types, origs);
-		string pid;
-		inst.GetField(DZS_PROJECT_ID, "lootProjectId", pid);
 		DZS_SaveContributor contributor = DZS_SaveContributor.Cast(m_Kernel.GetService("save.loot"));
 		if (noLoot)
 		{
 			contributor = null;
 			le = "false";
-			types.Clear();
-			origs.Clear();
 		}
 		if (contributor)
 		{
 			array<ref DZS_SaveFileOut> extra = new array<ref DZS_SaveFileOut>();
-			contributor.Contribute(inst, m_Open.m_Folder, extra, plan.m_Issues, types, origs);
-			foreach (DZS_SaveFileOut fo : extra)
-			{
-				DZS_SaveFile xf = new DZS_SaveFile();
-				xf.m_Rel = fo.m_Rel;
-				xf.m_Chunks = fo.m_Chunks;
-				plan.m_Files.Insert(xf);
-				if (m_Open.Remembered(fo.m_Rel) == "")
-					m_Open.Remember(fo.m_Rel, fo.m_ReadSum);
-			}
+			contributor.Contribute(inst, m_Open.ReadFolder(), extra, plan.m_Issues, types, origs);
 		}
 		int pv;
 		string pplugins = "[]";
 		inst.GetCompanion(DZS_PROJECT_ID, DZS_LocalStore.GROUP_PLUGINS, pv, pplugins);
 		pplugins = DZS_ProjectSections.Merge(inst, pplugins);
-		bool namesOnly = ProviderOf(m_Open.m_Folder) != null;
-		string proj = DZS_ProjectFile.ProjectPart(entries, le == "true", lh == "true", ll == "true", pid, types, origs, namesOnly, pplugins);
+		array<string> none = new array<string>();
+		string proj = DZS_ProjectFile.ProjectPart(entries, le == "true", lh == "true", ll == "true", "", none, none, true, pplugins);
 		plan.m_ProjectPart = proj;
+		plan.m_Blocks = DZS_ProjectV2.Build(m_Kernel, inst, m_Open.m_Name, m_Open.m_MapKey, noLoot);
+		plan.m_Base = m_Open.m_Base;
 		DZS_SaveFile pf = new DZS_SaveFile();
 		pf.m_Rel = DZS_ProjectFile.NAME;
-		pf.m_Chunks = DZS_ProjectFile.Compose(m_Open.m_Name, m_Open.m_MapKey, proj, CameraView());
+		pf.m_Chunks = DZS_ProjectFile.ComposeV2(plan.m_Blocks, m_Open.m_Name, m_Open.m_MapKey, plan.m_Base, proj, CameraView());
 		plan.m_Files.Insert(pf);
+	}
+
+	// The base chosen for the open project goes into its project file at once (a provider's project at its next save).
+	void BaseChosen(string key)
+	{
+		if (!m_Open || m_Open.m_Base == key)
+			return;
+		m_Open.m_Base = key;
+		if (ProviderOf(m_Open.m_Folder) || m_Open.m_Provider == "shared")
+			return;
+		string path = DZS_LocalStore.Path(m_Open.m_Folder, DZS_ProjectFile.NAME);
+		array<string> cur = DZS_Files.Read(path);
+		if (!cur || DZS_Files.Checksum(cur) != m_Open.Remembered(DZS_ProjectFile.NAME))
+			return;
+		array<string> next = DZS_ProjectFile.RewriteV2(cur, "", "", "", key);
+		if (!next || !DZS_Files.Write(path, next))
+			return;
+		m_Open.Remember(DZS_ProjectFile.NAME, DZS_Files.Checksum(next));
+		DZS_Log.Info("projects: base " + key + " written into the project file");
 	}
 
 	// ---- delete a group ----
@@ -2888,11 +2976,6 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				en = "The group and its 1 object are removed from the project.";
 			}
 		}
-		if (file != "")
-		{
-			de += " Beim nächsten Speichern wird " + file + " gelöscht.";
-			en += " " + file + " is deleted at the next save.";
-		}
 		de += " Rückgängig mit Strg+Z.";
 		en += " Undo with Ctrl+Z.";
 		string kick = DZS_Texts.Pick("Projekt", "Project");
@@ -2922,35 +3005,6 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		DZS_Log.Info("projects: group " + name + " deleted, ok " + r.Ok());
 	}
 
-	// Files of groups deleted since they were read or saved: known to this project, still on
-	// disk, bound by no group — removed before the project file.
-	protected void DeletedGroupFiles(DZS_Instance inst, DZS_SavePlan plan)
-	{
-		if (!m_Open || m_Open.m_Folder == "")
-			return;
-		map<string, bool> bound = new map<string, bool>();
-		array<string> groups = inst.GetChildren(DZS_PROJECT_ID);
-		foreach (string gid : groups)
-		{
-			string file;
-			if (inst.GetKind(gid) == DZS_KIND_GROUP && inst.GetField(gid, DZS_Obj.GROUP_FILE, file))
-				bound.Set(DZS_OpenProject.Key(file), true);
-		}
-		array<string> onDisk = DZS_LocalStore.GroupFiles(m_Open.m_Folder);
-		foreach (string rel : onDisk)
-		{
-			string key = DZS_OpenProject.Key(rel);
-			if (bound.Contains(key) || !m_Open.m_Sums.Contains(key))
-				continue;
-			DZS_SaveFile del = new DZS_SaveFile();
-			del.m_Rel = rel;
-			del.m_Delete = true;
-			del.m_Chunks = new array<string>();
-			plan.m_Files.Insert(del);
-			DZS_Log.Info("save plan: " + rel + " is deleted (group gone)");
-		}
-	}
-
 	void SaveAs(string name)
 	{
 		if (!m_Open)
@@ -2976,7 +3030,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				plan.m_Files.Remove(di);
 		}
 		DZS_SaveFile pfile = plan.m_Files[plan.m_Files.Count() - 1];
-		pfile.m_Chunks = DZS_ProjectFile.Compose(name, m_Open.m_MapKey, plan.m_ProjectPart, CameraView());
+		pfile.m_Chunks = DZS_ProjectFile.ComposeV2(plan.m_Blocks, name, m_Open.m_MapKey, plan.m_Base, plan.m_ProjectPart, CameraView());
 		DZS_Files.MakeDirs(DZS_LocalStore.Dir(folder));
 		m_Busy = true;
 		inst.SetSaving(true);
@@ -3310,7 +3364,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 						DZS_Files.MakeDirs(DZS_LocalStore.Path(m_BDir, raw.Substring(0, slash)));
 					DZS_Files.Copy(DZS_LocalStore.Path(m_Open.m_Folder, raw), DZS_LocalStore.Path(m_BDir, raw));
 				}
-				CopyProviderLoot(plan);
+				m_BKeep.Clear();
 				DZS_Json head = BackupHead(m_BInst);
 				head.Set("files", DZS_Json.Boolean(true));
 				DZS_SaveFile hf = new DZS_SaveFile();
@@ -3335,36 +3389,6 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		float ms = (TickCount(0) - t0) / 10000.0;
 		if (ms > m_BSlowest)
 			m_BSlowest = ms;
-	}
-
-	// A provider keeps the loot working files of its project out of the save plan (its deltas go to the provider):
-	// the backup takes them as they are, so a restored project shows its loot.
-	protected void CopyProviderLoot(DZS_SavePlan plan)
-	{
-		m_BKeep.Clear();
-		if (m_Open.m_Provider == "local")
-			return;
-		array<string> loot = {DZS_LootFiles.PROTO, DZS_LootFiles.POS, DZS_LootFiles.LIMITS, "vanilla/" + DZS_LootFiles.PROTO, "vanilla/" + DZS_LootFiles.LIMITS};
-		foreach (string rel : loot)
-		{
-			bool planned = false;
-			foreach (DZS_SaveFile pf : plan.m_Files)
-			{
-				if (pf.m_Rel == rel)
-					planned = true;
-			}
-			string src = DZS_LocalStore.Path(m_Open.m_Folder, rel);
-			if (planned || !DZS_Files.Exists(src))
-				continue;
-			if (rel.IndexOf("/") > 0)
-				DZS_Files.MakeDirs(DZS_LocalStore.Path(m_BDir, "vanilla"));
-			else
-				DZS_Files.MakeDirs(m_BDir);
-			if (DZS_Files.Copy(src, DZS_LocalStore.Path(m_BDir, rel)))
-				m_BKeep.Insert(rel);
-		}
-		if (m_BKeep.Count() > 0)
-			DZS_Log.Info("backup files: " + m_BKeep.Count() + " loot file(s) of the provider project copied");
 	}
 
 	// The folder holds exactly the files just written; an older single-file backup of the project goes.
@@ -3735,6 +3759,8 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				return "Projektdatei aus einer neueren Version des Editors";
 			return "Project file from a newer version of the editor";
 		}
+		if (pf.m_V2)
+			return "";
 		foreach (DZS_PFGroup g : pf.m_Groups)
 		{
 			if (k && !k.FormatForFile(g.m_File))

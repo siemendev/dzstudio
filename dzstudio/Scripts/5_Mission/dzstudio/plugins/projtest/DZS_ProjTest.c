@@ -1615,25 +1615,25 @@ class DZS_ProjTest : DZS_Plugin
 		}
 	}
 
-	// Every readable group written again without change must equal its file on disk byte for byte.
+	// The project as building blocks, built again without change, must equal the blocks and changes of its project file
+	// (the editor part left out: it carries the camera).
 	protected void Stable(DZS_Instance inst)
 	{
 		DZS_ProjectsPlugin pp = DZS_ProjectsPlugin.Cast(m_Kernel.GetPlugin("projects"));
-		array<string> groups = inst.GetChildren(DZS_PROJECT_ID);
-		foreach (string g : groups)
+		array<string> disk = DZS_Files.Read(DZS_LocalStore.Path(pp.m_Open.m_Folder, DZS_ProjectFile.NAME));
+		DZS_Json root = DZS_WorkFolder.RootOf(disk);
+		if (!root)
 		{
-			string file, fmtId, unreadable;
-			inst.GetField(g, DZS_Obj.GROUP_FILE, file);
-			inst.GetField(g, DZS_Obj.GROUP_FORMAT, fmtId);
-			inst.GetField(g, "unreadable", unreadable);
-			if (unreadable == "1")
-				continue;
-			DZS_WriteResult w = m_Kernel.GetFormat(fmtId).Write(inst, g);
-			array<string> disk = DZS_Files.Read(DZS_LocalStore.Path(pp.m_Open.m_Folder, file));
-			string written = DZS_Files.Join(w.m_Chunks);
-			string onDisk = DZS_Files.Join(disk);
-			Log("stable " + file + ": " + (written == onDisk) + " (" + DZS_Files.Length(w.m_Chunks) + " / " + DZS_Files.Length(disk) + " bytes)");
+			Log("stable: project file not readable");
+			return;
 		}
+		root.Remove("editor");
+		DZS_Json built = DZS_ProjectV2.Build(m_Kernel, inst, pp.m_Open.m_Name, pp.m_Open.m_MapKey);
+		array<string> a = DZS_ProjectFile.Text(root);
+		array<string> b = DZS_ProjectFile.Text(built);
+		string onDisk = DZS_Files.Join(a);
+		string again = DZS_Files.Join(b);
+		Log("stable " + DZS_ProjectFile.NAME + ": " + (again == onDisk) + " (" + again.Length() + " / " + onDisk.Length() + " bytes, " + built.Get("blocks").Count() + " blocks)");
 	}
 
 	protected void Dump(DZS_Instance inst)

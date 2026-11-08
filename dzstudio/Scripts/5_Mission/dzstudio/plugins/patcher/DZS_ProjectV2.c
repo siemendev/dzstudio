@@ -44,7 +44,70 @@ class DZS_ProjectV2
 		return r;
 	}
 
-	static DZS_Json Build(DZS_Kernel kernel, DZS_Instance inst, string name, string mapKey)
+	// The block id of a spawner group from its file's stem: a stem that already is a block id stays as it is, so a group
+	// read from the working folder keeps its id at the next save.
+	static string GroupId(string stem)
+	{
+		string low = DZS_PatchText.Lower(stem);
+		if (low.IndexOf("g-") == 0)
+			return IdPart(low);
+		return "g-" + IdPart(low);
+	}
+
+	static string StemOf(string file)
+	{
+		string stem = file;
+		int slash = stem.LastIndexOf("/");
+		if (slash >= 0)
+			stem = stem.Substring(slash + 1, stem.Length() - slash - 1);
+		int dot = stem.LastIndexOf(".");
+		if (dot > 0)
+			stem = stem.Substring(0, dot);
+		return stem;
+	}
+
+	// Block id per spawner group (group element id -> block id), unique; groups whose stem is a block id already
+	// (read from a working folder) take theirs first.
+	static map<string, string> GroupIds(DZS_Instance inst)
+	{
+		map<string, string> r = new map<string, string>();
+		array<string> used = new array<string>();
+		array<string> groups = inst.GetGroupIds();
+		for (int pass = 0; pass < 2; pass++)
+		{
+			foreach (string gid : groups)
+			{
+				if (inst.GetKind(gid) != DZS_KIND_GROUP || r.Contains(gid))
+					continue;
+				string format, file, gname;
+				inst.GetField(gid, DZS_Obj.GROUP_FORMAT, format);
+				inst.GetField(gid, DZS_Obj.GROUP_FILE, file);
+				inst.GetField(gid, DZS_Obj.GROUP_NAME, gname);
+				if (format != "" && format != "spawner")
+					continue;
+				string stem = StemOf(file);
+				if (stem == "")
+					stem = gname;
+				bool own = DZS_PatchText.Lower(stem).IndexOf("g-") == 0;
+				if ((pass == 0) != own)
+					continue;
+				string id = GroupId(stem);
+				string unique = id;
+				int n = 2;
+				while (used.Find(unique) >= 0)
+				{
+					unique = id + "-" + n;
+					n++;
+				}
+				used.Insert(unique);
+				r.Set(gid, unique);
+			}
+		}
+		return r;
+	}
+
+	// format, version, map, slug and empty block and change lists.
+	static DZS_Json Empty(string mapKey, string name)
 	{
 		DZS_Json root = DZS_Json.Obj();
 		DZS_Json fmt = DZS_Json.Str(DZS_PatchProject.FORMAT);
@@ -56,12 +119,22 @@ class DZS_ProjectV2
 		DZS_Json slug = DZS_Json.Str(Slug(name));
 		root.Set("slug", slug);
 		DZS_Json blocks = DZS_Json.Arr();
-		DZS_Json changes = DZS_Json.Arr();
-		Groups(kernel, inst, blocks);
-		Loot(kernel, inst, blocks, changes);
-		Sections(inst, blocks, changes);
 		root.Set("blocks", blocks);
+		DZS_Json changes = DZS_Json.Arr();
 		root.Set("changes", changes);
+		return root;
+	}
+
+	// noLoot: the loot of the project is left out (a copy saved with loot off).
+	static DZS_Json Build(DZS_Kernel kernel, DZS_Instance inst, string name, string mapKey, bool noLoot = false)
+	{
+		DZS_Json root = Empty(mapKey, name);
+		DZS_Json blocks = root.Get("blocks");
+		DZS_Json changes = root.Get("changes");
+		Groups(kernel, inst, blocks);
+		if (!noLoot)
+			Loot(kernel, inst, blocks, changes);
+		Sections(inst, blocks, changes);
 		return root;
 	}
 
@@ -109,36 +182,15 @@ class DZS_ProjectV2
 		float worldSize = 0;
 		if (GetGame().GetWorld())
 			worldSize = GetGame().GetWorld().GetWorldSize();
-		array<string> used = new array<string>();
+		map<string, string> blockIds = GroupIds(inst);
 		array<string> groups = inst.GetGroupIds();
 		foreach (string gid : groups)
 		{
-			if (inst.GetKind(gid) != DZS_KIND_GROUP)
+			string unique;
+			if (!blockIds.Find(gid, unique))
 				continue;
-			string format, file, gname;
-			inst.GetField(gid, DZS_Obj.GROUP_FORMAT, format);
-			inst.GetField(gid, DZS_Obj.GROUP_FILE, file);
+			string gname;
 			inst.GetField(gid, DZS_Obj.GROUP_NAME, gname);
-			if (format != "" && format != "spawner")
-				continue;
-			string stem = file;
-			int slash = stem.LastIndexOf("/");
-			if (slash >= 0)
-				stem = stem.Substring(slash + 1, stem.Length() - slash - 1);
-			int dot = stem.LastIndexOf(".");
-			if (dot > 0)
-				stem = stem.Substring(0, dot);
-			if (stem == "")
-				stem = gname;
-			string id = "g-" + IdPart(DZS_PatchText.Lower(stem));
-			string unique = id;
-			int n = 2;
-			while (used.Find(unique) >= 0)
-			{
-				unique = id + "-" + n;
-				n++;
-			}
-			used.Insert(unique);
 			DZS_Json objects = DZS_Json.Arr();
 			DZS_Issues issues = new DZS_Issues();
 			array<string> ids = inst.GetChildren(gid);

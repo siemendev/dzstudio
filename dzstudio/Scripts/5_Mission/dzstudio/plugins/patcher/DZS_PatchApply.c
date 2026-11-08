@@ -400,8 +400,12 @@ class DZS_PatchApply : Managed
 		return r;
 	}
 
+	// The base of a project: the open project's own (from its project file), else the one last chosen for the folder.
 	string Remembered(string folder)
 	{
+		DZS_ProjectsPlugin pp = Projects();
+		if (pp && pp.m_Open && pp.m_Open.m_Folder == folder && pp.m_Open.m_Base != "")
+			return pp.m_Open.m_Base;
 		DZS_Json all = m_Kernel.GetSettings().Get(SETTING);
 		if (!all || !all.IsObj())
 			return "vanilla";
@@ -421,6 +425,9 @@ class DZS_PatchApply : Managed
 		DZS_Json kj = DZS_Json.Str(key);
 		copy.Set(folder, kj);
 		st.Set(SETTING, copy);
+		DZS_ProjectsPlugin pp = Projects();
+		if (pp && pp.m_Open && pp.m_Open.m_Folder == folder)
+			pp.BaseChosen(key);
 	}
 
 	void Ask()

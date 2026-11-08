@@ -180,6 +180,8 @@ class DZS_DzbotSave : Managed
 	ref array<string> m_Order = new array<string>();
 	ref array<ref DZS_DzbotLootFile> m_NewLoot = new array<ref DZS_DzbotLootFile>();
 	bool m_Blocked;
+	// key of dzstudio/project.json when this save creates it
+	string m_NewProjectKey;
 }
 
 class DZS_DzbotProvider : DZS_StoreProvider
@@ -225,6 +227,7 @@ class DZS_DzbotProvider : DZS_StoreProvider
 	override string RowsEmptyText() { return m_P.m_ListError; }
 	override void Rows(array<ref DZS_ProjectInfo> into) { m_P.Rows(into); }
 	override string RowMeta(DZS_ProjectInfo p) { return m_P.RowMeta(p.m_Folder); }
+	override bool RowOff(DZS_ProjectInfo p, out string de, out string en) { return m_P.RowOffOf(p.m_Folder, de, en); }
 	override string Address() { return m_P.m_Base; }
 	override DZS_LootOrigin LootOrigin(string folder) { return m_P.LootOriginOf(folder); }
 	override void OpenIssues(string folder, DZS_Issues into) { m_P.OpenIssuesOf(folder, into); }
@@ -1114,6 +1117,48 @@ class DZS_DzbotPlugin : DZS_Plugin
 		}
 	}
 
+	// dzStudio edits project mods and placements; a mod of files stays in the workbench.
+	bool RowOffOf(string folder, out string de, out string en)
+	{
+		DZS_DzbotProject dp = m_Projects.Get(RefOf(folder));
+		if (!dp || !IsFilesMod(dp))
+			return false;
+		de = FILES_MOD_DE;
+		en = FILES_MOD_EN;
+		return true;
+	}
+
+	static const string PROJECT_PATH = "dzstudio/project.json";
+	static const string FILES_MOD_DE = "Datei-Mods bearbeitest du in der dzbot-Werkbank; in dzStudio nur Projekt-Mods";
+	static const string FILES_MOD_EN = "Edit file mods in the dzbot workbench; dzStudio edits project mods";
+
+	static bool IsFilesMod(DZS_DzbotProject dp)
+	{
+		return dp.m_Kind == "mod" && dp.m_ModKind != "project";
+	}
+
+	static bool IsProjectMod(DZS_DzbotProject dp)
+	{
+		return dp.m_Kind == "mod" && dp.m_ModKind == "project";
+	}
+
+	// The text of dzstudio/project.json in a load reply, null when the mod has none.
+	protected array<string> ProjectChunksOf(DZS_DzbotReply r)
+	{
+		DZS_SrcNode files = r.m_Json.Get("files");
+		if (!files || !files.IsArr())
+			return null;
+		foreach (DZS_SrcNode f : files.m_Items)
+		{
+			if (DZS_DzbotCatalog.Text(f, "role") != "project")
+				continue;
+			DZS_DzbotSection sec = r.Find("file", DZS_DzbotCatalog.Text(f, "key"));
+			if (sec)
+				return sec.m_Chunks;
+		}
+		return null;
+	}
+
 	string RowMeta(string folder)
 	{
 		DZS_DzbotProject dp = m_Projects.Get(RefOf(folder));
@@ -1183,6 +1228,15 @@ class DZS_DzbotPlugin : DZS_Plugin
 			pp.Fetched("", false, "Für dieses Projekt läuft eine gemeinsame Sitzung — Gemeinsam bearbeiten gibt es in diesem Editor noch nicht", "A shared session runs for this project — shared editing is not in this editor yet");
 			return;
 		}
+		if (IsFilesMod(dp))
+		{
+			pp.Fetched("", false, FILES_MOD_DE, FILES_MOD_EN);
+			return;
+		}
+		bool asProject = IsProjectMod(dp);
+		array<string> projectChunks = null;
+		if (asProject)
+			projectChunks = ProjectChunksOf(r);
 		string projectPart = "";
 		DZS_DzbotSection msec = r.Find("manifest", "manifest");
 		if (msec)
@@ -1194,6 +1248,8 @@ class DZS_DzbotPlugin : DZS_Plugin
 		if (fixedMap == "" && maps.Count() > 1)
 		{
 			string kept = ChosenMap(projectPart);
+			if (asProject && DZS_ProjectFile.IsV2(projectChunks))
+				kept = DZS_WorkFolder.MapOf(DZS_WorkFolder.RootOf(projectChunks));
 			map<string, string> carry = DZS_Handover.Carry();
 			if (m_PendMap == "" && carry.Get("dzbot.pendRef") == dp.m_Ref)
 			{
@@ -1233,7 +1289,8 @@ class DZS_DzbotPlugin : DZS_Plugin
 		}
 		if (chose)
 		{
-			projectPart = WithMap(projectPart, dp.m_MapKey);
+			if (!asProject)
+				projectPart = WithMap(projectPart, dp.m_MapKey);
 			m_PartChanged = FolderOf(dp.m_Ref);
 			string mn = DZS_LootPlugin.MapName(dp.m_MapKey);
 			Msg("info", "Karte " + mn + " gewählt — steht nach dem Speichern im Manifest", "Map " + mn + " chosen — kept in the manifest after saving", 6.0);
@@ -1258,6 +1315,12 @@ class DZS_DzbotPlugin : DZS_Plugin
 				DZS_SrcNode rev = f.Get("revision");
 				if (rev)
 					df.m_Rev = rev.m_Str.ToInt();
+				if (asProject)
+				{
+					if (df.m_Role == "project")
+						dp.m_ProjectFile = df;
+					continue;
+				}
 				if (df.m_Role == "loot_proto" || df.m_Role == "loot_pos")
 				{
 					string ft = DZS_DzbotCatalog.Text(f, "type");
@@ -1302,6 +1365,21 @@ class DZS_DzbotPlugin : DZS_Plugin
 				dp.m_ManifestRev = mrev.m_Str.ToInt();
 		}
 		RemoveStale(folder, keep);
+		if (asProject)
+		{
+			// the project file of the mod opens like a local one (through its working folder)
+			string mapSet = "";
+			if (chose)
+				mapSet = dp.m_MapKey;
+			array<string> own = DZS_ProjectFile.RewriteV2(projectChunks, dp.m_Name, mapSet, "");
+			if (!own)
+				own = DZS_LocalStore.NewFile(dp.m_Name, dp.m_MapKey, "", "objects.json", DZS_Texts.Get("core.group.objects"));
+			DZS_Files.Write(DZS_LocalStore.Path(folder, DZS_ProjectFile.NAME), own);
+			dp.m_Loot = null;
+			DZS_Log.Info("dzbot: loaded project mod " + dp.m_Ref + " '" + dp.m_Name + "' map " + dp.m_MapKey + ", project file " + (projectChunks != null));
+			pp.Fetched(folder, true, "", "");
+			return;
+		}
 		array<string> pfile = DZS_ProjectFile.Compose(dp.m_Name, dp.m_MapKey, projectPart, "");
 		DZS_Files.Write(DZS_LocalStore.Path(folder, DZS_ProjectFile.NAME), pfile);
 		DZS_Log.Info("dzbot: loaded " + dp.m_Ref + " '" + dp.m_Name + "' map " + dp.m_MapKey + ", " + groups + " group file(s), " + dp.m_Loot.m_Files.Count() + " own loot delta(s), manifest rev " + dp.m_ManifestRev + " (" + projectPart.Length() + " bytes)");
@@ -1846,6 +1924,11 @@ class DZS_DzbotPlugin : DZS_Plugin
 		}
 		m_Projects.Set(pref, dp);
 		DZS_Log.Info("dzbot: restored " + pref + " at revision " + dp.Revision() + ", " + dp.m_Files.Count() + " file(s)");
+		if (IsProjectMod(dp))
+		{
+			dp.m_Loot = null;
+			return;
+		}
 		if (dp.m_Kind == "mod" && !IsConnected())
 		{
 			dp.m_Loot.m_Origin.m_NoDe = "Loot dieses wiederhergestellten Mods erst nach dem Verbinden mit dzbot und erneutem Öffnen";
@@ -2135,12 +2218,10 @@ class DZS_DzbotPlugin : DZS_Plugin
 		sv.m_Files = files;
 		sv.m_SaveId = DZS_Random.Code(24);
 		bool asProject = dp.m_ModKind == "project";
-		if (asProject && !dp.m_ProjectFile)
-		{
-			pp.ProviderSaved("Projektdatei fehlt — Projekt neu öffnen, nichts gespeichert", "Project file missing — open the project again, nothing saved");
-			return;
-		}
-		foreach (DZS_SaveFile f : files)
+		array<ref DZS_SaveFile> use = files;
+		if (!asProject)
+			use = PlacementFiles(dp, files);
+		foreach (DZS_SaveFile f : use)
 		{
 			if (f.m_Delete || (asProject && f.m_Rel != DZS_ProjectFile.NAME))
 				continue;
@@ -2191,7 +2272,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 			sv.m_Targets.Insert(f.m_Rel);
 		}
 		if (asProject)
-			ProjectPart(dp, sv);
+			ProjectPart(dp, sv, files);
 		else
 			RemovedGroups(dp, files, sv);
 		if (sv.m_LootIn.Count() > 0)
@@ -2393,33 +2474,87 @@ class DZS_DzbotPlugin : DZS_Plugin
 		DZS_Log.Info("dzbot: save handed to the request in " + ((TickCount(0) - t0) / 10000) + " ms");
 	}
 
-	// Groups taken out of the project: their files go in the same save.
-	// A project mod holds the project as building blocks: the open project, built as DZS_ProjectV2, replaces
+	// A project mod holds the project as building blocks: the saved project file (blocks and the editor part) replaces
 	// dzstudio/project.json; dzbot applies it to each server and keeps its own rules for it.
-	protected void ProjectPart(DZS_DzbotProject dp, DZS_DzbotSave sv)
+	protected void ProjectPart(DZS_DzbotProject dp, DZS_DzbotSave sv, array<ref DZS_SaveFile> files)
 	{
-		DZS_ProjectsPlugin pp = Projects();
-		DZS_Instance inst = m_Kernel.GetShown();
 		DZS_DzbotFile pf = dp.m_ProjectFile;
-		if (!pp || !pp.m_Open || !inst || !pf)
+		array<string> chunks = null;
+		foreach (DZS_SaveFile f : files)
 		{
-			DZS_Log.Warn("dzbot: project mod " + dp.m_Ref + " without its project file, nothing of the project saved");
+			if (!f.m_Delete && f.m_Rel == DZS_ProjectFile.NAME)
+				chunks = f.m_Chunks;
+		}
+		if (!chunks)
+		{
+			DZS_Log.Warn("dzbot: project mod " + dp.m_Ref + ": no project file in the save, nothing of the project saved");
 			return;
 		}
-		DZS_Json project = DZS_ProjectV2.Build(m_Kernel, inst, pp.m_Open.m_Name, dp.m_MapKey);
-		DZS_TextWriter w = new DZS_TextWriter();
-		DZS_TextForm.Value(w, project, 0);
-		w.Append("\n");
-		array<string> chunks = w.Finish();
+		if (!pf)
+		{
+			// the mod has no project file yet: this save creates it
+			string key = NewKey();
+			DZS_DzbotSection cs = DZS_DzbotSection.FromChunks("file", key, "0", chunks);
+			sv.m_Parts.Insert(cs);
+			sv.m_Entries.Insert("{\"key\":" + DZS_DzbotFrame.Q(key) + ",\"path\":" + DZS_DzbotFrame.Q(PROJECT_PATH) + ",\"type\":\"replace\",\"create\":true");
+			sv.m_Targets.Insert("");
+			sv.m_PathOf.Set(key, PROJECT_PATH);
+			sv.m_NewProjectKey = key;
+			DZS_Log.Info("dzbot: save creates " + PROJECT_PATH + ", " + DZS_Files.Length(chunks) + " bytes");
+			return;
+		}
 		string rv = pf.m_Rev.ToString();
 		DZS_DzbotSection ps = DZS_DzbotSection.FromChunks("file", pf.m_Key, rv, chunks);
 		sv.m_Parts.Insert(ps);
 		sv.m_Entries.Insert("{\"key\":" + DZS_DzbotFrame.Q(pf.m_Key) + ",\"revision\":" + pf.m_Rev);
 		sv.m_Targets.Insert("");
 		sv.m_PathOf.Set(pf.m_Key, pf.m_Path);
-		DZS_Log.Info("dzbot: save sends the project as " + project.Get("blocks").Count() + " blocks, " + project.Get("changes").Count() + " changes");
+		DZS_Log.Info("dzbot: save sends the project file, " + DZS_Files.Length(chunks) + " bytes");
 	}
 
+	// A placement keeps its one spawner file and its manifest: both made from the saved project file.
+	protected array<ref DZS_SaveFile> PlacementFiles(DZS_DzbotProject dp, array<ref DZS_SaveFile> files)
+	{
+		array<ref DZS_SaveFile> r = new array<ref DZS_SaveFile>();
+		foreach (DZS_SaveFile f : files)
+		{
+			if (f.m_Delete || f.m_Rel != DZS_ProjectFile.NAME || !DZS_ProjectFile.IsV2(f.m_Chunks))
+			{
+				r.Insert(f);
+				continue;
+			}
+			DZS_Json root = DZS_WorkFolder.RootOf(f.m_Chunks);
+			string err;
+			DZS_PatchProject pj = DZS_PatchProject.FromJson(root, err);
+			if (!pj)
+			{
+				DZS_Log.Warn("dzbot: project file not readable for the placement: " + err);
+				continue;
+			}
+			string target = "";
+			if (dp.m_Files.Count() > 0)
+				target = dp.m_Files[0].m_Path;
+			map<string, string> paths = new map<string, string>();
+			foreach (DZS_PatchBlock b : pj.m_Blocks)
+			{
+				if (b.m_Kind != "spawnerGroup" || target == "" || paths.Count() > 0)
+					continue;
+				array<string> text = DZS_WorkFolder.GroupText(b);
+				paths.Set(b.m_Id, target);
+				DZS_SaveFile sf = new DZS_SaveFile();
+				sf.m_Rel = target;
+				sf.m_Chunks = text;
+				r.Insert(sf);
+			}
+			DZS_SaveFile mf = new DZS_SaveFile();
+			mf.m_Rel = DZS_ProjectFile.NAME;
+			mf.m_Chunks = DZS_WorkFolder.Manifest(root, dp.m_MapKey, paths);
+			r.Insert(mf);
+		}
+		return r;
+	}
+
+	// Groups taken out of the project: their files go in the same save.
 	protected void RemovedGroups(DZS_DzbotProject dp, array<ref DZS_SaveFile> files, DZS_DzbotSave sv)
 	{
 		DZS_Instance inst = m_Kernel.GetShown();
@@ -2755,6 +2890,14 @@ class DZS_DzbotPlugin : DZS_Plugin
 			string m = r.Message();
 			pp.ProviderSaved("dzbot: " + m, "dzbot: " + m);
 			return;
+		}
+		if (sv.m_NewProjectKey != "")
+		{
+			DZS_DzbotFile npf = new DZS_DzbotFile();
+			npf.m_Key = sv.m_NewProjectKey;
+			npf.m_Path = PROJECT_PATH;
+			npf.m_Role = "project";
+			dp.m_ProjectFile = npf;
 		}
 		for (int i = 0; i < sv.m_NewKeys.Count(); i++)
 		{

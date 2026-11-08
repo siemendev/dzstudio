@@ -580,10 +580,13 @@ class DZS_CollabHosted : Managed
 		string path = DZS_LocalStore.Path(p.m_Folder, hf.m_Rel);
 		if (hf.m_Rel == DZS_ProjectFile.NAME)
 		{
-			// the store keeps only format, version and project; name and map come from the server, the camera stays
+			// name and map come from the server, the camera stays; an older store keeps only format, version and project
+			string view = DZS_ProjectFile.ViewRawOf(DZS_Files.Read(path));
+			array<string> own = DZS_ProjectFile.RewriteV2(m_FileChunks, p.m_Name, p.m_Map, view);
 			string ppart = RawOf(m_FileChunks, "project");
-			string view = RawOf(DZS_Files.Read(path), "view");
-			if (ppart != "")
+			if (own)
+				m_FileChunks = own;
+			else if (ppart != "")
 				m_FileChunks = DZS_ProjectFile.Compose(p.m_Name, p.m_Map, ppart, view);
 		}
 		int slash = hf.m_Rel.LastIndexOf("/");
@@ -668,6 +671,14 @@ class DZS_CollabHosted : Managed
 			sv.m_Names.Insert(f.m_Rel);
 			sv.m_Pieces.Insert(f.m_Chunks);
 		}
+		// the project file holds the whole project: files an older save stored beside it go
+		for (int k = 0; k < p.m_FileRev.Count(); k++)
+		{
+			string stored = p.m_FileRev.GetKey(k);
+			if (stored == p.m_Manifest || sv.m_Names.Find(stored) >= 0 || sv.m_Deleted.Find(stored) >= 0)
+				continue;
+			sv.m_Deleted.Insert(stored);
+		}
 		m_Save = sv;
 		DZS_Log.Info("collab: save of " + p.m_Name + ", " + sv.m_Names.Count() + " file(s), " + sv.m_Deleted.Count() + " deleted; waiting for own operations");
 	}
@@ -685,7 +696,7 @@ class DZS_CollabHosted : Managed
 		return doc.Raw(n);
 	}
 
-	// The manifest in the store: the document of the project file with only format, version and project.
+	// The manifest in the store: the project file (an older one with only format, version and project).
 	protected array<string> ManifestOf(array<string> chunks)
 	{
 		DZS_SrcDoc doc = DZS_SrcJson.Parse(chunks);

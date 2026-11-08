@@ -1,4 +1,7 @@
-// project.dzstudio.json: provider part, project part and view part.
+// project.dzstudio.json. Version 2 (the saved form): the building blocks of the project ({format, version, map, slug,
+// blocks, changes}, DZS_ProjectV2) plus "editor" with what only dzStudio needs: provider part, base, project part
+// (groups by block id, loot switches, plugin parts) and view part. Version 1 (read when an older project opens, and the
+// form of the working folder and of dzbot placements): provider part, project part and view part.
 class DZS_Maps
 {
 	static array<string> Keys()
@@ -140,6 +143,8 @@ class DZS_PFObject : Managed
 class DZS_PFGroup : Managed
 {
 	string m_File;
+	// version 2: the spawner block of the group
+	string m_Block;
 	string m_Name;
 	string m_Color;
 	bool m_Hidden;
@@ -181,6 +186,9 @@ class DZS_PFData : Managed
 	ref DZS_Issues m_Issues;
 	string m_RawProject;
 	string m_RawView;
+	bool m_V2;
+	// version 2: the project's base ("vanilla" or "mission:<folder>")
+	string m_Base;
 
 	void DZS_PFData()
 	{
@@ -196,6 +204,7 @@ class DZS_ProjectFile
 {
 	static const string NAME = "project.dzstudio.json";
 	static const int VERSION = 1;
+	static const int VERSION2 = 2;
 
 	// A project folder copied in from an older version still has its file under the old name.
 	static void Adopt(string dir)
@@ -243,12 +252,17 @@ class DZS_ProjectFile
 			d.m_Status = "unreadable";
 			return d;
 		}
-		if (ver.m_Str.Length() > 6 || ver.m_Str.ToInt() > VERSION)
+		if (ver.m_Str.Length() > 6 || ver.m_Str.ToInt() > VERSION2)
 		{
 			d.m_Status = "newer";
 			return d;
 		}
 		d.m_Status = "ok";
+		if (ver.m_Str.ToInt() == VERSION2)
+		{
+			ReadV2(doc, root, d);
+			return d;
+		}
 		DupWarnings(root, "", d.m_Issues);
 		array<string> known0 = {"format", "version", "provider", "project", "view"};
 		UnknownHints(root, "", known0, d.m_Issues);
@@ -291,6 +305,61 @@ class DZS_ProjectFile
 			ReadView(view, d);
 		}
 		return d;
+	}
+
+	// The editor part of a version 2 file; the blocks are read by the working folder (DZS_WorkFolder).
+	protected static void ReadV2(DZS_SrcDoc doc, DZS_SrcNode root, DZS_PFData d)
+	{
+		d.m_V2 = true;
+		d.m_Base = "vanilla";
+		DZS_SrcNode rm = root.Get("map");
+		if (rm && rm.IsStr())
+		{
+			d.m_MapRaw = rm.m_Str;
+			string rlow = rm.m_Str;
+			rlow.ToLower();
+			if (DZS_Maps.WorldOf(rlow) != "")
+				d.m_MapKey = rlow;
+		}
+		DZS_SrcNode ed = root.Get("editor");
+		if (!ed || !ed.IsObj())
+			return;
+		DZS_SrcNode prov = ed.Get("provider");
+		if (prov && prov.IsObj())
+		{
+			DZS_SrcNode nm = prov.Get("name");
+			if (nm && nm.IsStr() && DZS_Names.ValidProjectName(nm.m_Str))
+				d.m_Name = nm.m_Str;
+		}
+		DZS_SrcNode bs = ed.Get("base");
+		if (bs && bs.IsStr() && bs.m_Str != "")
+			d.m_Base = bs.m_Str;
+		DZS_SrcNode proj = ed.Get("project");
+		if (proj && proj.IsObj())
+		{
+			d.m_HasProject = true;
+			d.m_RawProject = doc.Raw(proj);
+			ReadProject(doc, proj, d);
+		}
+		DZS_SrcNode view = ed.Get("view");
+		if (view && view.IsObj())
+		{
+			d.m_RawView = doc.Raw(view);
+			ReadView(view, d);
+		}
+	}
+
+	// Whether the text is a project file of version 2.
+	static bool IsV2(array<string> chunks)
+	{
+		if (!chunks)
+			return false;
+		DZS_SrcDoc doc = DZS_SrcJson.Parse(chunks);
+		if (!doc.m_Root || !doc.m_Root.IsObj())
+			return false;
+		DZS_SrcNode fmt = doc.m_Root.Get("format");
+		DZS_SrcNode ver = doc.m_Root.Get("version");
+		return fmt && fmt.IsStr() && fmt.m_Str == "dzstudio-project" && ver && ver.IsNum() && ver.m_Str == "2";
 	}
 
 	protected static void DupWarnings(DZS_SrcNode obj, string path, DZS_Issues issues)
@@ -346,13 +415,16 @@ class DZS_ProjectFile
 					continue;
 				}
 				DupWarnings(g, path, d.m_Issues);
-				array<string> known3 = {"file", "name", "color", "hidden", "locked", "objectCount", "objects", "plugins"};
+				array<string> known3 = {"file", "block", "name", "color", "hidden", "locked", "objectCount", "objects", "plugins"};
 		UnknownHints(g, path, known3, d.m_Issues);
 				DZS_PFGroup pg = new DZS_PFGroup();
 				pg.m_RawEntry = doc.Raw(g);
 				DZS_SrcNode f = g.Get("file");
 				if (f && f.IsStr())
 					pg.m_File = f.m_Str;
+				DZS_SrcNode gb = g.Get("block");
+				if (gb && gb.IsStr())
+					pg.m_Block = gb.m_Str;
 				DZS_SrcNode n = g.Get("name");
 				if (n && n.IsStr())
 					pg.m_Name = n.m_Str;
@@ -677,11 +749,11 @@ class DZS_ProjectFile
 		return s;
 	}
 
-	// One group entry at depth 3, from "{" to "}".
-	static string GroupEntry(string file, string name, string color, bool hidden, bool locked, int count, array<ref DZS_PFObject> objects, string pluginEntries)
+	// One group entry at depth 3, from "{" to "}"; fileKey "block" names the group's spawner block (version 2).
+	static string GroupEntry(string file, string name, string color, bool hidden, bool locked, int count, array<ref DZS_PFObject> objects, string pluginEntries, string fileKey = "file")
 	{
 		string s = "{\n";
-		s += I(4) + "\"file\": " + DZS_TextForm.Str(file) + ",\n";
+		s += I(4) + DZS_TextForm.Str(fileKey) + ": " + DZS_TextForm.Str(file) + ",\n";
 		s += I(4) + "\"name\": " + DZS_TextForm.Str(name) + ",\n";
 		s += I(4) + "\"color\": " + DZS_TextForm.Str(color) + ",\n";
 		s += I(4) + "\"hidden\": " + B(hidden) + ",\n";
@@ -729,5 +801,110 @@ class DZS_ProjectFile
 			s += ",\n" + I(1) + "\"view\": " + viewPart;
 		s += "\n}\n";
 		return DZS_Files.Chunk(s);
+	}
+
+	// Version 2: the building blocks plus the editor part (name, map, base, project part, view part; view "" = none).
+	static array<string> ComposeV2(DZS_Json blocks, string name, string mapKey, string base, string projectPart, string viewPart)
+	{
+		DZS_Json root = blocks.Clone();
+		DZS_Json slug = DZS_Json.Str(DZS_ProjectV2.Slug(name));
+		root.Set("slug", slug);
+		DZS_Json ed = DZS_Json.Obj();
+		DZS_Json prov = DZS_Json.Obj();
+		DZS_Json nj = DZS_Json.Str(name);
+		prov.Set("name", nj);
+		DZS_Json mj = DZS_Json.Str(mapKey);
+		prov.Set("map", mj);
+		ed.Set("provider", prov);
+		if (base == "")
+			base = "vanilla";
+		DZS_Json bj = DZS_Json.Str(base);
+		ed.Set("base", bj);
+		string err;
+		DZS_Json proj = DZS_Json.ParseText(projectPart, err);
+		if (!proj || !proj.IsObj())
+			proj = DZS_Json.Obj();
+		ed.Set("project", proj);
+		if (viewPart != "")
+		{
+			DZS_Json view = DZS_Json.ParseText(viewPart, err);
+			if (view && view.IsObj())
+				ed.Set("view", view);
+		}
+		root.Set("editor", ed);
+		return Text(root);
+	}
+
+	static array<string> Text(DZS_Json root)
+	{
+		DZS_TextWriter w = new DZS_TextWriter();
+		DZS_TextForm.Value(w, root, 0);
+		w.Append("\n");
+		return w.Finish();
+	}
+
+	// A version 2 file with another name (and slug), map, base or view ("" keeps each); null when it is not version 2.
+	static array<string> RewriteV2(array<string> chunks, string name, string mapKey, string viewPart, string base = "")
+	{
+		if (!IsV2(chunks))
+			return null;
+		DZS_SrcDoc doc = DZS_SrcJson.Parse(chunks);
+		DZS_Json root = doc.m_Root.ToJson();
+		DZS_Json ed = root.Get("editor");
+		if (!ed || !ed.IsObj())
+		{
+			ed = DZS_Json.Obj();
+			root.Set("editor", ed);
+		}
+		DZS_Json prov = ed.Get("provider");
+		if (!prov || !prov.IsObj())
+		{
+			prov = DZS_Json.Obj();
+			ed.Set("provider", prov);
+		}
+		if (name != "")
+		{
+			DZS_Json nj = DZS_Json.Str(name);
+			prov.Set("name", nj);
+			DZS_Json sj = DZS_Json.Str(DZS_ProjectV2.Slug(name));
+			root.Set("slug", sj);
+		}
+		if (mapKey != "")
+		{
+			DZS_Json mj = DZS_Json.Str(mapKey);
+			prov.Set("map", mj);
+			DZS_Json rj = DZS_Json.Str(mapKey);
+			root.Set("map", rj);
+		}
+		if (base != "")
+		{
+			DZS_Json bj = DZS_Json.Str(base);
+			ed.Set("base", bj);
+		}
+		if (viewPart != "")
+		{
+			string err;
+			DZS_Json view = DZS_Json.ParseText(viewPart, err);
+			if (view && view.IsObj())
+				ed.Set("view", view);
+		}
+		return Text(root);
+	}
+
+	// The view part of a project file of either version ("" = none).
+	static string ViewRawOf(array<string> chunks)
+	{
+		if (!chunks)
+			return "";
+		DZS_SrcDoc doc = DZS_SrcJson.Parse(chunks);
+		if (!doc.m_Root || !doc.m_Root.IsObj())
+			return "";
+		DZS_SrcNode v = doc.m_Root.Get("view");
+		DZS_SrcNode ed = doc.m_Root.Get("editor");
+		if (ed && ed.IsObj())
+			v = ed.Get("view");
+		if (!v || !v.IsObj())
+			return "";
+		return doc.Raw(v);
 	}
 }

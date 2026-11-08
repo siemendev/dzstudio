@@ -272,7 +272,7 @@ class DZS_LootPlugin : DZS_Plugin
 		DZS_Texts.Add("loot.noVanilla", "Vor dem Projekt hatte dieser Typ keinen Loot-Eintrag", "This type had no loot entry before the project");
 		DZS_Texts.Add("loot.noEntry", "Typ hat keinen Loot-Eintrag — bekommt keinen Loot", "Type has no loot entry — gets no loot");
 		DZS_Texts.Add("loot.cannotTitle", "Loot lässt sich nicht einschalten", "Loot cannot be switched on");
-		DZS_Texts.Add("loot.cannotText", "Im Projektordner fehlen mapgroupproto.xml und mapgrouppos.xml. Hol beide aus dem Missionsordner deines Servers und leg sie in den Projektordner.", "mapgroupproto.xml and mapgrouppos.xml are missing in the project folder. Get both from your server’s mission folder and put them into the project folder.");
+		DZS_Texts.Add("loot.cannotText", "Die Basis des Projekts hat keine mapgroupproto.xml und mapgrouppos.xml. Wähle unter Projekt › Auf Missionsordner anwenden … Vanilla oder einen Missionsordner mit beiden Dateien und öffne das Projekt neu.", "The project's base has no mapgroupproto.xml and mapgrouppos.xml. Choose vanilla or a mission folder with both files under Project › Apply to mission folder … and open the project again.");
 		DZS_Texts.Add("loot.unreadable", "%1 ist nicht lesbar: %2", "%1 is not readable: %2");
 		DZS_Texts.Add("loot.noBase", "Kein Vanilla-Stand — „wie Vanilla“ und „vorher angepasst“ lassen sich nicht unterscheiden. Leg mapgroupproto.xml selbst in den Unterordner vanilla\\ des Projektordners oder hol ihn mit Projekt › Vanilla-Stand holen …", "No vanilla state — \"As vanilla\" and \"Customised before\" cannot be told apart. Put mapgroupproto.xml into the subfolder vanilla\\ of the project folder yourself or fetch it with Project › Fetch vanilla state …");
 		DZS_Texts.Add("loot.on", "Loot einschalten", "Turn on loot");
@@ -290,7 +290,7 @@ class DZS_LootPlugin : DZS_Plugin
 		DZS_Texts.Add("loot.vanillaGo", "Laden", "Download");
 		DZS_Texts.Add("loot.vanillaLoading", "Vanilla-Stand für %1 wird geladen …", "Vanilla state for %1 is loading …");
 		DZS_Texts.Add("loot.vanillaOk", "Vanilla-Stand für %1 geholt — gilt nach dem nächsten Öffnen des Projekts", "Vanilla state for %1 fetched — applies after the project is opened again");
-		DZS_Texts.Add("loot.vanillaFail", "Kein Vanilla-Stand (%1) — leg mapgroupproto.xml selbst in den Unterordner vanilla\\ des Projektordners", "No vanilla state (%1) — put mapgroupproto.xml into the subfolder vanilla\\ of the project folder yourself");
+		DZS_Texts.Add("loot.vanillaFail", "Kein Vanilla-Stand (%1)", "No vanilla state (%1)");
 		DZS_Texts.Add("loot.vanillaUsed", "Vanilla-Stand: %1", "Vanilla state: %1");
 	}
 
@@ -441,12 +441,13 @@ class DZS_LootPlugin : DZS_Plugin
 		DZS_Log.Info("loot: files from the session's texts, " + m_Files.m_Index.Count() + " entries, " + m_Files.m_Rows.Count() + " rows, no file read from disk");
 	}
 
+	// Where the loot files are read: the project's working folder, or the folder of an older project.
 	string Folder()
 	{
 		DZS_ProjectsPlugin pp = DZS_ProjectsPlugin.Cast(m_Kernel.GetPlugin("projects"));
 		if (!pp || !pp.m_Open || !m_Kernel.GetShown())
 			return "";
-		return pp.m_Open.m_Folder;
+		return pp.m_Open.ReadFolder();
 	}
 
 	string MapKey()
@@ -528,10 +529,10 @@ class DZS_LootPlugin : DZS_Plugin
 	// marked entries the list does not name are reported.
 	protected void CheckWritten(DZS_Instance inst)
 	{
-		DZS_StoreProvider sp = Provider();
-		if (sp)
+		DZS_LootOrigin lo = Origin();
+		if (lo || Provider())
 		{
-			ProviderWritten(inst, sp.LootOrigin(Folder()));
+			ProviderWritten(inst, lo);
 			return;
 		}
 		string mark = Mark(inst);
@@ -634,13 +635,12 @@ class DZS_LootPlugin : DZS_Plugin
 			DZS_Log.Warn("loot: " + f.m_ErrorFile + " unreadable: " + f.m_Error);
 			return false;
 		}
-		DZS_StoreProvider sp = Provider();
-		if (sp)
+		DZS_LootOrigin lo = Origin();
+		if (lo || Provider())
 		{
-			DZS_LootOrigin lo = sp.LootOrigin(folder);
 			if (!lo || lo.m_NoDe != "")
 			{
-				DZS_Log.Warn("loot: the provider keeps no loot for " + folder);
+				DZS_Log.Warn("loot: no loot for " + folder);
 				return false;
 			}
 			f.m_OwnRows = lo.m_OwnRows;
@@ -728,10 +728,11 @@ class DZS_LootPlugin : DZS_Plugin
 		m_BaseFrom = DZS_LootVanilla.FetchedDate(mk);
 	}
 
-	// The project's mark in the loot files (local folder only; the dzbot provider marks nothing).
+	// The project's mark in the loot files (an older local project only; a project of version 2 and a provider's
+	// project know their entries and rows from DZS_LootOrigin).
 	string Mark(DZS_Instance inst)
 	{
-		if (!inst || IsProvider())
+		if (!inst || IsProvider() || Origin())
 			return "";
 		string id;
 		inst.GetField(DZS_PROJECT_ID, "lootProjectId", id);
@@ -744,6 +745,24 @@ class DZS_LootPlugin : DZS_Plugin
 		if (!pp || !pp.m_Open)
 			return null;
 		return pp.ProviderOf(pp.m_Open.m_Folder);
+	}
+
+	// The project's loot entries and rows: the provider's word when it keeps no loot for the project, else the working
+	// folder's (version 2), else the provider's; null for an older local project (its mark decides).
+	DZS_LootOrigin Origin()
+	{
+		DZS_ProjectsPlugin pp = DZS_ProjectsPlugin.Cast(m_Kernel.GetPlugin("projects"));
+		if (!pp || !pp.m_Open)
+			return null;
+		DZS_StoreProvider sp = pp.ProviderOf(pp.m_Open.m_Folder);
+		DZS_LootOrigin lo = null;
+		if (sp)
+			lo = sp.LootOrigin(pp.m_Open.m_Folder);
+		if (lo && lo.m_NoDe != "")
+			return lo;
+		if (pp.m_Open.m_Origin)
+			return pp.m_Open.m_Origin;
+		return lo;
 	}
 
 	bool IsProvider()
@@ -1281,9 +1300,9 @@ class DZS_LootPlugin : DZS_Plugin
 			return;
 		}
 		DZS_StoreProvider sp = Provider();
-		if (sp)
+		DZS_LootOrigin lo = Origin();
+		if (sp || lo)
 		{
-			DZS_LootOrigin lo = sp.LootOrigin(folder);
 			if (!lo || lo.m_NoDe != "")
 			{
 				string nd = "Loot gibt es für dieses Projekt nicht";
@@ -1298,6 +1317,8 @@ class DZS_LootPlugin : DZS_Plugin
 				return;
 			}
 		}
+		if (!DZS_LootFiles.Present(folder) && lo && FetchBase(folder))
+			return;
 		if (!DZS_LootFiles.Present(folder))
 		{
 			string dKick = DZS_Texts.Get("loot.row");
@@ -1326,7 +1347,7 @@ class DZS_LootPlugin : DZS_Plugin
 		DZS_OpBuilder b = inst.BeginOperation("loot:edit", 1);
 		b.SetField(DZS_PROJECT_ID, "lootEnabled", "true");
 		string pid = Mark(inst);
-		if (pid == "" && !sp)
+		if (pid == "" && !sp && !lo)
 		{
 			pid = DZS_ProjectsPlugin.NewProjectId();
 			b.SetField(DZS_PROJECT_ID, "lootProjectId", pid);
@@ -1354,6 +1375,59 @@ class DZS_LootPlugin : DZS_Plugin
 			m_Kernel.GetScreen().ShowMessage("loot.base", "info", DZS_Texts.Fmt("loot.vanillaUsed", m_BaseFrom), 4.0);
 		else
 			m_Kernel.GetScreen().ShowMessage("loot.base", "info", DZS_Texts.Get("loot.noBase"), 10.0);
+	}
+
+	// A project of version 2 without loot files in its working folder: they come from its base, fetched first when
+	// it is the vanilla mission; Toggle runs again once they are there. False when they cannot come (the dialog).
+	protected bool FetchBase(string work)
+	{
+		DZS_ProjectsPlugin pp = DZS_ProjectsPlugin.Cast(m_Kernel.GetPlugin("projects"));
+		if (!pp || !pp.m_Open || pp.m_Open.m_Work == "" || m_BaseFetch)
+			return m_BaseFetch != null;
+		string mk = MapKey();
+		string dir = DZS_WorkFolder.UsableBase(pp.m_Open.m_Base, mk, null);
+		if (dir != "")
+		{
+			if (!DZS_WorkFolder.CopyLoot(dir, mk, work) || !DZS_LootFiles.Present(work))
+				return false;
+			DZS_Log.Info("loot: base files copied into the working folder from " + dir);
+			Toggle();
+			return true;
+		}
+		m_BaseFetch = new DZS_LootVanilla();
+		m_BaseFetch.m_OnDone.Insert(OnBaseFetched);
+		if (!m_BaseFetch.StartMission(mk))
+		{
+			m_BaseFetch = null;
+			return false;
+		}
+		m_Kernel.GetScreen().ShowBanner("loot.base", 20, "info", DZS_Texts.Fmt("loot.vanillaLoading", MapName(mk)));
+		return true;
+	}
+
+	protected ref DZS_LootVanilla m_BaseFetch;
+
+	void OnBaseFetched(DZS_LootVanilla v)
+	{
+		m_Kernel.GetScreen().HideBanner("loot.base");
+		bool ok = v.m_Ok;
+		string why = v.m_Why;
+		m_BaseFetch = null;
+		if (!ok)
+		{
+			VanillaFailed(why);
+			return;
+		}
+		string work = Folder();
+		if (work == "" || IsOn())
+			return;
+		string dir = DZS_WorkFolder.UsableBase("vanilla", MapKey(), null);
+		if (dir == "" || !DZS_WorkFolder.CopyLoot(dir, MapKey(), work))
+		{
+			VanillaFailed("mapgroupproto.xml");
+			return;
+		}
+		Toggle();
 	}
 
 	protected void AskOff(DZS_Instance inst)

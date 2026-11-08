@@ -1,5 +1,5 @@
-// Storage provider "Local folder": one folder per project
-// under $saves:dzstudio\Projects\, one file per group, the project file beside them.
+// Storage provider "Local folder": one folder per project under $saves:dzstudio\Projects\ holding the project file
+// (version 2); the files the open path reads come from the project's working folder (DZS_WorkFolder).
 class DZS_ProjectInfo : Managed
 {
 	string m_Folder;
@@ -18,6 +18,12 @@ class DZS_OpenProject : Managed
 	string m_MapKey;
 	ref map<string, string> m_Sums;
 	ref DZS_Issues m_OpenIssues;
+	// where group and loot files are read: the working folder of a version 2 project ("" = the folder itself)
+	string m_Work;
+	// "vanilla" or "mission:<folder>", written into the project file at the next save
+	string m_Base = "vanilla";
+	// the loot entries and rows of a version 2 project (null for an older project, whose rows carry its mark)
+	ref DZS_LootOrigin m_Origin;
 
 	void DZS_OpenProject()
 	{
@@ -41,6 +47,13 @@ class DZS_OpenProject : Managed
 	string Remembered(string rel)
 	{
 		return m_Sums.Get(Key(rel));
+	}
+
+	string ReadFolder()
+	{
+		if (m_Work != "")
+			return m_Work;
+		return m_Folder;
 	}
 }
 
@@ -154,7 +167,10 @@ class DZS_LocalStore
 				info.m_Name = pf.m_Name;
 			info.m_MapKey = pf.m_MapKey;
 		}
-		info.m_Groups = GroupFiles(folder).Count();
+		if (pf.m_V2)
+			info.m_Groups = pf.m_Groups.Count();
+		else
+			info.m_Groups = GroupFiles(folder).Count();
 		return info;
 	}
 
@@ -218,26 +234,47 @@ class DZS_LocalStore
 
 	// ---- create ----
 
+	// A new project file: one empty spawner group (block id from groupFile's stem) named groupName.
+	static array<string> NewFile(string name, string mapKey, string viewPart, string groupFile, string groupName)
+	{
+		string id = DZS_ProjectV2.GroupId(DZS_ProjectV2.StemOf(groupFile));
+		DZS_Json root = DZS_ProjectV2.Empty(mapKey, name);
+		DZS_Json block = DZS_Json.Obj();
+		DZS_Json ij = DZS_Json.Str(id);
+		block.Set("id", ij);
+		DZS_Json kj = DZS_Json.Str("spawnerGroup");
+		block.Set("kind", kj);
+		DZS_Json pj = DZS_Json.Null();
+		block.Set("parent", pj);
+		DZS_Json data = DZS_Json.Obj();
+		DZS_Json gn = DZS_Json.Str(groupName);
+		data.Set("name", gn);
+		DZS_Json objs = DZS_Json.Arr();
+		data.Set("objects", objs);
+		block.Set("data", data);
+		root.Get("blocks").Add(block);
+		array<ref DZS_PFObject> none = new array<ref DZS_PFObject>();
+		array<string> entries = new array<string>();
+		array<string> colors = DZS_Palette.Colors();
+		string first = colors[0];
+		entries.Insert(DZS_ProjectFile.GroupEntry(id, groupName, first, false, false, 0, none, "[]", "block"));
+		array<string> noTypes = new array<string>();
+		string proj = DZS_ProjectFile.ProjectPart(entries, false, false, false, "", noTypes, noTypes, true, "[]");
+		return DZS_ProjectFile.ComposeV2(root, name, mapKey, "vanilla", proj, viewPart);
+	}
+
 	static string NewProject(string name, string mapKey, string viewPart, string groupFile, string groupName)
 	{
 		EnsureRoot();
 		string folder = FolderFor(name);
 		DZS_Files.MakeDirs(Dir(folder));
-		string empty = "{\n    \"Objects\": []\n}\n";
-		DZS_Files.Write(Path(folder, groupFile), DZS_Files.Chunk(empty));
-		array<ref DZS_PFObject> none = new array<ref DZS_PFObject>();
-		array<string> entries = new array<string>();
-		array<string> colors = DZS_Palette.Colors();
-		string first = colors[0];
-		entries.Insert(DZS_ProjectFile.GroupEntry(groupFile, groupName, first, false, false, 0, none, "[]"));
-		array<string> noTypes = new array<string>();
-		string proj = DZS_ProjectFile.ProjectPart(entries, false, false, false, "", noTypes, noTypes, false, "[]");
-		DZS_Files.Write(Path(folder, DZS_ProjectFile.NAME), DZS_ProjectFile.Compose(name, mapKey, proj, viewPart));
+		array<string> chunks = NewFile(name, mapKey, viewPart, groupFile, groupName);
+		DZS_Files.Write(Path(folder, DZS_ProjectFile.NAME), chunks);
 		DZS_Log.Info("project created: folder '" + folder + "', name '" + name + "', map " + mapKey);
 		return folder;
 	}
 
-	// ---- rename: only the provider part changes; project and view stay byte for byte ----
+	// ---- rename: only the name (and the slug of a version 2 file) changes ----
 
 	static bool Rename(string folder, string newName, out string newSum)
 	{
@@ -246,6 +283,9 @@ class DZS_LocalStore
 		DZS_PFData pf = DZS_ProjectFile.Read(cur);
 		if (pf.m_Status == "newer")
 			return false;
+		array<string> v2 = DZS_ProjectFile.RewriteV2(cur, newName, "", "");
+		if (v2)
+			return Replace(path, v2, newSum);
 		string mapKey = pf.m_MapKey;
 		if (mapKey == "")
 			mapKey = pf.m_MapRaw;
@@ -257,6 +297,11 @@ class DZS_LocalStore
 			view = pf.m_RawView;
 		}
 		array<string> chunks = DZS_ProjectFile.Compose(newName, mapKey, proj, view);
+		return Replace(path, chunks, newSum);
+	}
+
+	protected static bool Replace(string path, array<string> chunks, out string newSum)
+	{
 		if (!DZS_Files.Write(path + ".new", chunks))
 			return false;
 		bool ok = DZS_Files.Copy(path + ".new", path);
