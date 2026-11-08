@@ -11,6 +11,8 @@ your players' machines.
 - Find anything in the catalog, paint with brushes, group objects into files
 - Edit loot: what spawns where, how much, and how long it stays
 - Build together: several people edit one project live, each in their own game
+- Apply a project to a mission folder: your server's or the map's vanilla mission, changed file by file, with a
+  report of what was applied and what the server had different
 - Save to local projects, your own [collaboration server](https://github.com/siemendev/dzstudio-collab-server), or
   [dzbot](https://dzbot.de)
 

@@ -1,7 +1,8 @@
-// "Apply to mission folder …": the open project as building blocks, applied to a base (the map's vanilla mission,
-// fetched on demand, or a folder the user put into dzstudio\Missions), the changed files written to
-// dzstudio\Output\<project>. The game reads and writes only below its own folders, so a server's mission folder has
-// to be copied there first and the output copied back. The chosen base is remembered per project.
+// "Apply to mission folder …": the open project as building blocks, applied straight into a mission folder below
+// dzstudio\Missions (the game reads and writes only below its own folders, so a server's mission folder is copied
+// there first). The files the project changes are kept as they were before, so applying again starts from the same
+// state and "Undo" puts them back. With the map's vanilla mission as the base (fetched on demand) the result goes into
+// a new folder that holds only the project's files. The chosen base is remembered per project.
 class DZS_PatchBase : Managed
 {
 	string m_Key;
@@ -9,17 +10,262 @@ class DZS_PatchBase : Managed
 	string m_Dir;
 	string m_Meta;
 	bool m_Vanilla;
+	// where the changes go, and when this project was last applied there ("" = not applied)
+	string m_Target;
+	string m_TargetShown;
+	string m_Applied;
+}
+
+// What one project changed in one mission folder, kept in <folder>\.dzstudio\<slug>: original\<rel> holds each file
+// as it was before the project first changed it, created.txt lists the files the project added, applied.txt says when.
+// Relative paths use "/" like the patcher's output.
+// Two projects applied to the same folder layer on top of each other: the second keeps the first one's result as its
+// original. Re-applying the first starts from its own originals, so it resets the second one's edits — but only in a
+// file both of them change.
+class DZS_ApplyStore : Managed
+{
+	static const string ROOT = ".dzstudio";
+	// marks a folder made from the vanilla mission: it holds only projects' files and is no base of its own
+	static const string VANILLA_MARK = "vanilla-copy.txt";
+
+	string m_Target;
+	string m_Dir;
+	string m_Stamp;
+	ref array<string> m_Orig = new array<string>();
+	ref array<string> m_Created = new array<string>();
+
+	void DZS_ApplyStore(string target, string slug)
+	{
+		m_Target = target;
+		m_Dir = target + "\\" + ROOT + "\\" + slug;
+		array<string> kept = DZS_Files.ListTree(m_Dir + "\\original");
+		m_Orig.Copy(kept);
+		ReadLines(m_Dir + "\\created.txt", m_Created);
+		array<string> stamp = new array<string>();
+		ReadLines(m_Dir + "\\applied.txt", stamp);
+		if (stamp.Count() > 0)
+			m_Stamp = stamp[0];
+	}
+
+	static bool IsVanillaCopy(string dir)
+	{
+		return FileExist(dir + "\\" + ROOT + "\\" + VANILLA_MARK);
+	}
+
+	static void MarkVanillaCopy(string dir)
+	{
+		DZS_Files.MakeDirs(dir + "\\" + ROOT);
+		string mark = dir + "\\" + ROOT + "\\" + VANILLA_MARK;
+		if (FileExist(mark))
+			return;
+		array<string> text = DZS_Files.Chunk("dzStudio: only the files of the projects applied to the vanilla mission\n");
+		DZS_Files.Write(mark, text);
+	}
+
+	static void ReadLines(string path, array<string> into)
+	{
+		array<string> chunks = DZS_Files.Read(path);
+		if (!chunks)
+			return;
+		string all = DZS_Files.Join(chunks);
+		array<string> parts = new array<string>();
+		all.Split("\n", parts);
+		foreach (string line : parts)
+		{
+			string t = line;
+			t.Replace("\r", "");
+			t.TrimInPlace();
+			if (t != "")
+				into.Insert(t);
+		}
+	}
+
+	static string Win(string rel)
+	{
+		string r = rel;
+		r.Replace("/", "\\");
+		return r;
+	}
+
+	static int IndexLow(array<string> list, string rel)
+	{
+		string want = DZS_PatchText.Lower(rel);
+		for (int i = 0; i < list.Count(); i++)
+		{
+			if (DZS_PatchText.Lower(list[i]) == want)
+				return i;
+		}
+		return -1;
+	}
+
+	static void MakeParent(string full)
+	{
+		int slash = full.LastIndexOf("\\");
+		if (slash > 0)
+			DZS_Files.MakeDirs(full.Substring(0, slash));
+	}
+
+	// Removes the folders of rel below root that became empty (deleting a folder that still has files fails).
+	static void PruneUp(string root, string rel)
+	{
+		array<string> parts = new array<string>();
+		rel.Split("/", parts);
+		for (int k = parts.Count() - 1; k >= 1; k--)
+		{
+			string dir = root;
+			for (int j = 0; j < k; j++)
+				dir += "\\" + parts[j];
+			if (!DeleteFile(dir))
+				return;
+		}
+	}
+
+	bool Applied()
+	{
+		return m_Stamp != "";
+	}
+
+	// The patcher reads the kept originals instead of the folder's files and does not see files the project created.
+	map<string, string> Overrides()
+	{
+		map<string, string> r = new map<string, string>();
+		foreach (string o : m_Orig)
+			r.Set(DZS_PatchText.Lower(o), m_Dir + "\\original\\" + Win(o));
+		foreach (string c : m_Created)
+			r.Set(DZS_PatchText.Lower(c), "");
+		return r;
+	}
+
+	// Writes the patcher's output into the folder: a file met for the first time is kept first (or noted as new);
+	// a file the project no longer changes gets its original back, one it no longer creates is deleted.
+	bool Apply(DZS_Patcher p, array<string> report, out string err)
+	{
+		DZS_PatchFiles look = new DZS_PatchFiles(m_Target);
+		array<string> keepOrig = new array<string>();
+		array<string> keepCreated = new array<string>();
+		foreach (string rel : p.m_OutPaths)
+		{
+			int io = IndexLow(m_Orig, rel);
+			int ic = IndexLow(m_Created, rel);
+			if (io >= 0)
+			{
+				keepOrig.Insert(m_Orig[io]);
+				continue;
+			}
+			if (ic >= 0)
+			{
+				keepCreated.Insert(m_Created[ic]);
+				continue;
+			}
+			string real = look.Resolve(rel);
+			if (real == "")
+			{
+				keepCreated.Insert(rel);
+				continue;
+			}
+			string dst = m_Dir + "\\original\\" + Win(real);
+			MakeParent(dst);
+			if (!DZS_Files.Copy(m_Target + "\\" + Win(real), dst))
+			{
+				err = "cannot keep " + real;
+				return false;
+			}
+			keepOrig.Insert(real);
+		}
+		foreach (string w : p.m_OutPaths)
+		{
+			string full = m_Target + "\\" + Win(w);
+			MakeParent(full);
+			array<string> data = p.m_Out.Get(w);
+			if (!DZS_Files.Write(full, data))
+			{
+				err = "cannot write " + w;
+				return false;
+			}
+		}
+		foreach (string o : m_Orig)
+		{
+			if (IndexLow(keepOrig, o) >= 0)
+				continue;
+			string kept = m_Dir + "\\original\\" + Win(o);
+			DZS_Files.Copy(kept, m_Target + "\\" + Win(o));
+			DeleteFile(kept);
+			PruneUp(m_Dir + "\\original", o);
+		}
+		foreach (string c : m_Created)
+		{
+			if (IndexLow(keepCreated, c) >= 0)
+				continue;
+			DeleteFile(m_Target + "\\" + Win(c));
+			PruneUp(m_Target, c);
+		}
+		m_Orig = keepOrig;
+		m_Created = keepCreated;
+		if (m_Orig.Count() == 0 && m_Created.Count() == 0)
+		{
+			Drop();
+			return true;
+		}
+		DZS_Files.MakeDirs(m_Dir);
+		string names = "";
+		foreach (string n : m_Created)
+			names += n + "\n";
+		array<string> listChunks = DZS_Files.Chunk(names);
+		DZS_Files.Write(m_Dir + "\\created.txt", listChunks);
+		m_Stamp = DZS_ProjectsPlugin.Stamp();
+		array<string> stampChunks = DZS_Files.Chunk(m_Stamp + "\n");
+		DZS_Files.Write(m_Dir + "\\applied.txt", stampChunks);
+		string text = "";
+		foreach (string l : report)
+			text += l + "\n";
+		array<string> reportChunks = DZS_Files.Chunk(text);
+		DZS_Files.Write(m_Dir + "\\report.txt", reportChunks);
+		return true;
+	}
+
+	// Puts every original back, deletes every file the project created, forgets the project in this folder.
+	void Undo()
+	{
+		foreach (string o : m_Orig)
+			DZS_Files.Copy(m_Dir + "\\original\\" + Win(o), m_Target + "\\" + Win(o));
+		foreach (string c : m_Created)
+		{
+			DeleteFile(m_Target + "\\" + Win(c));
+			PruneUp(m_Target, c);
+		}
+		m_Orig.Clear();
+		m_Created.Clear();
+		Drop();
+	}
+
+	// The store folder goes; a vanilla copy nobody uses any more goes with it (only when it is empty by then).
+	protected void Drop()
+	{
+		DZS_Files.DeleteTree(m_Dir);
+		m_Stamp = "";
+		string root = m_Target + "\\" + ROOT;
+		array<string> names;
+		array<bool> folders;
+		DZS_Files.List(root, names, folders);
+		bool copy = names.Count() == 1 && names[0] == VANILLA_MARK;
+		if (copy)
+			DeleteFile(root + "\\" + VANILLA_MARK);
+		DeleteFile(root);
+		if (copy)
+			DeleteFile(m_Target);
+	}
 }
 
 class DZS_PatchApply : Managed
 {
 	static const string MISSIONS = "$saves:dzstudio\\Missions";
-	static const string OUTPUT = "$saves:dzstudio\\Output";
 	static const string SETTING = "patcher.bases";
 
 	DZS_Kernel m_Kernel;
 	ref DZS_LootVanilla m_Fetch;
 	ref DZS_PatchBase m_Pending;
+	ref DZS_PatchBase m_UndoBase;
+	DZS_ApplyDialog m_UndoFrom;
 
 	void DZS_PatchApply(DZS_Kernel k)
 	{
@@ -45,6 +291,14 @@ class DZS_PatchApply : Managed
 		return "";
 	}
 
+	string ProjectName()
+	{
+		DZS_ProjectsPlugin pp = Projects();
+		if (!pp || !pp.m_Open)
+			return "";
+		return pp.m_Open.m_Name;
+	}
+
 	bool CanApply(out string reasonDe, out string reasonEn)
 	{
 		DZS_ProjectsPlugin pp = Projects();
@@ -63,7 +317,7 @@ class DZS_PatchApply : Managed
 		return true;
 	}
 
-	// Shown form of a folder below $saves:dzstudio ("Documents\DayZ\dzstudio\Output\Forest Camp").
+	// Shown form of a folder below $saves:dzstudio ("Documents\DayZ\dzstudio\Missions\Mein Server").
 	static string Shown(string sub)
 	{
 		string root = DZS_LocalStore.ShownRoot();
@@ -73,7 +327,7 @@ class DZS_PatchApply : Managed
 		return root + "\\" + sub;
 	}
 
-	static string OutputName(string projectName)
+	static string FolderName(string projectName)
 	{
 		string bad = "\\/:*?\"<>|";
 		string r = "";
@@ -91,8 +345,31 @@ class DZS_PatchApply : Managed
 		return r;
 	}
 
-	// The vanilla mission of the map first, then every folder in dzstudio\Missions.
-	array<ref DZS_PatchBase> Bases(string mapKey)
+	// Where a base's changes go: the mission folder itself, or for vanilla "<project> (Vanilla <map>)".
+	void Describe(DZS_PatchBase b, string projectName, string mapKey)
+	{
+		string leaf = b.m_Name;
+		if (b.m_Vanilla)
+			leaf = FolderName(projectName) + " (Vanilla " + DZS_LootPlugin.MapName(mapKey) + ")";
+		b.m_Target = MISSIONS + "\\" + leaf;
+		b.m_TargetShown = Shown("Missions\\" + leaf);
+		string slug = DZS_ProjectV2.Slug(projectName);
+		DZS_ApplyStore st = new DZS_ApplyStore(b.m_Target, slug);
+		b.m_Applied = st.m_Stamp;
+		string meta = "Missions\\" + b.m_Name;
+		if (b.m_Vanilla && DZS_LootVanilla.HaveMission(mapKey))
+			meta = DZS_Texts.Pick("Bohemia · geladen", "Bohemia · fetched");
+		else if (b.m_Vanilla)
+			meta = DZS_Texts.Pick("Bohemia · wird beim Anwenden geladen (Internet)", "Bohemia · fetched when applying (internet)");
+		else if (!FileExist(b.m_Dir + "\\db\\types.xml") && !FileExist(b.m_Dir + "\\cfgeventspawns.xml"))
+			meta += DZS_Texts.Pick(" · sieht nicht wie ein Missionsordner aus", " · does not look like a mission folder");
+		if (b.m_Applied != "")
+			meta += DZS_Texts.Pick(" · Projekt angewendet am ", " · project applied on ") + DZS_ProjectsPlugin.ShowStamp(b.m_Applied);
+		b.m_Meta = meta;
+	}
+
+	// The vanilla mission of the map first, then every folder in dzstudio\Missions (not the vanilla copies).
+	array<ref DZS_PatchBase> Bases(string mapKey, string projectName)
 	{
 		array<ref DZS_PatchBase> r = new array<ref DZS_PatchBase>();
 		DZS_PatchBase v = new DZS_PatchBase();
@@ -100,10 +377,7 @@ class DZS_PatchApply : Managed
 		v.m_Vanilla = true;
 		v.m_Name = "Vanilla " + DZS_LootPlugin.MapName(mapKey);
 		v.m_Dir = DZS_LootVanilla.MissionDir(mapKey);
-		if (DZS_LootVanilla.HaveMission(mapKey))
-			v.m_Meta = DZS_Texts.Pick("Bohemia · geladen", "Bohemia · fetched");
-		else
-			v.m_Meta = DZS_Texts.Pick("Bohemia · wird beim Anwenden geladen (Internet)", "Bohemia · fetched when applying (internet)");
+		Describe(v, projectName, mapKey);
 		r.Insert(v);
 		DZS_Files.MakeDirs(MISSIONS);
 		array<string> names;
@@ -113,13 +387,14 @@ class DZS_PatchApply : Managed
 		{
 			if (!folders[i])
 				continue;
+			string dir = MISSIONS + "\\" + names[i];
+			if (DZS_ApplyStore.IsVanillaCopy(dir))
+				continue;
 			DZS_PatchBase b = new DZS_PatchBase();
 			b.m_Key = "mission:" + names[i];
 			b.m_Name = names[i];
-			b.m_Dir = MISSIONS + "\\" + names[i];
-			b.m_Meta = "Missions\\" + names[i];
-			if (!FileExist(b.m_Dir + "\\db\\types.xml") && !FileExist(b.m_Dir + "\\cfgeventspawns.xml"))
-				b.m_Meta += DZS_Texts.Pick(" · sieht nicht wie ein Missionsordner aus", " · does not look like a mission folder");
+			b.m_Dir = dir;
+			Describe(b, projectName, mapKey);
 			r.Insert(b);
 		}
 		return r;
@@ -152,7 +427,7 @@ class DZS_PatchApply : Managed
 	{
 		DZS_ProjectsPlugin pp = Projects();
 		string mapKey = MapKey();
-		array<ref DZS_PatchBase> bases = Bases(mapKey);
+		array<ref DZS_PatchBase> bases = Bases(mapKey, pp.m_Open.m_Name);
 		string want = Remembered(pp.m_Open.m_Folder);
 		int pick = 0;
 		for (int i = 0; i < bases.Count(); i++)
@@ -160,8 +435,7 @@ class DZS_PatchApply : Managed
 			if (bases[i].m_Key == want)
 				pick = i;
 		}
-		string outShown = Shown("Output\\" + OutputName(pp.m_Open.m_Name));
-		DZS_ApplyDialog d = new DZS_ApplyDialog(this, bases, pick, outShown);
+		DZS_ApplyDialog d = new DZS_ApplyDialog(this, bases, pick);
 		d.Open();
 	}
 
@@ -208,6 +482,8 @@ class DZS_PatchApply : Managed
 		DZS_Log.Info("patch: apply failed: " + why);
 	}
 
+	// The project onto the base, the result into the target folder. On a mission folder the patcher reads the kept
+	// originals, so applying again starts from the state before the project and changes nothing twice.
 	void Run(DZS_PatchBase b)
 	{
 		DZS_ProjectsPlugin pp = Projects();
@@ -216,29 +492,77 @@ class DZS_PatchApply : Managed
 			return;
 		string name = pp.m_Open.m_Name;
 		string mapKey = MapKey();
-		string outName = OutputName(name);
-		string outDir = OUTPUT + "\\" + outName;
+		Describe(b, name, mapKey);
 		int t0 = TickCount(0);
 		DZS_Json project = DZS_ProjectV2.Build(m_Kernel, inst, name, mapKey);
-		DZS_Files.DeleteTree(outDir);
 		string err;
-		DZS_Patcher p = DZS_ProjectV2.Apply(project, b.m_Dir, outDir, err);
-		if (!p)
+		DZS_PatchProject pj = DZS_PatchProject.FromJson(project, err);
+		if (!pj)
 		{
 			Failed(err);
 			return;
 		}
-		DeleteFile(outDir + "\\report.json");
+		if (b.m_Vanilla)
+			DZS_ApplyStore.MarkVanillaCopy(b.m_Target);
+		string slug = DZS_ProjectV2.Slug(name);
+		DZS_ApplyStore st = new DZS_ApplyStore(b.m_Target, slug);
+		map<string, string> over = null;
+		if (!b.m_Vanilla)
+			over = st.Overrides();
+		DZS_Patcher p = DZS_Patcher.Run(pj, b.m_Dir, over);
 		array<string> lines = DZS_ApplyResult.Lines(p.m_Report, b.m_Name);
-		string text = "";
-		foreach (string l : lines)
-			text += l + "\n";
-		array<string> chunks = DZS_Files.Chunk(text);
-		DZS_Files.Write(outDir + "\\dzstudio-report.txt", chunks);
+		if (!st.Apply(p, lines, err))
+		{
+			Failed(err);
+			return;
+		}
+		b.m_Applied = st.m_Stamp;
 		int ms = (TickCount(0) - t0) / 10000;
-		DZS_Log.Info("patch: applied '" + name + "' to " + b.m_Dir + " in " + ms + " ms -> " + outDir + ", " + p.m_OutPaths.Count() + " file(s)");
-		DZS_ApplyResultDialog d = new DZS_ApplyResultDialog(p.m_Report, b.m_Name, Shown("Output\\" + outName), p.m_OutPaths.Count());
+		string done = "patch: applied '" + name + "' to " + b.m_Dir + " in " + ms + " ms -> " + b.m_Target;
+		done += ", " + p.m_OutPaths.Count() + " file(s), kept " + st.m_Orig.Count() + ", created " + st.m_Created.Count();
+		DZS_Log.Info(done);
+		DZS_ApplyResultDialog d = new DZS_ApplyResultDialog(this, p.m_Report, b, p.m_OutPaths.Count());
 		d.Open();
+	}
+
+	// "Undo" / "Remove": asks first; from the apply dialog its row is updated afterwards.
+	void AskUndo(DZS_PatchBase b, DZS_ApplyDialog source = null)
+	{
+		m_UndoBase = b;
+		m_UndoFrom = source;
+		string kicker = DZS_Texts.Pick("Projekt", "Project");
+		string title = DZS_Texts.Pick("Rückgängig machen", "Undo");
+		string text = DZS_Texts.Pick("Alle Änderungen von „", "Take back every change of '") + ProjectName();
+		text += DZS_Texts.Pick("“ in ", "' in ") + b.m_TargetShown;
+		text += DZS_Texts.Pick(" zurücknehmen? Die gesicherten Originale kommen zurück, neue Dateien werden gelöscht.", "? The kept originals come back, new files are deleted.");
+		DZS_ConfirmDialog c = new DZS_ConfirmDialog(kicker, title, text);
+		c.AddFootButton("cancel", DZS_Texts.Get("core.dialog.cancel"), "side");
+		DZS_Button yes = c.AddFootButton("undo", DZS_Texts.Pick("Rückgängig", "Undo"), "danger");
+		yes.m_Hit.m_Primary = true;
+		c.m_OnResult.Insert(OnUndoAnswer);
+		c.Open();
+	}
+
+	void OnUndoAnswer(DZS_Dialog d, string result)
+	{
+		DZS_PatchBase b = m_UndoBase;
+		DZS_ApplyDialog source = m_UndoFrom;
+		m_UndoBase = null;
+		m_UndoFrom = null;
+		if (result != "undo" || !b)
+			return;
+		string slug = DZS_ProjectV2.Slug(ProjectName());
+		DZS_ApplyStore st = new DZS_ApplyStore(b.m_Target, slug);
+		int restored = st.m_Orig.Count();
+		int deleted = st.m_Created.Count();
+		st.Undo();
+		DZS_Log.Info("patch: undone '" + ProjectName() + "' in " + b.m_Target + ": " + restored + " restored, " + deleted + " deleted");
+		string msg = DZS_Texts.Pick("Rückgängig gemacht: ", "Undone: ") + restored + DZS_Texts.Pick(" Originale zurück, ", " originals back, ");
+		msg += deleted.ToString() + DZS_Texts.Pick(" neue Dateien gelöscht", " new files deleted");
+		m_Kernel.GetScreen().ShowMessage("patcher.apply", "success", msg, 8.0);
+		Describe(b, ProjectName(), MapKey());
+		if (source)
+			source.Refresh();
 	}
 }
 
@@ -368,27 +692,28 @@ class DZS_ApplyResult
 	}
 }
 
-// Choosing the base: one row per base, the chosen one marked; the output folder below.
+// Choosing the base: one row per base, the chosen one marked, "Remove" where this project is applied; below, the
+// folder the changes go to.
 class DZS_ApplyDialog : DZS_Dialog
 {
 	protected DZS_PatchApply m_A;
 	protected ref array<ref DZS_PatchBase> m_Bases;
 	protected int m_Pick;
-	protected string m_Out;
 	protected ref array<TextWidget> m_Names = new array<TextWidget>();
 	protected ref array<TextWidget> m_Metas = new array<TextWidget>();
 	protected ref array<ref DZS_Button> m_Picks = new array<ref DZS_Button>();
+	protected ref array<ref DZS_Button> m_Removes = new array<ref DZS_Button>();
 	protected TextWidget m_BaseLbl;
-	protected TextWidget m_OutLbl;
-	protected TextWidget m_OutPath;
 	protected TextWidget m_Hint;
+	protected TextWidget m_ChgLbl;
+	protected TextWidget m_ChgPath;
+	protected TextWidget m_ChgNote;
 
-	void DZS_ApplyDialog(DZS_PatchApply a, array<ref DZS_PatchBase> bases, int pick, string outShown)
+	void DZS_ApplyDialog(DZS_PatchApply a, array<ref DZS_PatchBase> bases, int pick)
 	{
 		m_A = a;
 		m_Bases = bases;
 		m_Pick = pick;
-		m_Out = outShown;
 		Setup(MEDIUM, DZS_Texts.Pick("Projekt", "Project"), DZS_Texts.Pick("Auf Missionsordner anwenden", "Apply to mission folder"), true);
 		AddFootButton("cancel", DZS_Texts.Get("core.dialog.cancel"), "side");
 		DZS_Button go = AddFootButton("apply", DZS_Texts.Pick("Anwenden", "Apply"), "main");
@@ -409,17 +734,23 @@ class DZS_ApplyDialog : DZS_Dialog
 			DZS_Button b = new DZS_Button(inner, "side", DZS_Texts.Pick("Wählen", "Choose"));
 			b.m_Tag = i.ToString();
 			b.m_OnClick.Insert(OnPick);
+			DZS_Button r = new DZS_Button(inner, "danger", DZS_Texts.Pick("Entfernen", "Remove"));
+			r.m_Tag = i.ToString();
+			r.m_OnClick.Insert(OnRemove);
+			r.SetTip(DZS_Texts.Pick("Änderungen dieses Projekts zurücknehmen, Originale wiederherstellen", "Take this project's changes back, restore the originals"));
 			m_Names.Insert(n);
 			m_Metas.Insert(m);
 			m_Picks.Insert(b);
+			m_Removes.Insert(r);
 			AddFocusHit(b.m_Hit);
+			AddFocusHit(r.m_Hit);
 		}
 		m_Hint = DZS_W.Text(inner, DZS_Font.READ, 13, DZS_Color.Get("textQuiet"));
 		m_Hint.SetText(DZS_Texts.Pick("Eigene Server-Dateien: Missionsordner nach ", "Your server's files: copy the mission folder to ") + DZS_PatchApply.Shown("Missions") + DZS_Texts.Pick(" kopieren.", "."));
-		m_OutLbl = DZS_W.Text(inner, DZS_Font.READ, 12, DZS_Color.Get("textMuted"));
-		m_OutLbl.SetText(DZS_Texts.Pick("AUSGABE (NUR GEÄNDERTE DATEIEN)", "OUTPUT (CHANGED FILES ONLY)"));
-		m_OutPath = DZS_W.Text(inner, DZS_Font.READ, 13, DZS_Color.Get("text"));
-		m_OutPath.SetText(m_Out);
+		m_ChgLbl = DZS_W.Text(inner, DZS_Font.READ, 12, DZS_Color.Get("textMuted"));
+		m_ChgLbl.SetText(DZS_Texts.Pick("WIRD GEÄNDERT", "CHANGES GO TO"));
+		m_ChgPath = DZS_W.Text(inner, DZS_Font.READ, 13, DZS_Color.Get("text"));
+		m_ChgNote = DZS_W.Text(inner, DZS_Font.READ, 13, DZS_Color.Get("textQuiet"));
 		Mark();
 		AddFootFocus();
 	}
@@ -440,7 +771,22 @@ class DZS_ApplyDialog : DZS_Dialog
 				m_Names[i].SetColor(DZS_Color.Get("text"));
 			}
 			m_Picks[i].SetEnabled(!on);
+			m_Metas[i].SetText(m_Bases[i].m_Meta);
+			m_Removes[i].Show(m_Bases[i].m_Applied != "");
 		}
+		DZS_PatchBase b = m_Bases[m_Pick];
+		m_ChgPath.SetText(b.m_TargetShown);
+		if (b.m_Vanilla)
+			m_ChgNote.SetText(DZS_Texts.Pick("Neuer Ordner, nur die Dateien des Projekts – auf einen Server mit Vanilla-Mission kopieren", "A new folder with only the project's files – copy it onto a server that runs the vanilla mission"));
+		else
+			m_ChgNote.SetText(DZS_Texts.Pick("Originale werden gesichert – Rückgängig jederzeit", "The originals are kept – undo any time"));
+	}
+
+	// After a remove: the rows show the new state.
+	void Refresh()
+	{
+		Mark();
+		Layout();
 	}
 
 	void OnPick(DZS_Button b)
@@ -450,15 +796,30 @@ class DZS_ApplyDialog : DZS_Dialog
 		Layout();
 	}
 
+	void OnRemove(DZS_Button b)
+	{
+		DZS_PatchBase chosen = m_Bases[b.m_Tag.ToInt()];
+		m_A.AskUndo(chosen, this);
+	}
+
+	protected float RowKnobs(int i)
+	{
+		float bw = m_Picks[i].GetWidth();
+		if (m_Bases[i].m_Applied != "")
+			bw += m_Removes[i].GetWidth() + DZS_Scale.Px(8);
+		return bw;
+	}
+
 	override float BoxWidth()
 	{
 		float w = super.BoxWidth();
 		for (int i = 0; i < m_Metas.Count(); i++)
 		{
-			float need = Math.Max(DZS_W.TextWidth(m_Metas[i]), DZS_W.TextWidth(m_Names[i])) + m_Picks[i].GetWidth() + DZS_Scale.Px(64);
+			float need = Math.Max(DZS_W.TextWidth(m_Metas[i]), DZS_W.TextWidth(m_Names[i])) + RowKnobs(i) + DZS_Scale.Px(64);
 			w = Math.Max(w, need);
 		}
-		w = Math.Max(w, DZS_W.TextWidth(m_OutPath) + DZS_Scale.Px(48));
+		w = Math.Max(w, DZS_W.TextWidth(m_ChgPath) + DZS_Scale.Px(48));
+		w = Math.Max(w, DZS_W.TextWidth(m_ChgNote) + DZS_Scale.Px(48));
 		w = Math.Max(w, DZS_W.TextWidth(m_Hint) + DZS_Scale.Px(48));
 		return Math.Min(w, DZS_Scale.Px(960));
 	}
@@ -470,18 +831,22 @@ class DZS_ApplyDialog : DZS_Dialog
 		y += DZS_Scale.Px(22);
 		for (int i = 0; i < m_Names.Count(); i++)
 		{
-			float bw = m_Picks[i].GetWidth();
+			float bw = RowKnobs(i);
+			float pw = m_Picks[i].GetWidth();
 			DZS_W.Place(m_Names[i], 0, y, width - bw - DZS_Scale.Px(8), DZS_Scale.Px(20));
 			DZS_W.Place(m_Metas[i], 0, y + DZS_Scale.Px(22), width - bw - DZS_Scale.Px(8), DZS_Scale.Px(18));
-			m_Picks[i].Place(width - bw, y + DZS_Scale.Px(8));
+			m_Picks[i].Place(width - pw, y + DZS_Scale.Px(8));
+			m_Removes[i].Place(width - bw, y + DZS_Scale.Px(8));
 			y += DZS_Scale.Px(50);
 		}
 		DZS_W.Place(m_Hint, 0, y, width, DZS_Scale.Px(18));
 		y += DZS_Scale.Px(34);
-		DZS_W.Place(m_OutLbl, 0, y, width, DZS_Scale.Px(16));
+		DZS_W.Place(m_ChgLbl, 0, y, width, DZS_Scale.Px(16));
 		y += DZS_Scale.Px(22);
-		DZS_W.Place(m_OutPath, 0, y, width, DZS_Scale.Px(20));
-		y += DZS_Scale.Px(24);
+		DZS_W.Place(m_ChgPath, 0, y, width, DZS_Scale.Px(20));
+		y += DZS_Scale.Px(22);
+		DZS_W.Place(m_ChgNote, 0, y, width, DZS_Scale.Px(18));
+		y += DZS_Scale.Px(22);
 		return y;
 	}
 
@@ -495,17 +860,19 @@ class DZS_ApplyDialog : DZS_Dialog
 	}
 }
 
-// After applying: the counts, what needs a look (up to six lines), the files, the output folder.
+// After applying: the counts, what needs a look (up to six lines), the files, the folder that was changed.
 class DZS_ApplyResultDialog : DZS_Dialog
 {
+	protected DZS_PatchApply m_A;
+	protected ref DZS_PatchBase m_Base;
 	protected ref array<string> m_Lines = new array<string>();
 	protected ref array<string> m_Tones = new array<string>();
 	protected ref array<TextWidget> m_Widgets = new array<TextWidget>();
-	protected string m_Out;
 
-	void DZS_ApplyResultDialog(DZS_PatchReport r, string baseName, string outShown, int fileCount)
+	void DZS_ApplyResultDialog(DZS_PatchApply a, DZS_PatchReport r, DZS_PatchBase b, int fileCount)
 	{
-		m_Out = outShown;
+		m_A = a;
+		m_Base = b;
 		Add(CountLine(r), "text");
 		array<string> notable = DZS_ApplyResult.Notable(r, 6);
 		int more = DZS_ApplyResult.CountOf(r, "overrode") + DZS_ApplyResult.CountOf(r, "missing") + DZS_ApplyResult.CountOf(r, "refused") - notable.Count();
@@ -514,20 +881,24 @@ class DZS_ApplyResultDialog : DZS_Dialog
 		foreach (string n : notable)
 			Add(n, "warning");
 		if (more > 0)
-			Add(DZS_Texts.Pick("… und ", "… and ") + more + DZS_Texts.Pick(" weitere (siehe dzstudio-report.txt)", " more (see dzstudio-report.txt)"), "textQuiet");
+			Add(DZS_Texts.Pick("… und ", "… and ") + more + DZS_Texts.Pick(" weitere (siehe .dzstudio\\…\\report.txt)", " more (see .dzstudio\\…\\report.txt)"), "textQuiet");
 		Add("", "text");
 		array<DZS_PatchFileNote> files = r.SortedFiles();
 		foreach (DZS_PatchFileNote f : files)
 			Add(f.m_Path + " — " + DZS_ApplyResult.FileText(f.m_Status), "textQuiet");
 		Add("", "text");
-		if (fileCount > 0)
-			Add(DZS_Texts.Pick("In den Missionsordner des Servers kopieren (vorhandene Dateien ersetzen):", "Copy into the server's mission folder (replace existing files):"), "text");
-		else
+		if (fileCount == 0)
 			Add(DZS_Texts.Pick("Nichts zu ändern – die Basis entspricht schon dem Projekt.", "Nothing to change – the base already matches the project."), "text");
-		Add(outShown, "accentText");
+		else if (b.m_Vanilla)
+			Add(DZS_Texts.Pick("Neuer Ordner mit den Dateien des Projekts – auf einen Server mit Vanilla-Mission kopieren:", "A new folder with the project's files – copy it onto a server that runs the vanilla mission:"), "text");
+		else
+			Add(DZS_Texts.Pick("Direkt im Missionsordner geändert (Originale gesichert, Rückgängig jederzeit):", "Changed in the mission folder itself (originals kept, undo any time):"), "text");
+		Add(b.m_TargetShown, "accentText");
 		if (r.m_Notes.Find("enableCfgGameplayFile") >= 0)
 			Add(DZS_Texts.Pick("Der Server braucht enableCfgGameplayFile = 1 in serverDZ.cfg.", "The server needs enableCfgGameplayFile = 1 in serverDZ.cfg."), "textQuiet");
-		Setup(MEDIUM, DZS_Texts.Pick("Projekt", "Project"), DZS_Texts.Pick("Angewendet auf ", "Applied to ") + baseName, false);
+		Setup(MEDIUM, DZS_Texts.Pick("Projekt", "Project"), DZS_Texts.Pick("Angewendet auf ", "Applied to ") + b.m_Name, false);
+		if (b.m_Applied != "")
+			AddFootButtonLeft("undo", DZS_Texts.Pick("Rückgängig", "Undo"), "side");
 		AddFootButton("copy", DZS_Texts.Pick("Pfad kopieren", "Copy path"), "side");
 		DZS_Button ok = AddFootButton("done", DZS_Texts.Pick("Fertig", "Done"), "main");
 		ok.m_Hit.m_Primary = true;
@@ -590,6 +961,11 @@ class DZS_ApplyResultDialog : DZS_Dialog
 	void OnAnswer(DZS_Dialog d, string result)
 	{
 		if (result == "copy")
-			GetGame().CopyToClipboard(m_Out);
+			GetGame().CopyToClipboard(m_Base.m_TargetShown);
+		if (result == "undo")
+		{
+			DZS_PatchBase b = m_Base;
+			GetGame().GetCallQueue(CALL_CATEGORY_GUI).CallLater(m_A.AskUndo, 1, false, b, null);
+		}
 	}
 }
