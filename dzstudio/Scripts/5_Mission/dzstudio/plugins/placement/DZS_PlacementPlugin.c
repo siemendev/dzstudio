@@ -60,6 +60,34 @@ class DZS_PlaceEsc : DZS_EscHandler
 	override void OnEsc() { m_P.Esc(m_What); }
 }
 
+// Another plugin takes over placing a class from the hand (the Spawns layer turns a vehicle into an own event).
+class DZS_PlaceDivert : Managed
+{
+	protected static ref array<ref DZS_PlaceDivert> s_All;
+
+	static void Add(DZS_PlaceDivert d)
+	{
+		if (!s_All)
+			s_All = new array<ref DZS_PlaceDivert>();
+		s_All.Insert(d);
+	}
+
+	static bool Take(DZS_Instance inst, string name, vector pos, vector ypr)
+	{
+		if (!s_All)
+			return false;
+		foreach (DZS_PlaceDivert d : s_All)
+		{
+			if (d.Place(inst, name, pos, ypr))
+				return true;
+		}
+		return false;
+	}
+
+	// True when this placed the class itself.
+	bool Place(DZS_Instance inst, string name, vector pos, vector ypr) { return false; }
+}
+
 [DZS_RegisterPlugin(DZS_PlacementPlugin)]
 class DZS_PlacementPlugin : DZS_Plugin
 {
@@ -1088,6 +1116,18 @@ class DZS_PlacementPlugin : DZS_Plugin
 		if (m_HandNoGround)
 		{
 			DZS_Log.Info("placement: no ground under the pointer, nothing placed");
+			return;
+		}
+		if (!m_HandCopy && DZS_PlaceDivert.Take(inst, m_HandObj.m_Name, m_HandObj.m_Pos, m_HandObj.m_Ypr))
+		{
+			DZS_CatalogApi dcat = DZS_CatalogApi.Get();
+			if (dcat)
+				dcat.NoteUsed(m_HandObj.m_Name);
+			if (!keep && dcat)
+			{
+				dcat.DropHand();
+				SyncHand(inst);
+			}
 			return;
 		}
 		if (!ActiveGroupOpen(inst))

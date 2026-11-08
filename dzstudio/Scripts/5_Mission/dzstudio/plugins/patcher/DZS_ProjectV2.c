@@ -59,9 +59,44 @@ class DZS_ProjectV2
 		DZS_Json changes = DZS_Json.Arr();
 		Groups(kernel, inst, blocks);
 		Loot(kernel, inst, blocks, changes);
+		Sections(inst, blocks, changes);
 		root.Set("blocks", blocks);
 		root.Set("changes", changes);
 		return root;
+	}
+
+	// Layers that keep their part as a building-block fragment {blocks, changes} in project.plugins (Spawns …).
+	protected static void Sections(DZS_Instance inst, DZS_Json blocks, DZS_Json changes)
+	{
+		array<ref DZS_ProjectSection> sections = DZS_ProjectSections.All();
+		foreach (DZS_ProjectSection s : sections)
+		{
+			string text = s.Text(inst);
+			if (text == "")
+				continue;
+			string err;
+			DZS_Json frag = DZS_Json.ParseText(text, err);
+			if (!frag || !frag.IsObj())
+				continue;
+			DZS_Json fb = frag.Get("blocks");
+			if (fb && fb.IsArr())
+			{
+				for (int i = 0; i < fb.Count(); i++)
+				{
+					DZS_Json one = fb.At(i);
+					blocks.Add(one);
+				}
+			}
+			DZS_Json fc = frag.Get("changes");
+			if (fc && fc.IsArr())
+			{
+				for (int k = 0; k < fc.Count(); k++)
+				{
+					DZS_Json two = fc.At(k);
+					changes.Add(two);
+				}
+			}
+		}
 	}
 
 	// ---- spawner groups ----

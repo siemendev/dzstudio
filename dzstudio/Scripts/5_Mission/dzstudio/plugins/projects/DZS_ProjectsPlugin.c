@@ -2831,6 +2831,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		int pv;
 		string pplugins = "[]";
 		inst.GetCompanion(DZS_PROJECT_ID, DZS_LocalStore.GROUP_PLUGINS, pv, pplugins);
+		pplugins = DZS_ProjectSections.Merge(inst, pplugins);
 		bool namesOnly = ProviderOf(m_Open.m_Folder) != null;
 		string proj = DZS_ProjectFile.ProjectPart(entries, le == "true", lh == "true", ll == "true", pid, types, origs, namesOnly, pplugins);
 		plan.m_ProjectPart = proj;
