@@ -327,7 +327,34 @@ def registrations():
              [fl(GP, "written"), fl(KP, "created")], ["enableCfgGameplayFile"],
              changes=[G("WorldsData.playerRestrictedAreaFiles", None, [])])
 
+RULES = "https://developers.dzbot.de/specs/dzbot/rules/1.json"
+NOTES = "https://example.com/specs/notes/1.json"
+
+def extensions_ignored():
+    # extensions of the project, its blocks, its changes and of objects inside block data never reach a file
+    data = json.loads(json.dumps(SPAWNER))
+    data["objects"][1]["extensions"] = {RULES: {"if": {"field": "barrel", "op": "eq", "value": True}}, NOTES: {"text": "x"}}
+    blk = {"id": "b-koth", "kind": "spawnerGroup", "parent": None, "data": data,
+           "extensions": {RULES: {"repeat": {"count": "2"}}, NOTES: {"text": "group"}}}
+    change = G("WorldsData.lightingConfig", N("1"), N("1"))
+    change["extensions"] = {RULES: {"formula": "base"}}
+    preset = {"id": "b-c", "kind": "cargoPreset", "parent": None, "extensions": {RULES: {"if": {"field": "loot", "op": "eq", "value": True}}},
+              "data": {"name": "myLoot", "chance": N("0.5"), "item": [{"name": "Apple", "chance": N("0.5"), "extensions": {RULES: {"repeat": {"count": "3"}}}}]}}
+    proj = {"slug": "test", "blocks": [blk, preset], "changes": [change],
+            "extensions": {RULES: {"data": {}}, NOTES: {"required": False, "data": {"text": "project"}}}}
+    from cases_ce import RPBASE, RP
+    presets = rep(RPBASE, '</randompresets>', '''\t\t<cargo chance="0.5" name="myLoot">
+\t\t\t\t<item name="Apple" chance="0.5" />
+\t\t</cargo>
+</randompresets>''')
+    case("extensions-ignored", {GP: SMALL % '', RP: RPBASE}, proj,
+         {GP: SMALL % (',\n\t\t"objectSpawnersArr": ["%s"]' % KP), KP: SPAWNER_TEXT, RP: presets},
+         {"entries": [gch(0, "WorldsData.lightingConfig", "already"), bl(0, "spawnerGroup", "b-koth", "applied", KP),
+                      bl(1, "cargoPreset", "b-c", "applied", RP), reg("b-koth", KP, "applied")],
+          "files": [fl(GP, "written"), fl(RP, "written"), fl(KP, "created")], "notes": ["enableCfgGameplayFile"]})
+
 def run():
+    extensions_ignored()
     effect_areas()
     effect_area_sakhal()
     effect_area_broken()

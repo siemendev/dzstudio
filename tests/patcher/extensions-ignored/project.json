@@ -1,0 +1,122 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "slug": "test",
+    "blocks": [
+        {
+            "id": "b-koth",
+            "kind": "spawnerGroup",
+            "parent": null,
+            "data": {
+                "name": "KotH",
+                "objects": [
+                    {
+                        "name": "Land_Mil_Barracks1",
+                        "pos": [
+                            100,
+                            5.5,
+                            200
+                        ],
+                        "ypr": [
+                            90,
+                            0,
+                            0
+                        ]
+                    },
+                    {
+                        "name": "Barrel_Blue",
+                        "pos": [
+                            101,
+                            5,
+                            201
+                        ],
+                        "scale": 1.5,
+                        "enableCEPersistency": 1,
+                        "customString": "x",
+                        "extensions": {
+                            "https://developers.dzbot.de/specs/dzbot/rules/1.json": {
+                                "if": {
+                                    "field": "barrel",
+                                    "op": "eq",
+                                    "value": true
+                                }
+                            },
+                            "https://example.com/specs/notes/1.json": {
+                                "text": "x"
+                            }
+                        }
+                    }
+                ]
+            },
+            "extensions": {
+                "https://developers.dzbot.de/specs/dzbot/rules/1.json": {
+                    "repeat": {
+                        "count": "2"
+                    }
+                },
+                "https://example.com/specs/notes/1.json": {
+                    "text": "group"
+                }
+            }
+        },
+        {
+            "id": "b-c",
+            "kind": "cargoPreset",
+            "parent": null,
+            "extensions": {
+                "https://developers.dzbot.de/specs/dzbot/rules/1.json": {
+                    "if": {
+                        "field": "loot",
+                        "op": "eq",
+                        "value": true
+                    }
+                }
+            },
+            "data": {
+                "name": "myLoot",
+                "chance": 0.5,
+                "item": [
+                    {
+                        "name": "Apple",
+                        "chance": 0.5,
+                        "extensions": {
+                            "https://developers.dzbot.de/specs/dzbot/rules/1.json": {
+                                "repeat": {
+                                    "count": "3"
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "gameplaySetting",
+            "key": {
+                "path": "WorldsData.lightingConfig"
+            },
+            "from": 1,
+            "to": 1,
+            "extensions": {
+                "https://developers.dzbot.de/specs/dzbot/rules/1.json": {
+                    "formula": "base"
+                }
+            }
+        }
+    ],
+    "extensions": {
+        "https://developers.dzbot.de/specs/dzbot/rules/1.json": {
+            "data": {}
+        },
+        "https://example.com/specs/notes/1.json": {
+            "required": false,
+            "data": {
+                "text": "project"
+            }
+        }
+    }
+}

@@ -1,0 +1,58 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "gameplaySetting",
+            "key": {
+                "path": "WorldsData.lightingConfig"
+            },
+            "status": "already",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "spawnerGroup",
+            "id": "b-koth",
+            "status": "applied",
+            "file": "dzstudio/test/b-koth.json"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "cargoPreset",
+            "id": "b-c",
+            "status": "applied",
+            "file": "cfgrandompresets.xml"
+        },
+        {
+            "what": "registration",
+            "id": "b-koth",
+            "field": "WorldsData.objectSpawnersArr",
+            "value": "dzstudio/test/b-koth.json",
+            "status": "applied",
+            "file": "cfggameplay.json"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfggameplay.json",
+            "status": "written"
+        },
+        {
+            "path": "cfgrandompresets.xml",
+            "status": "written"
+        },
+        {
+            "path": "dzstudio/test/b-koth.json",
+            "status": "created"
+        }
+    ],
+    "notes": [
+        "enableCfgGameplayFile"
+    ]
+}

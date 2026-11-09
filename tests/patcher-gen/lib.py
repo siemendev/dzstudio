@@ -32,6 +32,8 @@ def case(name, base, project, expected, report):
         p["slug"] = project["slug"]
     p["blocks"] = project.get("blocks", [])
     p["changes"] = project.get("changes", [])
+    if "extensions" in project:
+        p["extensions"] = project["extensions"]
     write(os.path.join(d, 'project.json'), dump(p))
     for rel, content in expected.items():
         write(os.path.join(d, 'expected', rel), content)
