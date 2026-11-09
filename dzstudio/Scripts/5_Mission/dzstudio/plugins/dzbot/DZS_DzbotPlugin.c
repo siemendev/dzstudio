@@ -109,6 +109,9 @@ class DZS_DzbotProject : Managed
 	string m_Session;
 	// a mod's kind in dzbot: "files", or "project" — a building-block project saved as one file, dzstudio/project.json
 	string m_ModKind;
+	// a placement's kind in dzbot: "objects" (one spawner file, placement.json), or "project" — a building-block
+	// project like a project mod's, saved as its one file dzstudio/project.json
+	string m_PlacementKind;
 	ref DZS_DzbotFile m_ProjectFile;
 	// a project mod's settings, for the rules (DZS_DzbotRules)
 	ref array<ref DZS_DzbotSetting> m_Settings = new array<ref DZS_DzbotSetting>();
@@ -141,6 +144,8 @@ class DZS_DzbotProject : Managed
 	int Revision()
 	{
 		int r = m_ManifestRev;
+		if (m_ProjectFile && m_ProjectFile.m_Rev > r)
+			r = m_ProjectFile.m_Rev;
 		foreach (DZS_DzbotFile f : m_Files)
 		{
 			if (f.m_Rev > r)
@@ -246,7 +251,7 @@ class DZS_DzbotProvider : DZS_StoreProvider
 	override bool GroupsFixed(string folder, out string de, out string en)
 	{
 		DZS_DzbotProject dp = m_P.ProjectOf(folder);
-		if (!dp || dp.m_Kind != "placement")
+		if (!dp || dp.m_Kind != "placement" || DZS_DzbotPlugin.HoldsProject(dp))
 			return false;
 		de = "Eine Platzierung hat genau eine Gruppe";
 		en = "A placement has exactly one group";
@@ -1180,6 +1185,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		}
 		dp.m_Kind = DZS_DzbotCatalog.Text(p, "kind");
 		dp.m_ModKind = DZS_DzbotCatalog.Text(p, "modKind");
+		dp.m_PlacementKind = DZS_DzbotCatalog.Text(p, "placementKind");
 		dp.m_Name = DZS_DzbotCatalog.Text(p, "name");
 		dp.m_MapKey = MapOf(p);
 		dp.m_Owner = DZS_DzbotCatalog.Text(p, "owner");
@@ -1251,6 +1257,15 @@ class DZS_DzbotPlugin : DZS_Plugin
 	static bool IsProjectMod(DZS_DzbotProject dp)
 	{
 		return dp.m_Kind == "mod" && dp.m_ModKind == "project";
+	}
+
+	// A project mod or a placement built as a project: one file, dzstudio/project.json, opened and saved as the
+	// project file. Only a project mod has settings and the dzbot rules.
+	static bool HoldsProject(DZS_DzbotProject dp)
+	{
+		if (IsProjectMod(dp))
+			return true;
+		return dp.m_Kind == "placement" && dp.m_PlacementKind == "project";
 	}
 
 	// The text of dzstudio/project.json in a load reply, null when the mod has none.
@@ -1344,13 +1359,12 @@ class DZS_DzbotPlugin : DZS_Plugin
 			pp.Fetched("", false, FILES_MOD_DE, FILES_MOD_EN);
 			return;
 		}
-		bool asProject = IsProjectMod(dp);
+		bool asProject = HoldsProject(dp);
 		array<string> projectChunks = null;
 		if (asProject)
-		{
 			projectChunks = ProjectChunksOf(r);
+		if (IsProjectMod(dp))
 			TakeSettings(r.m_Json.Get("settings"), dp.m_Settings);
-		}
 		string projectPart = "";
 		DZS_DzbotSection msec = r.Find("manifest", "manifest");
 		if (msec)
@@ -1481,7 +1495,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		RemoveStale(folder, keep);
 		if (asProject)
 		{
-			// the project file of the mod opens like a local one (through its working folder)
+			// the project file of the mod or placement opens like a local one (through its working folder)
 			string mapSet = "";
 			if (chose)
 				mapSet = dp.m_MapKey;
@@ -1490,7 +1504,8 @@ class DZS_DzbotPlugin : DZS_Plugin
 				own = DZS_LocalStore.NewFile(dp.m_Name, dp.m_MapKey, "", "objects.json", DZS_Texts.Get("core.group.objects"));
 			DZS_Files.Write(DZS_LocalStore.Path(folder, DZS_ProjectFile.NAME), own);
 			dp.m_Loot = null;
-			DZS_Log.Info("dzbot: loaded project mod " + dp.m_Ref + " '" + dp.m_Name + "' map " + dp.m_MapKey + ", project file " + (projectChunks != null));
+			string loadedHead = "dzbot: loaded project " + dp.m_Kind + " " + dp.m_Ref + " '" + dp.m_Name + "'";
+			DZS_Log.Info(loadedHead + " map " + dp.m_MapKey + ", project file " + (projectChunks != null));
 			pp.Fetched(folder, true, "", "");
 			return;
 		}
@@ -1968,6 +1983,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		st.Set("ref", DZS_Json.Str(dp.m_Ref));
 		st.Set("kind", DZS_Json.Str(dp.m_Kind));
 		st.Set("modKind", DZS_Json.Str(dp.m_ModKind));
+		st.Set("placementKind", DZS_Json.Str(dp.m_PlacementKind));
 		st.Set("name", DZS_Json.Str(dp.m_Name));
 		st.Set("map", DZS_Json.Str(dp.m_MapKey));
 		st.Set("manifest", DZS_Json.Int(dp.m_ManifestRev));
@@ -2005,6 +2021,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		dp.m_Ref = pref;
 		dp.m_Kind = st.GetStr("kind");
 		dp.m_ModKind = st.GetStr("modKind");
+		dp.m_PlacementKind = st.GetStr("placementKind");
 		dp.m_Name = st.GetStr("name");
 		dp.m_MapKey = st.GetStr("map");
 		dp.m_ManifestRev = st.GetInt("manifest");
@@ -2048,7 +2065,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		}
 		m_Projects.Set(pref, dp);
 		DZS_Log.Info("dzbot: restored " + pref + " at revision " + dp.Revision() + ", " + dp.m_Files.Count() + " file(s)");
-		if (IsProjectMod(dp))
+		if (HoldsProject(dp))
 		{
 			dp.m_Loot = null;
 			return;
@@ -2343,7 +2360,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		sv.m_Folder = folder;
 		sv.m_Files = files;
 		sv.m_SaveId = DZS_Random.Code(24);
-		bool asProject = dp.m_ModKind == "project";
+		bool asProject = HoldsProject(dp);
 		array<ref DZS_SaveFile> use = files;
 		if (!asProject)
 			use = PlacementFiles(dp, files);
@@ -2600,8 +2617,9 @@ class DZS_DzbotPlugin : DZS_Plugin
 		DZS_Log.Info("dzbot: save handed to the request in " + ((TickCount(0) - t0) / 10000) + " ms");
 	}
 
-	// A project mod holds the project as building blocks: the saved project file (blocks and the extensions — the
-	// editor part and the dzbot rules among them) replaces dzstudio/project.json.
+	// A project mod or project placement holds the project as building blocks: the saved project file (blocks and the
+	// extensions — the editor part and the dzbot rules among them) replaces dzstudio/project.json, for a placement its
+	// one file (key "placement").
 	protected void ProjectPart(DZS_DzbotProject dp, DZS_DzbotSave sv, array<ref DZS_SaveFile> files)
 	{
 		DZS_DzbotFile pf = dp.m_ProjectFile;
@@ -2613,7 +2631,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		}
 		if (!chunks)
 		{
-			DZS_Log.Warn("dzbot: project mod " + dp.m_Ref + ": no project file in the save, nothing of the project saved");
+			DZS_Log.Warn("dzbot: project " + dp.m_Ref + ": no project file in the save, nothing of the project saved");
 			return;
 		}
 		if (!pf)
