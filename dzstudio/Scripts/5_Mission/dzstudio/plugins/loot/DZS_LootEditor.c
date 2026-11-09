@@ -1150,6 +1150,8 @@ class DZS_LootEditor : Managed
 			DZS_LootEPoint p = lc.m_Points[i].Copy();
 			p.m_Src = -1;
 			p.m_Flags = "";
+			p.m_Uid = "";
+			p.m_Ext = DZS_ExtCopy.Text(p.m_Ext, "block", "lootPoint", "", true);
 			lc.m_Points.InsertAt(p, i + 1);
 		}
 		// the copies: each original's index shifted by the copies before it

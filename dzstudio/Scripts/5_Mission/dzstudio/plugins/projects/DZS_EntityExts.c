@@ -5,8 +5,13 @@
 // - a spawner group and each of its objects: field "ext"; the loot row of an object with loot: "ext:lootRow";
 // - layer elements (Spawns, Effects, Territories): "ext" for the block an element makes ("ext:child" for an own event's
 //   child), ChangeSlot ("ext:<field>", "ext:remove") for each change an element makes;
-// - loot: an own block on its part of the loot entry's data (DZS_LootEEntry/Container/Point.m_Ext), a change in the
-//   loot:entry element's field "ext" (an object of extensions by change ref — the key of a base entry, never an index).
+// - loot: an own block on its part of the loot entry's data (DZS_LootEEntry/Container/Point.m_Ext, the part found by its
+//   m_Uid), a change in the loot:entry element's field "ext" (an object of extensions by change ref — the key of a base
+//   entry, never an index);
+// - the project's own entries (Project › Extensions, the dzbot settings): field "ext:project:<url>" of the project
+//   element, so they are undone, redone and shared like everything else.
+// An entity is addressed by where its extensions live (DZS_ExtOwner.Key: element id, field, change ref, loot part id) —
+// never by its place in a list; dialogs keep that and ask Alive before writing.
 // Opening hands the file's extensions to the model once: layers take theirs while restoring their elements (by block id
 // and change ref of the same file), Distribute the rest (spawner groups by block id, objects by their index in the
 // opened group, loot changes by ref, loot blocks by their content). DZS_ProjectV2.Build reads them from the model and
@@ -23,6 +28,14 @@ class DZS_ExtOwner : Managed
 	string m_Path;
 	// the block's kind, for blocks
 	string m_Kind;
+
+	// The entity's identity in the model: the same entity has the same key in every state, whatever moved around it.
+	string Key()
+	{
+		string k = m_Elem + "\n" + m_Slot;
+		k += "\n" + m_Sub;
+		return k + "\n" + m_Path;
+	}
 
 	static DZS_ExtOwner Make(string elem, string slot, string sub = "", string path = "")
 	{
@@ -50,6 +63,10 @@ class DZS_ExtIndex : Managed
 	ref map<string, string> m_GroupBlock = new map<string, string>();
 	// block id -> the element ids of its "objects" in the order Build wrote them
 	ref map<string, ref array<string>> m_Objects = new map<string, ref array<string>>();
+	// DZS_ExtOwner.Key of every entity of the state
+	ref map<string, bool> m_Keys = new map<string, bool>();
+	// the project as Build made it
+	ref DZS_Json m_Root;
 
 	array<ref DZS_ExtOwner> All()
 	{
@@ -68,6 +85,8 @@ class DZS_EntityExts
 {
 	static const string MEMBER = "extensions";
 	static const string SLOT = "ext";
+	// field of the project element with a project entry's data: + url
+	static const string PROJECT_SLOT = "ext:project:";
 
 	// being recorded by DZS_ProjectV2.Build
 	protected static ref DZS_ExtIndex s_Rec;
@@ -362,6 +381,7 @@ class DZS_EntityExts
 	{
 		if (complete && s_Rec)
 		{
+			s_Rec.m_Root = root;
 			s_Index = s_Rec;
 			if (s_FileBlockList && s_FileBlockList.Count() > 0)
 			{
@@ -417,6 +437,7 @@ class DZS_EntityExts
 		}
 		if (!s_Rec)
 			return;
+		s_Rec.m_Keys.Set(o.Key(), true);
 		if (entity.Has("op"))
 		{
 			string cref = DZS_ProjectRefs.ChangeRef(entity);
@@ -443,6 +464,7 @@ class DZS_EntityExts
 			item.Set(MEMBER, e);
 		if (!s_Rec)
 			return;
+		s_Rec.m_Keys.Set(o.Key(), true);
 		string key = ElemKey(blockId, list, index);
 		if (!s_Rec.m_Elements.Contains(key))
 			s_Rec.m_ElementKeys.Insert(key);
@@ -644,10 +666,62 @@ class DZS_EntityExts
 		pi = path.Substring(pAt + 1, path.Length() - pAt - 1).ToInt();
 	}
 
+	// "c:<uid>", "p:<uid>" (or "c:<uid>/<j>" for a point without one): the part with that identity, null when gone
+	protected static DZS_LootEContainer UidContainer(DZS_LootEEntry e, string path)
+	{
+		if (path.IndexOf("c:") != 0)
+			return null;
+		string uid = path.Substring(2, path.Length() - 2);
+		int slash = uid.IndexOf("/");
+		if (slash > 0)
+			uid = uid.Substring(0, slash);
+		return e.ContainerByUid(uid);
+	}
+
+	protected static DZS_LootEPoint UidPoint(DZS_LootEEntry e, string path)
+	{
+		if (path.IndexOf("p:") == 0)
+			return e.PointByUid(path.Substring(2, path.Length() - 2));
+		if (path.IndexOf("c:") != 0)
+			return null;
+		int pAt = path.IndexOf("/");
+		if (pAt < 0)
+			return null;
+		DZS_LootEContainer c = UidContainer(e, path);
+		int pi = path.Substring(pAt + 1, path.Length() - pAt - 1).ToInt();
+		if (!c || pi < 0 || pi >= c.m_Points.Count())
+			return null;
+		return c.m_Points[pi];
+	}
+
+	protected static bool IsUidPath(string path)
+	{
+		return path.IndexOf("c:") == 0 || path.IndexOf("p:") == 0;
+	}
+
+	protected static bool IsUidPoint(string path)
+	{
+		return path.IndexOf("p:") == 0 || (path.IndexOf("c:") == 0 && path.IndexOf("/") > 0);
+	}
+
 	protected static string PartExt(DZS_LootEEntry e, string path)
 	{
 		if (path == "t")
 			return e.m_Ext;
+		if (IsUidPath(path))
+		{
+			if (IsUidPoint(path))
+			{
+				DZS_LootEPoint up = UidPoint(e, path);
+				if (up)
+					return up.m_Ext;
+				return "";
+			}
+			DZS_LootEContainer uc = UidContainer(e, path);
+			if (uc)
+				return uc.m_Ext;
+			return "";
+		}
 		int ci;
 		int pi;
 		PathParts(path, ci, pi);
@@ -666,6 +740,22 @@ class DZS_EntityExts
 		if (path == "t")
 		{
 			e.m_Ext = text;
+			return true;
+		}
+		if (IsUidPath(path))
+		{
+			if (IsUidPoint(path))
+			{
+				DZS_LootEPoint up = UidPoint(e, path);
+				if (!up)
+					return false;
+				up.m_Ext = text;
+				return true;
+			}
+			DZS_LootEContainer uc = UidContainer(e, path);
+			if (!uc)
+				return false;
+			uc.m_Ext = text;
 			return true;
 		}
 		int ci;
@@ -950,6 +1040,7 @@ class DZS_EntityExts
 			foreach (DZS_ExtOwner o : all)
 				SetValue(inst, o, url, null);
 		}
+		SetProjectData(inst, url, null);
 		Commit(inst, "Erweiterung entfernen", "Remove extension");
 	}
 
@@ -967,5 +1058,206 @@ class DZS_EntityExts
 				r.Insert(o);
 		}
 		return r;
+	}
+
+	// ---- identity: what a dialog holds on to ----
+
+	// Whether the entity is still in the project (its element there and the entity in the current state); a dialog
+	// that edits it asks before every write and closes when it is gone.
+	static bool Alive(DZS_Instance inst, DZS_ExtOwner o)
+	{
+		if (!inst || !o || o.m_Elem == "")
+			return false;
+		if (inst.GetKind(o.m_Elem) == "")
+			return false;
+		DZS_ExtIndex idx = Index(inst);
+		if (!idx)
+			return true;
+		return idx.m_Keys.Contains(o.Key());
+	}
+
+	// The spawner group block whose owner that is, "" for any other entity.
+	protected static string GroupBlockOf(DZS_ExtIndex idx, DZS_ExtOwner block)
+	{
+		if (!idx || !block || block.m_Sub != "" || block.m_Path != "" || block.m_Slot != SLOT)
+			return "";
+		string bid;
+		if (idx.m_GroupBlock.Find(block.m_Elem, bid))
+			return bid;
+		return "";
+	}
+
+	// The list elements of a block by their identity, "<list>@<element id>", in file order.
+	static array<string> ItemKeys(DZS_Instance inst, DZS_ExtOwner block)
+	{
+		array<string> r = new array<string>();
+		DZS_ExtIndex idx = Index(inst);
+		string bid = GroupBlockOf(idx, block);
+		if (bid == "")
+			return r;
+		string prefix = bid + "\n";
+		foreach (string ek : idx.m_ElementKeys)
+		{
+			if (ek.IndexOf(prefix) != 0)
+				continue;
+			string rest = ek.Substring(prefix.Length(), ek.Length() - prefix.Length());
+			int nl = rest.IndexOf("\n");
+			if (nl <= 0)
+				continue;
+			DZS_ExtOwner eo = idx.m_Elements.Get(ek);
+			r.Insert(rest.Substring(0, nl) + "@" + eo.m_Elem);
+		}
+		return r;
+	}
+
+	// Where an element of the block is now ("objects[3]"), "" when it is not in the block any more.
+	static string ItemPath(DZS_Instance inst, DZS_ExtOwner block, string itemKey)
+	{
+		DZS_ExtIndex idx = Index(inst);
+		string bid = GroupBlockOf(idx, block);
+		int at = itemKey.IndexOf("@");
+		if (bid == "" || at <= 0)
+			return "";
+		string list = itemKey.Substring(0, at);
+		string elem = itemKey.Substring(at + 1, itemKey.Length() - at - 1);
+		string prefix = bid + "\n" + list;
+		prefix += "\n";
+		foreach (string ek : idx.m_ElementKeys)
+		{
+			if (ek.IndexOf(prefix) != 0)
+				continue;
+			DZS_ExtOwner eo = idx.m_Elements.Get(ek);
+			if (eo.m_Elem != elem)
+				continue;
+			string index = ek.Substring(prefix.Length(), ek.Length() - prefix.Length());
+			return list + "[" + index + "]";
+		}
+		return "";
+	}
+
+	// The owner of an element of the block by its identity, null when it is not in the block any more.
+	static DZS_ExtOwner ItemOwner(DZS_Instance inst, DZS_ExtOwner block, string itemKey)
+	{
+		if (ItemPath(inst, block, itemKey) == "")
+			return null;
+		int at = itemKey.IndexOf("@");
+		string elem = itemKey.Substring(at + 1, itemKey.Length() - at - 1);
+		return DZS_ExtOwner.Make(elem, SLOT);
+	}
+
+	// The extension's values on the block's elements by identity.
+	static map<string, ref DZS_Json> ItemValues(DZS_Instance inst, DZS_ExtOwner block, string url)
+	{
+		map<string, ref DZS_Json> r = new map<string, ref DZS_Json>();
+		array<string> keys = ItemKeys(inst, block);
+		foreach (string k : keys)
+		{
+			int at = k.IndexOf("@");
+			DZS_ExtOwner eo = DZS_ExtOwner.Make(k.Substring(at + 1, k.Length() - at - 1), SLOT);
+			DZS_Json v = Value(inst, eo, url);
+			if (v)
+				r.Set(k, v);
+		}
+		return r;
+	}
+
+	// The block of the current state that owner keeps the extensions of, as Build makes it; null when it is gone.
+	static DZS_Json BlockJson(DZS_Instance inst, DZS_ExtOwner block)
+	{
+		DZS_ExtIndex idx = Index(inst);
+		if (!idx || !block || !idx.m_Root)
+			return null;
+		string want = block.Key();
+		string bid = "";
+		foreach (string b : idx.m_BlockIds)
+		{
+			if (idx.m_Blocks.Get(b).Key() == want)
+			{
+				bid = b;
+				break;
+			}
+		}
+		if (bid == "")
+			return null;
+		DZS_Json blocks = idx.m_Root.Get("blocks");
+		for (int i = 0; i < blocks.Count(); i++)
+		{
+			DZS_Json one = blocks.At(i);
+			if (one.GetStr("id") == bid)
+				return one;
+		}
+		return null;
+	}
+
+	// An element of the block by its identity, as Build makes it; null when it is not in the block any more.
+	static DZS_Json ItemJson(DZS_Instance inst, DZS_ExtOwner block, string itemKey)
+	{
+		string path = ItemPath(inst, block, itemKey);
+		DZS_Json bj = BlockJson(inst, block);
+		int open = path.IndexOf("[");
+		if (!bj || open <= 0)
+			return null;
+		DZS_Json data = bj.Get("data");
+		if (!data || !data.IsObj())
+			return null;
+		DZS_Json list = data.Get(path.Substring(0, open));
+		int n = path.Substring(open + 1, path.Length() - open - 2).ToInt();
+		if (!list || !list.IsArr() || n < 0 || n >= list.Count())
+			return null;
+		return list.At(n);
+	}
+
+	// The owner of a block of the current state by its id (a dialog takes it once and keeps it).
+	static DZS_ExtOwner Owner(DZS_Instance inst, string section, string rid)
+	{
+		if (section == "changes")
+			return ChangeOwner(inst, rid);
+		return BlockOwner(inst, rid);
+	}
+
+	// ---- the project's own entries ----
+
+	// An extension's project entry data as the model holds it (a copy; staged edits included), null when none.
+	static DZS_Json ProjectData(DZS_Instance inst, string url)
+	{
+		if (!inst)
+			return null;
+		string text = Raw(inst, DZS_PROJECT_ID, PROJECT_SLOT + url);
+		if (text == "")
+			return null;
+		string err;
+		DZS_Json j = DZS_Json.ParseText(text, err);
+		if (!j || err != "")
+			return null;
+		return j;
+	}
+
+	static bool HasProjectData(DZS_Instance inst, string url)
+	{
+		if (!inst)
+			return false;
+		return Raw(inst, DZS_PROJECT_ID, PROJECT_SLOT + url) != "";
+	}
+
+	// Replaces it (null removes it); committed with Commit, together with entity edits staged with it.
+	static void SetProjectData(DZS_Instance inst, string url, DZS_Json data)
+	{
+		if (!inst)
+			return;
+		string text = "";
+		if (data)
+			text = TextOf(data);
+		string slot = PROJECT_SLOT + url;
+		if (Raw(inst, DZS_PROJECT_ID, slot) == text)
+			return;
+		Stage(inst, DZS_PROJECT_ID, slot, text);
+	}
+
+	// Edits staged and not committed (a dialog that gives up drops them).
+	static void Drop()
+	{
+		s_Batch = null;
+		s_BatchOrder = null;
+		s_BatchInst = null;
 	}
 }

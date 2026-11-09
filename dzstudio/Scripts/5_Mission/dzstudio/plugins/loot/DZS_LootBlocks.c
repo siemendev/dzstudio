@@ -2,8 +2,26 @@
 // positions) instead of the indexes of one particular file, so the result applies to any server's files.
 class DZS_LootBlocks
 {
-	// while set: own block id -> the part of 'to' it comes from ("t", "c<i>", "c<i>p<j>"), for DZS_EntityExts
+	// while set: own block id -> the part of 'to' it comes from, for DZS_EntityExts: "t", "c:<uid>", "p:<uid>" (the
+	// identity of the container or point, DZS_LootEContainer.m_Uid); "c<i>", "c<i>p<j>", "c:<uid>/<j>" only for parts
+	// without one
 	static ref map<string, string> s_Paths;
+
+	static string ContainerPath(DZS_LootEContainer c, int index)
+	{
+		if (c.m_Uid != "")
+			return "c:" + c.m_Uid;
+		return "c" + index.ToString();
+	}
+
+	static string PointPath(DZS_LootEPoint p, string containerPath, int index)
+	{
+		if (p.m_Uid != "")
+			return "p:" + p.m_Uid;
+		if (containerPath.IndexOf("c:") == 0)
+			return containerPath + "/" + index.ToString();
+		return containerPath + "p" + index.ToString();
+	}
 
 	// Appends to 'changes' and 'blocks' (JSON arrays) what turns 'from' into 'to'. 'from' null: the type is new;
 	// 'to' null: the type goes. 'src' is the entry the points' m_Src indexes of 'to' refer to (the file the editor read
@@ -58,7 +76,7 @@ class DZS_LootBlocks
 				DZS_Json parent = DZS_Json.Obj();
 				DZS_Json gj = DZS_Json.Str(g);
 				parent.Set("group", gj);
-				OwnContainer(tc, "c" + c.ToString(), parent, "", prefix, blocks, next);
+				OwnContainer(tc, ContainerPath(tc, c), parent, "", prefix, blocks, next);
 				continue;
 			}
 			ContainerDiff(g, from, pair[c], tc, c, src, prefix, changes, blocks, next);
@@ -195,7 +213,8 @@ class DZS_LootBlocks
 			DZS_LootEPoint np = tc.m_Points[p];
 			if (match[p] < 0)
 			{
-				OwnPoint(np, "c" + ti.ToString() + "p" + p.ToString(), parent, "", prefix, blocks, next);
+				string tcPath = "c" + ti.ToString();
+				OwnPoint(np, PointPath(np, tcPath, p), parent, "", prefix, blocks, next);
 				continue;
 			}
 			DZS_LootEPoint op = fc.m_Points[match[p]];
@@ -345,7 +364,7 @@ class DZS_LootBlocks
 		for (int i = 0; i < e.m_Containers.Count(); i++)
 		{
 			DZS_LootEContainer c = e.m_Containers[i];
-			OwnContainer(c, "c" + i.ToString(), null, id, prefix, blocks, next);
+			OwnContainer(c, ContainerPath(c, i), null, id, prefix, blocks, next);
 		}
 	}
 
@@ -389,7 +408,7 @@ class DZS_LootBlocks
 		for (int k = 0; k < c.m_Points.Count(); k++)
 		{
 			DZS_LootEPoint p = c.m_Points[k];
-			OwnPoint(p, path + "p" + k.ToString(), null, id, prefix, blocks, next);
+			OwnPoint(p, PointPath(p, path, k), null, id, prefix, blocks, next);
 		}
 	}
 

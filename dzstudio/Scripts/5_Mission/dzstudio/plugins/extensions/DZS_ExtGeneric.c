@@ -73,13 +73,15 @@ class DZS_ExtTarget : Managed
 
 // The handler of an extension no plugin reads: keeps the project's entry as it was read (written back unchanged until
 // a field is edited) and edits the values of the fields its spec file offers — on the project inside "data", on blocks,
-// changes and elements inside their own "extensions", on their elements in the model (DZS_EntityExts; an edit is a
-// step of the history). Members nobody edits stay as they are.
+// changes and elements inside their own "extensions", all of it in the model (DZS_EntityExts, the project's entry data
+// on the project element from opening on; every edit is a step of the history). Members nobody edits stay as they are.
 class DZS_ExtGeneric : DZS_ProjectExtension
 {
 	protected string m_Url;
 	protected bool m_Required;
+	// the entry's data as read, until Opened moved it into the model (or added without a project open)
 	protected ref DZS_Json m_Data;
+	protected string m_LoadedText;
 	protected bool m_Changed;
 	// bumped on every edit, for the marks in the project bar
 	protected int m_Gen;
@@ -93,6 +95,41 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 		m_Url = url;
 		m_Required = required;
 		m_Data = data;
+		m_LoadedText = TextOf(data);
+	}
+
+	protected static string TextOf(DZS_Json data)
+	{
+		if (!data)
+			return "";
+		return DZS_EntityExts.TextOf(data);
+	}
+
+	protected static DZS_Instance Shown()
+	{
+		DZS_Kernel k = DZS_Kernel.Get();
+		if (!k)
+			return null;
+		return k.GetShown();
+	}
+
+	override void Opened(DZS_Instance inst)
+	{
+		if (!inst || !m_Data || DZS_EntityExts.HasProjectData(inst, m_Url))
+			return;
+		DZS_EntityExts.SetProjectData(inst, m_Url, m_Data);
+		if (DZS_EntityExts.Commit(inst, "", "", true))
+			m_Data = null;
+	}
+
+	// The entry's data as it is now (a copy): the model's, else as read; null when there is none.
+	protected DZS_Json ProjectNow(DZS_Instance inst)
+	{
+		if (inst && DZS_EntityExts.HasProjectData(inst, m_Url))
+			return DZS_EntityExts.ProjectData(inst, m_Url);
+		if (m_Data)
+			return m_Data.Clone();
+		return null;
 	}
 
 	override string Url() { return m_Url; }
@@ -107,13 +144,15 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 	override void Load(DZS_Json data)
 	{
 		m_Data = data;
+		m_LoadedText = TextOf(data);
 	}
 
 	override DZS_Json Data()
 	{
-		if (!m_Data)
+		DZS_Json d = ProjectNow(Shown());
+		if (!d)
 			return DZS_Json.Obj();
-		return m_Data.Clone();
+		return d;
 	}
 
 	DZS_ExtSpec Spec()
@@ -129,7 +168,13 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 		return m_Url;
 	}
 
-	bool IsChanged() { return m_Changed; }
+	bool IsChanged()
+	{
+		if (m_Changed)
+			return true;
+		DZS_Json d = ProjectNow(Shown());
+		return TextOf(d) != m_LoadedText;
+	}
 
 	void MarkChanged()
 	{
@@ -225,8 +270,16 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 	DZS_Json Holder(DZS_Instance inst, DZS_ExtTarget t)
 	{
 		if (t.m_Attach == "project")
-			return m_Data;
+			return ProjectNow(inst);
 		return DZS_EntityExts.Value(inst, OwnerOf(inst, t), m_Url);
+	}
+
+	// Whether the target is still in the project (the project always is).
+	static bool Alive(DZS_Instance inst, DZS_ExtTarget t)
+	{
+		if (t.m_Attach == "project")
+			return inst != null;
+		return DZS_EntityExts.Alive(inst, OwnerOf(inst, t));
 	}
 
 	DZS_Json Value(DZS_Instance inst, DZS_ExtTarget t, DZS_ExtField f)
@@ -237,29 +290,34 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 		return At(h, f.m_Path);
 	}
 
-	// Stores the target's extension object as edited (an empty one removes the entity's entry).
-	void Store(DZS_Instance inst, DZS_ExtTarget t, DZS_Json work)
+	// Stores the target's extension object as edited (an empty one removes the entity's entry), one step of the
+	// history; false when the target is not in the project any more (nothing is written then).
+	bool Store(DZS_Instance inst, DZS_ExtTarget t, DZS_Json work)
 	{
 		DZS_Json copy = work.Clone();
 		if (t.m_Attach == "project")
 		{
-			m_Data = copy;
+			if (!inst)
+				return false;
+			DZS_EntityExts.SetProjectData(inst, m_Url, copy);
+			DZS_EntityExts.Commit(inst, "Erweiterung bearbeiten", "Edit extension");
+			m_Data = null;
 			MarkChanged();
-			DZS_ProjectExtensions.Changed(inst);
-			return;
+			return true;
 		}
 		DZS_Json stored = null;
 		if (copy.Count() > 0)
 			stored = copy;
 		DZS_ExtOwner o = OwnerOf(inst, t);
-		if (!o)
+		if (!o || !DZS_EntityExts.Alive(inst, o))
 		{
 			DZS_Log.Warn("extensions: " + t.m_Label + " is not in the project any more, " + m_Url + " not stored");
-			return;
+			return false;
 		}
 		DZS_EntityExts.SetValue(inst, o, m_Url, stored);
 		DZS_EntityExts.Commit(inst, "Erweiterung bearbeiten", "Edit extension");
 		m_Gen++;
+		return true;
 	}
 
 	// How many of the fields have a value on the target.

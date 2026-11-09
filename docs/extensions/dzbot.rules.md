@@ -121,7 +121,16 @@ groups with rules are marked "dzbot rules". A rule opens in its own dialog:
 - **Repeat**, **Values from settings and formulas** (paths picked from the block's data; the selected objects'
   positions first) and **Single elements** (each with its own condition, repetition and values).
 
-Edits count as an unsaved change of the project and are saved with it.
+Every edit — a rule, a setting added, changed or removed — is a step of the history and saved with the project.
+Renaming a setting renames it in every rule that names it in the same step, so undo puts back the settings and the rules
+together. The dialogs hold on to their block, change, list element (by its element, not its place) or setting (by its
+identifier); one whose target is deleted meanwhile — by undo or by a partner in a live session — closes with "This
+element was deleted" and writes nothing.
+
+**Copying.** The spec sets `"copy": "same-project"`: an object duplicated or pasted in the same project keeps its rules;
+pasted into another project it starts without them, because rules name the settings of their own project. Block-level
+`fields` paths into a group's data (`objects[2].pos`) count places in the list; deleting an object before them shifts
+what they mean — put a value on the object's own rule (`pos`) to tie it to that object.
 
 ## In dzbot
 

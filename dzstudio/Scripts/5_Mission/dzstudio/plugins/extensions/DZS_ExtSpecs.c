@@ -35,6 +35,8 @@ class DZS_ExtField : Managed
 	ref DZS_Json m_Default;
 	// "studio": dzStudio edits it; "tools": shown read-only, set by other programs and plugins
 	string m_Edit;
+	// whether the value goes along when its entity is copied (DZS_ExtCopy); "" = the spec's policy
+	string m_Copy;
 
 	bool Editable() { return m_Edit == "studio"; }
 
@@ -79,6 +81,8 @@ class DZS_ExtSpec : Managed
 	string m_Owner;
 	string m_SpecLink;
 	bool m_Required;
+	// whether an entity's values go along when the entity is copied: "always", "same-project" (default), "never"
+	string m_Copy = "same-project";
 	ref array<ref DZS_ExtField> m_Fields = new array<ref DZS_ExtField>();
 	// fields left out because they are not valid: "id: why"
 	ref array<string> m_Skipped = new array<string>();
@@ -227,6 +231,9 @@ class DZS_ExtSpec : Managed
 		s.m_Owner = root.GetStr("owner");
 		s.m_SpecLink = root.GetStr("spec");
 		s.m_Required = root.GetBool("required");
+		string copy = root.GetStr("copy");
+		if (DZS_ExtCopy.Valid(copy))
+			s.m_Copy = copy;
 		DZS_Json fields = root.Get("fields");
 		if (fields && fields.IsArr())
 		{
@@ -374,6 +381,9 @@ class DZS_ExtSpec : Managed
 			why = "edit is neither studio nor tools";
 			return null;
 		}
+		string fc = fj.GetStr("copy");
+		if (DZS_ExtCopy.Valid(fc))
+			f.m_Copy = fc;
 		return f;
 	}
 

@@ -144,6 +144,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 	protected float m_HandScale = 1;
 	protected ref DZS_ElementData m_HandCopy;
 	protected string m_HandCopyKey;
+	// the project the pipette took the copy in (DZS_ExtCopy.ProjectKey)
+	protected string m_HandCopyProject;
 	protected string m_MenuObjId;
 	protected int m_Axis;
 	protected bool m_HandVisible;
@@ -1138,6 +1140,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		if (m_HandCopy)
 		{
 			DZS_ElementData d = m_HandCopy.Copy();
+			DZS_ExtCopy.ObjectFields(d.m_Fields, m_HandCopyProject == DZS_ExtCopy.ProjectKey(inst));
 			map<string, string> placed = Fields(m_HandObj.m_Name, m_HandObj.m_Pos, m_HandObj.m_Ypr, m_HandScale);
 			d.m_Fields.Set(DZS_Obj.POS, placed.Get(DZS_Obj.POS));
 			d.m_Fields.Set(DZS_Obj.YPR, placed.Get(DZS_Obj.YPR));
@@ -1574,6 +1577,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		m_HandOffset = 0;
 		m_HandScale = Math.Clamp(src.m_Scale, DZS_Obj.SCALE_MIN, DZS_Obj.SCALE_MAX);
 		m_HandCopy = inst.GetElementCopy(id);
+		m_HandCopyProject = DZS_ExtCopy.ProjectKey(inst);
 		m_HandCopyKey = name;
 		m_HandCopyKey.ToLower();
 		cat.TakeInHand(name);
@@ -3868,6 +3872,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 				return;
 			}
 			DZS_ElementData d = inst.GetElementCopy(id);
+			DZS_ExtCopy.ObjectFields(d.m_Fields, true);
 			array<ref DZS_Companion> comps = new array<ref DZS_Companion>();
 			for (int i = 0; i < d.m_Companions.Count(); i++)
 				comps.Insert(d.m_Companions.GetElement(i));
@@ -4343,11 +4348,6 @@ class DZS_PlacementPlugin : DZS_Plugin
 
 	// ---- clipboard ----
 
-	// The last copy of this session: its text and its objects' extensions (not part of the spawner text), so pasting
-	// exactly that text brings them along like duplicating does.
-	protected static string s_ClipText;
-	protected static ref array<string> s_ClipExt;
-
 	protected void CopySelection(DZS_Instance inst, bool cut)
 	{
 		array<string> order = SelectionInGroupOrder(inst);
@@ -4375,14 +4375,24 @@ class DZS_PlacementPlugin : DZS_Plugin
 		DZS_WriteResult wr = fmt.Write(scratch, g);
 		string text = DZS_SpawnerFormat.Join(wr.m_Chunks);
 		GetGame().CopyToClipboard(text);
-		s_ClipText = text.Trim();
-		s_ClipExt = new array<string>();
+		// the objects' extensions stay out of the spawner text (DZS_ExtClip keeps them beside it)
+		array<ref map<string, string>> exts = new array<ref map<string, string>>();
 		foreach (string cid : order)
 		{
-			string ext = "";
-			inst.GetField(cid, DZS_EntityExts.SLOT, ext);
-			s_ClipExt.Insert(ext);
+			map<string, string> one = new map<string, string>();
+			array<string> keys = inst.GetFieldKeys(cid);
+			foreach (string fk : keys)
+			{
+				if (fk != DZS_EntityExts.SLOT && fk.IndexOf(DZS_EntityExts.SLOT + ":") != 0)
+					continue;
+				string fv;
+				inst.GetField(cid, fk, fv);
+				if (fv != "")
+					one.Set(fk, fv);
+			}
+			exts.Insert(one);
 		}
+		DZS_ExtClip.Remember(text, DZS_ExtCopy.ProjectKey(inst), exts);
 		int total = order.Count();
 		DZS_Log.Info("placement: copied " + total + " object(s), " + text.Length() + " bytes");
 		if (!cut)
@@ -4433,11 +4443,21 @@ class DZS_PlacementPlugin : DZS_Plugin
 		}
 		if (!ActiveGroupOpen(inst))
 			return;
-		bool own = s_ClipExt && clip.Trim() == s_ClipText && s_ClipExt.Count() == rr.m_Objects.Count();
-		for (int e = 0; own && e < s_ClipExt.Count(); e++)
+		DZS_ExtClipEntry own = DZS_ExtClip.Find(clip, rr.m_Objects.Count());
+		if (own)
 		{
-			if (s_ClipExt[e] != "")
-				rr.m_Objects[e].m_Data.m_Fields.Set(DZS_EntityExts.SLOT, s_ClipExt[e]);
+			bool same = own.m_Project == DZS_ExtCopy.ProjectKey(inst);
+			for (int e = 0; e < own.m_Objects.Count(); e++)
+			{
+				map<string, string> carried = new map<string, string>();
+				map<string, string> held = own.m_Objects[e];
+				for (int hk = 0; hk < held.Count(); hk++)
+					carried.Set(held.GetKey(hk), held.GetElement(hk));
+				DZS_ExtCopy.ObjectFields(carried, same);
+				for (int ck = 0; ck < carried.Count(); ck++)
+					rr.m_Objects[e].m_Data.m_Fields.Set(carried.GetKey(ck), carried.GetElement(ck));
+			}
+			DZS_Log.Info("placement: paste with dzStudio's extensions of the copy, same project " + same);
 		}
 		array<ref DZS_PlaceObj> objs = new array<ref DZS_PlaceObj>();
 		array<ref DZS_ElementData> datas = new array<ref DZS_ElementData>();

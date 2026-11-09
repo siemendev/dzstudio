@@ -675,6 +675,12 @@ class DZS_ExtFieldsDialog : DZS_LinesDialog
 		int i = tag.Substring(colon + 1, tag.Length() - colon - 1).ToInt();
 		if (what != "edit" || i < 0 || i >= m_Targets.Count())
 			return;
+		if (!DZS_ExtGeneric.Alive(m_Inst, m_Targets[i]))
+		{
+			GoneNotice();
+			Refresh();
+			return;
+		}
 		DZS_ExtTargetDialog d = new DZS_ExtTargetDialog(m_G, m_Inst, this, null, m_Targets[i], null, null);
 		d.Open();
 	}
@@ -691,7 +697,8 @@ class DZS_ExtFieldsDialog : DZS_LinesDialog
 }
 
 // The fields of one target; a block also lists its elements that have fields. Edits a copy of the target's extension
-// object ("work") that "Apply" stores; members no field names stay in it.
+// object ("work") that "Apply" stores; members no field names stay in it. Bound to the target's entity (its owner,
+// taken once): closes when it is deleted, and checks again before storing.
 class DZS_ExtTargetDialog : DZS_LinesDialog
 {
 	static const int MAX_ELEMENTS = 200;
@@ -736,6 +743,12 @@ class DZS_ExtTargetDialog : DZS_LinesDialog
 		AddFootButton("cancel", DZS_Texts.Get("core.dialog.cancel"), "side");
 		DZS_Button go = AddFootButton("apply", DZS_Texts.Pick("Übernehmen", "Apply"), "main");
 		go.m_Hit.m_Primary = true;
+		Watch(inst);
+	}
+
+	override bool TargetAlive()
+	{
+		return DZS_ExtGeneric.Alive(m_Inst, m_T);
 	}
 
 	void KeepScroll(float s)
@@ -865,46 +878,48 @@ class DZS_ExtTargetDialog : DZS_LinesDialog
 		return r;
 	}
 
-	// The block's list elements that have fields; a spawner group's selected objects first.
+	// The block's list elements that have fields, as they are now and by identity (each target keeps its element);
+	// a spawner group's selected objects first.
 	protected void Elements(DZS_ExtSpec spec)
 	{
-		DZS_Json data = null;
-		if (m_T.m_Json)
-			data = m_T.m_Json.Get("data");
 		array<string> lists = spec.ElementLists(m_T.m_Kind);
 		DZS_SelectionApi sel = DZS_SelectionApi.Get();
-		array<string> objs = new array<string>();
-		if (m_T.m_GroupId != "")
-			objs = DZS_EntityExts.Objects(m_Inst, m_T.m_GroupId);
+		DZS_ExtOwner block = DZS_ExtGeneric.OwnerOf(m_Inst, m_T);
+		array<string> keys = DZS_EntityExts.ItemKeys(m_Inst, block);
 		foreach (string list : lists)
 		{
-			DZS_Json items = null;
-			if (data && data.IsObj())
-				items = data.Get(list);
 			Heading(list);
-			if (!items || !items.IsArr() || items.Count() == 0)
+			array<string> inList = new array<string>();
+			for (int pass = 0; pass < 2; pass++)
+			{
+				foreach (string key : keys)
+				{
+					if (key.IndexOf(list + "@") != 0)
+						continue;
+					string elem = key.Substring(list.Length() + 1, key.Length() - list.Length() - 1);
+					bool picked = sel && sel.IsSelected(elem);
+					if ((pass == 0) == picked)
+						inList.Insert(key);
+				}
+			}
+			if (inList.Count() == 0)
 			{
 				Note(DZS_Texts.Pick("Keine Elemente.", "No elements."));
 				continue;
 			}
-			array<int> order = new array<int>();
-			for (int pass = 0; pass < 2; pass++)
-			{
-				for (int i = 0; i < items.Count(); i++)
-				{
-					bool picked = list == "objects" && sel && i < objs.Count() && sel.IsSelected(objs[i]);
-					if ((pass == 0) == picked)
-						order.Insert(i);
-				}
-			}
 			int shown = 0;
-			foreach (int n : order)
+			foreach (string ik : inList)
 			{
 				if (shown >= MAX_ELEMENTS)
 					break;
-				DZS_Json el = items.At(n);
+				string path = DZS_EntityExts.ItemPath(m_Inst, block, ik);
+				int open = path.IndexOf("[");
+				int n = path.Substring(open + 1, path.Length() - open - 2).ToInt();
+				DZS_Json el = DZS_EntityExts.ItemJson(m_Inst, block, ik);
 				DZS_ExtTarget et = DZS_ExtTarget.OfElement(m_T, list, n, el);
-				et.m_Selected = list == "objects" && sel && n < objs.Count() && sel.IsSelected(objs[n]);
+				et.m_Owner = DZS_EntityExts.ItemOwner(m_Inst, block, ik);
+				int ikAt = ik.IndexOf("@");
+				et.m_Selected = sel && sel.IsSelected(ik.Substring(ikAt + 1, ik.Length() - ikAt - 1));
 				array<DZS_ExtField> ef = spec.FieldsFor("element", m_T.m_Kind, list);
 				int filled = m_G.CountSet(m_Inst, et, ef);
 				DZS_RLine l = Line(2, 28);
@@ -924,8 +939,8 @@ class DZS_ExtTargetDialog : DZS_LinesDialog
 				m_Elements.Insert(et);
 				shown++;
 			}
-			if (items.Count() > shown)
-				Note((items.Count() - shown).ToString() + DZS_Texts.Pick(" weitere — Objekte auswählen, um sie zuerst zu sehen", " more — select objects to see them first"));
+			if (inList.Count() > shown)
+				Note((inList.Count() - shown).ToString() + DZS_Texts.Pick(" weitere — Objekte auswählen, um sie zuerst zu sehen", " more — select objects to see them first"));
 		}
 	}
 
@@ -979,6 +994,12 @@ class DZS_ExtTargetDialog : DZS_LinesDialog
 				return;
 			// what was typed so far stays when this dialog is rebuilt after the element's
 			Collect();
+			if (!DZS_ExtGeneric.Alive(m_Inst, m_Elements[i]))
+			{
+				GoneNotice();
+				Rebuild(null);
+				return;
+			}
 			DZS_ExtTargetDialog d = new DZS_ExtTargetDialog(m_G, m_Inst, null, this, m_Elements[i], null, null);
 			d.Open();
 			return;
@@ -1053,7 +1074,11 @@ class DZS_ExtTargetDialog : DZS_LinesDialog
 			Rebuild(errors);
 			return;
 		}
-		m_G.Store(m_Inst, m_T, m_Work);
+		if (!m_G.Store(m_Inst, m_T, m_Work))
+		{
+			Gone();
+			return;
+		}
 		Close();
 		if (m_Outer)
 			m_Outer.Rebuild(null);

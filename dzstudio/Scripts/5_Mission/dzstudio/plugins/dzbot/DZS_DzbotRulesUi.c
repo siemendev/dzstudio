@@ -1,6 +1,9 @@
 // The dzbot rules of a project mod in dzStudio: an overview of the project's own blocks and changes (as
 // DZS_ProjectV2.Build makes them, so ids and refs are the ones dzbot sees) and a dialog per block, change or list
-// element. Nested conditions (groups inside groups, "not") are shown read-only; they are edited in dzbot.
+// element. Each dialog holds on to its entity by identity (DZS_ExtOwner, an element's "<list>@<element id>"), never by
+// a block id that may be renumbered or a place in a list; it closes when its entity is deleted (also by undo or a
+// collab partner) and checks again before it writes. Settings are held by their identifier. Nested conditions (groups
+// inside groups, "not") are shown read-only; they are edited in dzbot.
 
 // The dialogs of the rules: lines of cells (DZS_LinesDialog) with the rules they edit.
 class DZS_RulesBase : DZS_LinesDialog
@@ -22,6 +25,11 @@ class DZS_RulesDialog : DZS_RulesBase
 	protected ref array<string> m_RowRef = new array<string>();
 	protected ref array<ref DZS_Json> m_RowJson = new array<ref DZS_Json>();
 	protected ref array<TextWidget> m_RowSummary = new array<TextWidget>();
+	// where each row's entity keeps its rules, taken when the list was made
+	protected ref array<ref DZS_ExtOwner> m_RowOwner = new array<ref DZS_ExtOwner>();
+	// the settings' identifiers and places as listed
+	protected ref array<string> m_SetIds = new array<string>();
+	protected ref array<int> m_SetAt = new array<int>();
 
 	void DZS_RulesDialog(DZS_DzbotRules rules, DZS_Instance inst, string groupId)
 	{
@@ -46,6 +54,13 @@ class DZS_RulesDialog : DZS_RulesBase
 			m_FocusBlock = ids.Get(gid);
 		Setup(LARGE, "dzbot", DZS_Texts.Pick("Regeln", "Rules"), false);
 		AddFootButton("close", DZS_Texts.Get("core.dialog.close"), "main");
+		Watch(inst);
+	}
+
+	// The project changed: the summaries anew (a deleted entity's row says so).
+	override void StateChanged()
+	{
+		Refresh();
 	}
 
 	// the group of the lead selected object, "" when none
@@ -141,13 +156,15 @@ class DZS_RulesDialog : DZS_RulesBase
 		if (focus)
 			tone = "accentText";
 		Label(l, label, 0, tone, 14);
-		TextWidget sum = Label(l, Summary(section, rid), -1, "textQuiet", 13);
+		DZS_ExtOwner o = DZS_EntityExts.Owner(m_Inst, section, rid);
+		TextWidget sum = Label(l, Summary(o), -1, "textQuiet", 13);
 		int i = m_RowRef.Count();
 		Knob(l, "side", DZS_Texts.Pick("Regeln", "Rules"), "edit:" + i);
 		m_RowSection.Insert(section);
 		m_RowRef.Insert(rid);
 		m_RowJson.Insert(json);
 		m_RowSummary.Insert(sum);
+		m_RowOwner.Insert(o);
 	}
 
 	// The mod's settings (config fields): the project's own list, else the one dzbot sent (copied on the first edit).
@@ -165,7 +182,7 @@ class DZS_RulesDialog : DZS_RulesBase
 			for (int i = 0; i < sent.Count(); i++)
 			{
 				DZS_DzbotSetting st = sent[i];
-				SettingRow(i, st.Shown(), st.m_Type);
+				SettingRow(i, st.m_Id, st.Shown(), st.m_Type);
 			}
 		}
 		else
@@ -190,32 +207,62 @@ class DZS_RulesDialog : DZS_RulesBase
 					string head = title;
 					if (head == "")
 						head = id;
-					SectionRow(k, head);
+					SectionRow(k, id, head);
 				}
 				else
-					SettingRow(k, shown, type);
+					SettingRow(k, id, shown, type);
 			}
 		}
 		DZS_RLine al = Line(6, 28);
 		Knob(al, "side", DZS_Texts.Pick("+ Einstellung", "+ Setting"), "setAdd");
 	}
 
-	protected void SettingRow(int i, string shown, string type)
+	protected void SettingRow(int at, string id, string shown, string type)
 	{
 		DZS_RLine l = Line(2, 30);
 		Label(l, shown, 0, "text", 14);
 		Label(l, DZS_SettingDialog.TypeLabel(type), -1, "textQuiet", 13);
+		int i = m_SetIds.Count();
 		Knob(l, "side", DZS_Texts.Pick("Bearbeiten", "Edit"), "set:" + i);
 		Knob(l, "ghost", "", "setDel:" + i, "x");
+		m_SetIds.Insert(id);
+		m_SetAt.Insert(at);
 	}
 
 	// A section of dzbot's form: a heading over the settings below it.
-	protected void SectionRow(int i, string head)
+	protected void SectionRow(int at, string id, string head)
 	{
 		DZS_RLine l = Line(10, 30);
 		Label(l, DZS_Texts.Upper(head), 0, "textMuted", 12);
+		int i = m_SetIds.Count();
 		Knob(l, "side", DZS_Texts.Pick("Bearbeiten", "Edit"), "set:" + i);
 		Knob(l, "ghost", "", "setDel:" + i, "x");
+		m_SetIds.Insert(id);
+		m_SetAt.Insert(at);
+	}
+
+	// The place of a setting in the list as it is now: by its identifier (the listed place decides between equal
+	// ones, sections may share one); -1 when it is gone.
+	static int FindSetting(DZS_Json list, string id, int listedAt)
+	{
+		if (!list)
+			return -1;
+		int found = -1;
+		for (int i = 0; i < list.Count(); i++)
+		{
+			if (DZS_DzbotRules.SettingId(list.At(i)) != id)
+				continue;
+			if (i == listedAt)
+				return i;
+			if (found < 0)
+				found = i;
+		}
+		return found;
+	}
+
+	static void SettingGone()
+	{
+		DZS_LinesDialog.GoneNotice("Die Einstellung wurde gelöscht", "This setting was deleted");
 	}
 
 	void Reopen()
@@ -233,32 +280,41 @@ class DZS_RulesDialog : DZS_RulesBase
 		m_Scroll = s;
 	}
 
-	protected int m_AskSetting = -1;
+	protected string m_AskId;
+	protected int m_AskAt = -1;
 
-	protected void SettingKnob(string what, int i)
+	protected void SettingKnob(string what, int row)
 	{
 		if (what == "setAdd")
 		{
 			DZS_Json fresh = DZS_Json.Obj();
 			DZS_Json ty = DZS_Json.Str("number");
 			fresh.Set("type", ty);
-			DZS_SettingDialog add = new DZS_SettingDialog(m_Rules, this, -1, fresh, null);
+			DZS_SettingDialog add = new DZS_SettingDialog(m_Rules, this, "", -1, fresh, null, m_Inst);
 			add.Open();
 			return;
 		}
-		DZS_Json list = m_Rules.SettingsForEdit();
-		if (i < 0 || i >= list.Count())
+		if (row < 0 || row >= m_SetIds.Count())
 			return;
+		DZS_Json list = m_Rules.SettingsForEdit();
+		int i = FindSetting(list, m_SetIds[row], m_SetAt[row]);
+		if (i < 0)
+		{
+			SettingGone();
+			Reopen();
+			return;
+		}
 		DZS_Json entry = list.At(i);
+		string id = DZS_DzbotRules.SettingId(entry);
 		if (what == "set")
 		{
 			DZS_Json work = entry.Clone();
-			DZS_SettingDialog d = new DZS_SettingDialog(m_Rules, this, i, work, null);
+			DZS_SettingDialog d = new DZS_SettingDialog(m_Rules, this, id, i, work, null, m_Inst);
 			d.Open();
 			return;
 		}
-		m_AskSetting = i;
-		string id = DZS_DzbotRules.SettingId(entry);
+		m_AskId = id;
+		m_AskAt = i;
 		string text = DZS_Texts.Pick("Die Einstellung „", "Remove the setting '") + id;
 		text += DZS_Texts.Pick("“ entfernen? Regeln, die sie nennen, finden sie danach nicht mehr.", "'? Rules that name it will not find it any more.");
 		DZS_ConfirmDialog c = new DZS_ConfirmDialog(DZS_Texts.Pick("dzbot-Regeln", "dzbot rules"), DZS_Texts.Pick("Einstellung entfernen", "Remove setting"), text);
@@ -271,21 +327,30 @@ class DZS_RulesDialog : DZS_RulesBase
 
 	void OnRemoveSetting(DZS_Dialog d, string result)
 	{
-		int i = m_AskSetting;
-		m_AskSetting = -1;
+		string id = m_AskId;
+		int at = m_AskAt;
+		m_AskAt = -1;
 		if (result != "remove")
 			return;
 		DZS_Json list = m_Rules.SettingsForEdit();
-		if (i < 0 || i >= list.Count())
+		int i = FindSetting(list, id, at);
+		if (i < 0)
+		{
+			SettingGone();
+			Reopen();
 			return;
+		}
 		list.m_Items.RemoveOrdered(i);
-		m_Rules.SettingsChanged();
+		int renamed;
+		m_Rules.CommitSettings(list, "", "", "Einstellung entfernen", "Remove setting", renamed);
 		Reopen();
 	}
 
-	protected string Summary(string section, string rid)
+	protected string Summary(DZS_ExtOwner o)
 	{
-		string s = DZS_DzbotRules.Summary(m_Rules.Rule(section, rid));
+		if (!DZS_EntityExts.Alive(m_Inst, o))
+			return DZS_Texts.Pick("gelöscht", "deleted");
+		string s = DZS_DzbotRules.Summary(m_Rules.RuleAt(o));
 		if (s == "")
 			return DZS_Texts.Pick("immer dabei", "always");
 		return s;
@@ -300,7 +365,7 @@ class DZS_RulesDialog : DZS_RulesBase
 		{
 			TextWidget t = m_RowSummary[i];
 			if (t)
-				t.SetText(DZS_W.Literal(Summary(m_RowSection[i], m_RowRef[i])));
+				t.SetText(DZS_W.Literal(Summary(m_RowOwner[i])));
 		}
 		Layout();
 	}
@@ -325,8 +390,15 @@ class DZS_RulesDialog : DZS_RulesBase
 		if (i < 0 || i >= m_RowRef.Count())
 			return;
 		DZS_Json json = m_RowJson[i];
+		DZS_ExtOwner o = m_RowOwner[i];
 		if (!json)
 			return;
+		if (!DZS_EntityExts.Alive(m_Inst, o))
+		{
+			GoneNotice();
+			Refresh();
+			return;
+		}
 		string kind = "change";
 		string label = DZS_DzbotRules.ChangeLabel(json);
 		if (m_RowSection[i] == "blocks")
@@ -334,13 +406,16 @@ class DZS_RulesDialog : DZS_RulesBase
 			kind = "block";
 			label = DZS_DzbotRules.BlockLabel(json);
 		}
-		DZS_Json rule = m_Rules.Rule(m_RowSection[i], m_RowRef[i]);
+		DZS_Json rule = m_Rules.RuleAt(o);
 		DZS_Json work;
 		if (rule)
 			work = rule.Clone();
 		else
 			work = DZS_Json.Obj();
-		DZS_RuleDialog d = new DZS_RuleDialog(m_Rules, this, null, kind, m_RowRef[i], label, json, work, m_Inst);
+		DZS_Json now = DZS_EntityExts.BlockJson(m_Inst, o);
+		if (kind == "block" && now)
+			json = now;
+		DZS_RuleDialog d = new DZS_RuleDialog(m_Rules, this, null, kind, m_RowRef[i], label, json, work, m_Inst, o);
 		if (kind == "block")
 			d.SetGroup(GroupOf(m_RowRef[i]));
 		d.Open();
@@ -364,7 +439,8 @@ class DZS_FieldRow : Managed
 }
 
 // The rules of one block, change or list element (kind "block", "change", "item"); edits a copy ("work") that
-// "Apply" stores. An element's dialog stores into the dialog of its block.
+// "Apply" stores. An element's dialog stores into the dialog of its block. m_Owner is the block's or change's entity
+// (an element's: its block's), m_Ref an element's "<list>@<element id>".
 class DZS_RuleDialog : DZS_RulesBase
 {
 	protected DZS_RulesDialog m_Overview;
@@ -383,9 +459,11 @@ class DZS_RuleDialog : DZS_RulesBase
 	protected DZS_TextField m_Over;
 	protected ref array<string> m_ItemPaths = new array<string>();
 	protected int m_PickIndex;
+	protected ref DZS_ExtOwner m_Owner;
 
-	void DZS_RuleDialog(DZS_DzbotRules rules, DZS_RulesDialog overview, DZS_RuleDialog outer, string kind, string rid, string label, DZS_Json target, DZS_Json work, DZS_Instance inst)
+	void DZS_RuleDialog(DZS_DzbotRules rules, DZS_RulesDialog overview, DZS_RuleDialog outer, string kind, string rid, string label, DZS_Json target, DZS_Json work, DZS_Instance inst, DZS_ExtOwner owner)
 	{
+		m_Owner = owner;
 		m_Rules = rules;
 		m_Overview = overview;
 		m_Outer = outer;
@@ -401,11 +479,38 @@ class DZS_RuleDialog : DZS_RulesBase
 		AddFootButton("cancel", DZS_Texts.Get("core.dialog.cancel"), "side");
 		DZS_Button go = AddFootButton("apply", DZS_Texts.Pick("Übernehmen", "Apply"), "main");
 		go.m_Hit.m_Primary = true;
+		Watch(inst);
 	}
 
 	void SetGroup(string groupId)
 	{
 		m_GroupId = groupId;
+	}
+
+	override bool TargetAlive()
+	{
+		if (m_Kind == "item")
+			return DZS_EntityExts.ItemOwner(m_Inst, m_Owner, m_Ref) != null;
+		return DZS_EntityExts.Alive(m_Inst, m_Owner);
+	}
+
+	// The element an item key names, as it is now; null when it left the block.
+	protected DZS_Json ItemJson(string key)
+	{
+		DZS_ExtOwner block = m_Owner;
+		return DZS_EntityExts.ItemJson(m_Inst, block, key);
+	}
+
+	// "objects[3] · Land_Tower", the place as it is now; "(gelöscht)" when it left the block.
+	protected string ItemLabel(string key)
+	{
+		string path = DZS_EntityExts.ItemPath(m_Inst, m_Owner, key);
+		if (path == "")
+			return DZS_Texts.Pick("(gelöscht)", "(deleted)");
+		DZS_Json el = ItemJson(key);
+		if (el)
+			return path + " · " + ElementName(el);
+		return path;
 	}
 
 	protected string Section()
@@ -415,11 +520,22 @@ class DZS_RuleDialog : DZS_RulesBase
 		return "changes";
 	}
 
-	// the data paths count from: the block's data, or the element itself
+	// the data paths count from: the block's data, or the element itself (as they are now when still there)
 	protected DZS_Json Data()
 	{
 		if (m_Kind == "item")
+		{
+			DZS_Json now = ItemJson(m_Ref);
+			if (now)
+				return now;
 			return m_Target;
+		}
+		if (m_Kind == "block")
+		{
+			DZS_Json bj = DZS_EntityExts.BlockJson(m_Inst, m_Owner);
+			if (bj)
+				return bj.Get("data");
+		}
 		if (m_Target)
 			return m_Target.Get("data");
 		return null;
@@ -828,31 +944,24 @@ class DZS_RuleDialog : DZS_RulesBase
 
 	// ---- single list elements (block only) ----
 
-	// The elements of the block's lists: "objects[3]" with a name; selected objects of its group first.
+	// The elements of the block's lists by identity, labelled "objects[3]" with a name; selected objects first.
 	protected void Elements(array<ref DZS_MenuItem> items)
 	{
-		DZS_Json data = Data();
-		if (!data || !data.IsObj())
-			return;
-		array<int> selected = SelectedObjects();
-		for (int i = 0; i < data.m_Keys.Count(); i++)
+		DZS_SelectionApi sel = DZS_SelectionApi.Get();
+		array<string> keys = DZS_EntityExts.ItemKeys(m_Inst, m_Owner);
+		int shown = 0;
+		foreach (string key : keys)
 		{
-			string k = data.m_Keys[i];
-			DZS_Json list = data.Get(k);
-			if (!list.IsArr())
-				continue;
-			for (int n = 0; n < list.Count() && n < 150; n++)
-			{
-				DZS_Json el = list.At(n);
-				if (!el.IsObj())
-					continue;
-				string path = k + "[" + n + "]";
-				string text = path + " · " + ElementName(el);
-				if (k == "objects" && selected.Find(n) >= 0)
-					items.InsertAt(Item("item:" + path, text + DZS_Texts.Pick(" · ausgewählt", " · selected")), 0);
-				else
-					items.Insert(Item("item:" + path, text));
-			}
+			if (shown >= 150)
+				break;
+			shown++;
+			int at = key.IndexOf("@");
+			string elem = key.Substring(at + 1, key.Length() - at - 1);
+			string text = ItemLabel(key);
+			if (sel && sel.IsSelected(elem))
+				items.InsertAt(Item("item:" + key, text + DZS_Texts.Pick(" · ausgewählt", " · selected")), 0);
+			else
+				items.Insert(Item("item:" + key, text));
 		}
 	}
 
@@ -901,11 +1010,7 @@ class DZS_RuleDialog : DZS_RulesBase
 				string path = items.m_Keys[i];
 				m_ItemPaths.Insert(path);
 				DZS_RLine l = Line(2, 30);
-				string name = path;
-				DZS_Json el = ElementAt(path);
-				if (el)
-					name = path + " · " + ElementName(el);
-				Label(l, name, 0, "text", 13);
+				Label(l, ItemLabel(path), 0, "text", 13);
 				string sum = DZS_DzbotRules.Summary(items.Get(path));
 				if (sum == "")
 					sum = DZS_Texts.Pick("immer dabei", "always");
@@ -918,7 +1023,7 @@ class DZS_RuleDialog : DZS_RulesBase
 		Knob(al, "side", DZS_Texts.Pick("+ Element", "+ Element"), "itemAdd");
 	}
 
-	// The element a path like objects[3] names in the block's data; null when there is none.
+	// The element a path like objects[3] names in the block's data as it is now; null when there is none.
 	protected DZS_Json ElementAt(string path)
 	{
 		DZS_Json data = Data();
@@ -945,17 +1050,23 @@ class DZS_RuleDialog : DZS_RulesBase
 			work = rule.Clone();
 		else
 			work = DZS_Json.Obj();
-		DZS_Json el = ElementAt(path);
-		string label = m_LabelText + " · " + path;
-		if (el)
-			label += " · " + ElementName(el);
-		DZS_RuleDialog d = new DZS_RuleDialog(m_Rules, m_Overview, this, "item", path, label, el, work, m_Inst);
+		DZS_Json el = ItemJson(path);
+		if (!el)
+		{
+			GoneNotice();
+			Reopen(false);
+			return;
+		}
+		string label = m_LabelText + " · " + ItemLabel(path);
+		DZS_RuleDialog d = new DZS_RuleDialog(m_Rules, m_Overview, this, "item", path, label, el, work, m_Inst, m_Owner);
 		d.Open();
 	}
 
 	// An element's dialog stored its rules (null = none).
 	void ItemDone(string path, DZS_Json rule)
 	{
+		if (m_Closed)
+			return;
 		DZS_Json items = m_Work.Get("items");
 		if (!items || !items.IsObj())
 		{
@@ -1078,7 +1189,7 @@ class DZS_RuleDialog : DZS_RulesBase
 	{
 		if (collect)
 			Collect();
-		DZS_RuleDialog d = new DZS_RuleDialog(m_Rules, m_Overview, m_Outer, m_Kind, m_Ref, m_LabelText, m_Target, m_Work, m_Inst);
+		DZS_RuleDialog d = new DZS_RuleDialog(m_Rules, m_Overview, m_Outer, m_Kind, m_Ref, m_LabelText, m_Target, m_Work, m_Inst, m_Owner);
 		d.SetGroup(m_GroupId);
 		d.KeepScroll(m_Scroll);
 		Close();
@@ -1385,6 +1496,11 @@ class DZS_RuleDialog : DZS_RulesBase
 		}
 		else if (tag != "drop")
 			return;
+		if (!TargetAlive())
+		{
+			Gone();
+			return;
+		}
 		Close();
 		if (m_Kind == "item")
 		{
@@ -1392,7 +1508,8 @@ class DZS_RuleDialog : DZS_RulesBase
 				m_Outer.ItemDone(m_Ref, result);
 			return;
 		}
-		m_Rules.Put(Section(), m_Ref, result);
+		if (!m_Rules.PutAt(m_Owner, result))
+			GoneNotice();
 		if (m_Overview)
 			m_Overview.Refresh();
 	}
@@ -1404,11 +1521,14 @@ class DZS_RuleDialog : DZS_RulesBase
 }
 
 // One setting of the mod (a config field dzbot asks for at install): identifier, title, type, options, default, help.
-// Edits a copy of the entry; members it does not show stay in it. A new identifier renames the setting in the rules.
+// Edits a copy of the entry; members it does not show stay in it. A new identifier renames the setting in the rules,
+// in the same step of the history. Held by its identifier as it was opened (the place only decides between equal ones).
 class DZS_SettingDialog : DZS_RulesBase
 {
 	protected DZS_RulesDialog m_Overview;
-	// place in the project's list, -1 for a new setting
+	protected DZS_Instance m_Inst;
+	// identifier and place in the project's list when opened; "" / -1 for a new setting
+	protected string m_OrigId;
 	protected int m_Index;
 	protected ref DZS_Json m_Work;
 	protected ref array<string> m_Errors = new array<string>();
@@ -1420,11 +1540,13 @@ class DZS_SettingDialog : DZS_RulesBase
 	// dzStudio's types; every other one (object lists, item classes …) keeps its configuration as dzbot wrote it
 	static const string TYPES = "number boolean string generic_select coordinate";
 
-	void DZS_SettingDialog(DZS_DzbotRules rules, DZS_RulesDialog overview, int index, DZS_Json work, array<string> errors)
+	void DZS_SettingDialog(DZS_DzbotRules rules, DZS_RulesDialog overview, string origId, int index, DZS_Json work, array<string> errors, DZS_Instance inst)
 	{
 		m_Rules = rules;
 		m_Overview = overview;
+		m_OrigId = origId;
 		m_Index = index;
+		m_Inst = inst;
 		m_Work = work;
 		if (errors)
 			m_Errors.Copy(errors);
@@ -1436,6 +1558,31 @@ class DZS_SettingDialog : DZS_RulesBase
 		AddFootButton("cancel", DZS_Texts.Get("core.dialog.cancel"), "side");
 		DZS_Button go = AddFootButton("apply", DZS_Texts.Pick("Übernehmen", "Apply"), "main");
 		go.m_Hit.m_Primary = true;
+		Watch(inst);
+	}
+
+	// Where the setting is in the list now, -1 when it is gone (a new one: always "there").
+	protected int Place(DZS_Json list)
+	{
+		if (m_OrigId == "" && m_Index < 0)
+			return -1;
+		return DZS_RulesDialog.FindSetting(list, m_OrigId, m_Index);
+	}
+
+	override bool TargetAlive()
+	{
+		if (m_OrigId == "" && m_Index < 0)
+			return true;
+		DZS_Json list = m_Rules.SettingsForEdit();
+		return Place(list) >= 0;
+	}
+
+	override void Gone()
+	{
+		Close();
+		DZS_RulesDialog.SettingGone();
+		if (m_Overview)
+			m_Overview.Reopen();
 	}
 
 	static bool StudioType(string type)
@@ -1741,7 +1888,7 @@ class DZS_SettingDialog : DZS_RulesBase
 
 	protected void Rebuild(array<string> errors)
 	{
-		DZS_SettingDialog d = new DZS_SettingDialog(m_Rules, m_Overview, m_Index, m_Work, errors);
+		DZS_SettingDialog d = new DZS_SettingDialog(m_Rules, m_Overview, m_OrigId, m_Index, m_Work, errors, m_Inst);
 		Close();
 		d.Open();
 	}
@@ -1837,10 +1984,17 @@ class DZS_SettingDialog : DZS_RulesBase
 			errors.Insert(DZS_Texts.Pick("Name: Buchstaben, Ziffern und _, nicht mit einer Ziffer vorne", "Identifier: letters, digits and _, not starting with a digit"));
 		bool section = m_Work.GetStr("type") == DZS_DzbotRules.SECTION;
 		DZS_Json list = m_Rules.SettingsForEdit();
+		bool isNew = m_OrigId == "" && m_Index < 0;
+		int at = Place(list);
+		if (!isNew && at < 0)
+		{
+			Gone();
+			return;
+		}
 		for (int i = 0; i < list.Count() && !section; i++)
 		{
 			DZS_Json other = list.At(i);
-			if (i == m_Index || !other.IsObj() || other.GetStr("type") == DZS_DzbotRules.SECTION)
+			if (i == at || !other.IsObj() || other.GetStr("type") == DZS_DzbotRules.SECTION)
 				continue;
 			if (DZS_DzbotRules.SettingId(other) == id)
 				errors.Insert(DZS_Texts.Pick("Name schon vergeben", "Identifier already used"));
@@ -1851,18 +2005,30 @@ class DZS_SettingDialog : DZS_RulesBase
 			return;
 		}
 		string old = "";
-		if (m_Index >= 0 && m_Index < list.Count())
+		if (at >= 0)
 		{
-			old = DZS_DzbotRules.SettingId(list.At(m_Index));
-			list.m_Items.RemoveOrdered(m_Index);
-			list.m_Items.InsertAt(m_Work, m_Index);
+			old = DZS_DzbotRules.SettingId(list.At(at));
+			list.m_Items.RemoveOrdered(at);
+			list.m_Items.InsertAt(m_Work, at);
 		}
 		else
 			list.Add(m_Work);
-		int renamed = 0;
-		if (old != "" && old != id && !section)
-			renamed = m_Rules.RenameSetting(old, id);
-		m_Rules.SettingsChanged();
+		if (section)
+			old = "";
+		string stepDe = "Einstellung ändern";
+		string stepEn = "Edit setting";
+		if (isNew)
+		{
+			stepDe = "Einstellung hinzufügen";
+			stepEn = "Add setting";
+		}
+		else if (old != "" && old != id)
+		{
+			stepDe = "Einstellung umbenennen";
+			stepEn = "Rename setting";
+		}
+		int renamed;
+		m_Rules.CommitSettings(list, old, id, stepDe, stepEn, renamed);
 		DZS_Log.Info("dzbot: setting " + id + " saved, " + renamed + " reference(s) renamed");
 		Close();
 		if (m_Overview)

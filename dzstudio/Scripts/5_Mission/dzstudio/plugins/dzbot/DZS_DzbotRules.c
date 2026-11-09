@@ -27,8 +27,11 @@ class DZS_DzbotSetting : Managed
 // concern, in their own "extensions", kept on the entities' elements in the model (DZS_EntityExts): a block's
 // {if, required, repeat, fields}, a list element's {if, repeat, fields}, a change's {if, formula, required}. Editing
 // them is a step of the history. The project's own entry holds the mod's settings ("settings": dzbot's config
-// fields). The dialogs see a block's rule with its elements' rules under "items" by "<list>[<index>]", as before.
-// Members it does not know stay as they are.
+// fields), kept in the model too (DZS_EntityExts.ProjectData), so editing, renaming and removing a setting are steps
+// of the history — a rename together with every rule that names it. The dialogs see a block's rule with its elements'
+// rules under "items" by "<list>@<element id>" (DZS_EntityExts.ItemKeys), never by a place in the list. Whether rules
+// go along when entities are copied is the spec's "copy" policy (same-project). Members it does not know stay as they
+// are.
 class DZS_DzbotRules : DZS_ProjectExtension
 {
 	static const string URL = "https://developers.dzbot.de/specs/dzbot/rules/1.json";
@@ -39,7 +42,8 @@ class DZS_DzbotRules : DZS_ProjectExtension
 	static const string SELECT = "generic_select";
 
 	DZS_DzbotPlugin m_P;
-	protected ref DZS_Json m_Data;
+	// the opened file's entry data until Opened moved it into the model
+	protected ref DZS_Json m_File;
 	// bumped on every change, for cached marks
 	int m_Gen;
 	protected int m_MarkGen = -1;
@@ -48,6 +52,7 @@ class DZS_DzbotRules : DZS_ProjectExtension
 	protected ref map<string, string> m_Marks = new map<string, string>();
 	protected ref array<ref DZS_DzbotSetting> m_Own;
 	protected int m_OwnGen = -1;
+	protected int m_OwnStateGen = -1;
 
 	override string Url() { return URL; }
 
@@ -58,32 +63,51 @@ class DZS_DzbotRules : DZS_ProjectExtension
 
 	override void Load(DZS_Json data)
 	{
-		m_Data = null;
+		m_File = null;
 		if (data && data.IsObj())
-			m_Data = data;
+			m_File = data;
 		m_Gen++;
 	}
 
 	override void Reset()
 	{
-		m_Data = null;
+		m_File = null;
 		m_Gen++;
 	}
 
+	// Rules of older files move onto their entities, the entry's data into the model (not a step of the history).
 	override void Opened(DZS_Instance inst)
 	{
 		Migrate(inst);
+		if (inst && m_File && m_File.Count() > 0 && !DZS_EntityExts.HasProjectData(inst, URL))
+			DZS_EntityExts.SetProjectData(inst, URL, m_File);
+		DZS_EntityExts.Commit(inst, "", "", true);
+		if (inst)
+			m_File = null;
+		m_Gen++;
+	}
+
+	// The entry's data as it is now (a copy): the model's, else the opened file's; null when there is none.
+	DZS_Json Current()
+	{
+		DZS_Instance inst = Inst();
+		if (inst && DZS_EntityExts.HasProjectData(inst, URL))
+			return DZS_EntityExts.ProjectData(inst, URL);
+		if (m_File)
+			return m_File.Clone();
+		return null;
 	}
 
 	override DZS_Json Data()
 	{
-		if (!m_Data)
+		DZS_Json d = Current();
+		if (!d || !d.IsObj())
 			return null;
-		Clean(m_Data, "blocks");
-		Clean(m_Data, "changes");
-		if (m_Data.Count() == 0)
+		Clean(d, "blocks");
+		Clean(d, "changes");
+		if (d.Count() == 0)
 			return null;
-		return m_Data.Clone();
+		return d;
 	}
 
 	protected static void Clean(DZS_Json data, string section)
@@ -104,10 +128,10 @@ class DZS_DzbotRules : DZS_ProjectExtension
 	// "changes" by ref: they move onto the entities (an entity that has a rule of its own keeps it).
 	protected void Migrate(DZS_Instance inst)
 	{
-		if (!m_Data || !inst)
+		if (!m_File || !inst)
 			return;
 		int moved = 0;
-		DZS_Json blocks = m_Data.Get("blocks");
+		DZS_Json blocks = m_File.Get("blocks");
 		if (blocks && blocks.IsObj())
 		{
 			for (int i = 0; i < blocks.m_Keys.Count(); i++)
@@ -119,9 +143,9 @@ class DZS_DzbotRules : DZS_ProjectExtension
 				PutBlock(inst, bid, br);
 				moved++;
 			}
-			m_Data.Remove("blocks");
+			m_File.Remove("blocks");
 		}
-		DZS_Json changes = m_Data.Get("changes");
+		DZS_Json changes = m_File.Get("changes");
 		if (changes && changes.IsObj())
 		{
 			for (int k = 0; k < changes.m_Keys.Count(); k++)
@@ -134,9 +158,8 @@ class DZS_DzbotRules : DZS_ProjectExtension
 				DZS_EntityExts.SetChangeByRef(inst, cref, URL, crCopy);
 				moved++;
 			}
-			m_Data.Remove("changes");
+			m_File.Remove("changes");
 		}
-		DZS_EntityExts.Commit(inst, "", "", true);
 		if (moved > 0)
 		{
 			m_Gen++;
@@ -146,12 +169,13 @@ class DZS_DzbotRules : DZS_ProjectExtension
 
 	// ---- settings (config fields of the mod) ----
 
-	// The project's own list of settings, null when it has none.
+	// The project's own list of settings (a copy), null when it has none.
 	DZS_Json SettingsList()
 	{
-		if (!m_Data)
+		DZS_Json d = Current();
+		if (!d || !d.IsObj())
 			return null;
-		DZS_Json list = m_Data.Get(SETTINGS);
+		DZS_Json list = d.Get(SETTINGS);
 		if (!list || !list.IsArr())
 			return null;
 		return list;
@@ -167,10 +191,14 @@ class DZS_DzbotRules : DZS_ProjectExtension
 				return new array<ref DZS_DzbotSetting>();
 			return m_P.OpenSettings();
 		}
-		if (!m_Own || m_OwnGen != m_Gen)
+		int stateGen = -1;
+		if (Inst())
+			stateGen = Inst().GetGen();
+		if (!m_Own || m_OwnGen != m_Gen || m_OwnStateGen != stateGen)
 		{
 			m_Own = new array<ref DZS_DzbotSetting>();
 			m_OwnGen = m_Gen;
+			m_OwnStateGen = stateGen;
 			for (int i = 0; i < list.Count(); i++)
 			{
 				DZS_Json entry = list.At(i);
@@ -283,16 +311,15 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		return st;
 	}
 
-	// The project's list of settings to edit in place; the first edit copies dzbot's list into the project, in
-	// dzbot's shape (options and multiple in "typeConfig"). An object list's properties are not copied: dzbot sends
-	// their names only, and a list of bare names would replace their types and labels there.
+	// A copy of the project's list of settings to edit and hand to CommitSettings; without one, dzbot's list in
+	// dzbot's shape (options and multiple in "typeConfig"), which the first commit copies into the project. An object
+	// list's properties are not copied: dzbot sends their names only, and a list of bare names would replace their
+	// types and labels there.
 	DZS_Json SettingsForEdit()
 	{
 		DZS_Json list = SettingsList();
 		if (list)
 			return list;
-		if (!m_Data)
-			m_Data = DZS_Json.Obj();
 		list = DZS_Json.Arr();
 		if (m_P)
 		{
@@ -333,23 +360,34 @@ class DZS_DzbotRules : DZS_ProjectExtension
 				list.Add(entry);
 			}
 		}
-		m_Data.Set(SETTINGS, list);
 		return list;
 	}
 
-	void SettingsChanged()
+	// The list of settings as edited, and a setting renamed from 'old' to 'nw' in every rule that names it, as ONE
+	// step of the history: undoing it puts back the settings and the rules together. False when nothing changed.
+	bool CommitSettings(DZS_Json list, string old, string nw, string nameDe, string nameEn, out int renamed)
 	{
+		renamed = 0;
+		DZS_Instance inst = Inst();
+		if (!inst || !list)
+			return false;
+		DZS_Json d = Current();
+		if (!d || !d.IsObj())
+			d = DZS_Json.Obj();
+		DZS_Json listCopy = list.Clone();
+		d.Set(SETTINGS, listCopy);
+		DZS_EntityExts.SetProjectData(inst, URL, d);
+		if (old != "" && old != nw)
+			renamed = StageRename(inst, old, nw);
+		bool done = DZS_EntityExts.Commit(inst, nameDe, nameEn);
 		m_Gen++;
-		DZS_ProjectExtensions.Changed(Inst());
+		return done;
 	}
 
-	// A setting renamed: its name in every condition, formula, value and repetition of the project's rules.
-	int RenameSetting(string old, string nw)
+	// A setting's new name in every condition, formula, value and repetition of the project's rules (staged).
+	protected int StageRename(DZS_Instance inst, string old, string nw)
 	{
-		if (old == "" || old == nw)
-			return 0;
 		int n = 0;
-		DZS_Instance inst = Inst();
 		array<ref DZS_ExtOwner> owners = DZS_EntityExts.OwnersWith(inst, URL);
 		foreach (DZS_ExtOwner o : owners)
 		{
@@ -360,19 +398,6 @@ class DZS_DzbotRules : DZS_ProjectExtension
 			DZS_EntityExts.SetValue(inst, o, URL, v);
 			n += one;
 		}
-		// with the settings, which are no step of the history either
-		DZS_EntityExts.Commit(inst, "", "", true);
-		if (m_Data)
-		{
-			DZS_Json legacyBlocks = m_Data.Get("blocks");
-			if (legacyBlocks)
-				n += RenameIn(legacyBlocks, old, nw);
-			DZS_Json legacyChanges = m_Data.Get("changes");
-			if (legacyChanges)
-				n += RenameIn(legacyChanges, old, nw);
-		}
-		m_Gen++;
-		DZS_ProjectExtensions.Changed(inst);
 		return n;
 	}
 
@@ -464,19 +489,22 @@ class DZS_DzbotRules : DZS_ProjectExtension
 
 	// ---- rules on the entities ----
 
-	// section "blocks" (by block id; elements' rules under "items") or "changes" (by ref); null when there is none
+	// section "blocks" (by block id) or "changes" (by ref) of the current state; null when there is none
 	DZS_Json Rule(string section, string rid)
 	{
 		DZS_Instance inst = Inst();
-		if (section == "changes")
-		{
-			DZS_Json cv = DZS_EntityExts.ChangeByRef(inst, rid, URL);
-			if (!cv || !cv.IsObj())
-				return null;
-			return cv;
-		}
-		DZS_Json bv = DZS_EntityExts.Block(inst, rid, URL);
-		map<string, ref DZS_Json> els = DZS_EntityExts.ElementsOf(inst, rid, URL);
+		return RuleAt(DZS_EntityExts.Owner(inst, section, rid));
+	}
+
+	// The rule of an entity (a block's with its elements' rules under "items" by "<list>@<element id>"), null when
+	// there is none.
+	DZS_Json RuleAt(DZS_ExtOwner o)
+	{
+		DZS_Instance inst = Inst();
+		if (!o || !inst)
+			return null;
+		DZS_Json bv = DZS_EntityExts.Value(inst, o, URL);
+		map<string, ref DZS_Json> els = DZS_EntityExts.ItemValues(inst, o, URL);
 		bool own = bv && bv.IsObj();
 		if (!own && els.Count() == 0)
 			return null;
@@ -499,23 +527,59 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		return r;
 	}
 
-	// A rule replaced; an empty one (or null) removes it. One step of the history.
-	void Put(string section, string rid, DZS_Json rule)
+	// An entity's rule replaced (its elements' under "items" by "<list>@<element id>"); an empty one (or null) removes
+	// it. One step of the history. False when the entity is not in the project any more (nothing is written then);
+	// an element that left the block is skipped.
+	bool PutAt(DZS_ExtOwner o, DZS_Json rule)
 	{
 		DZS_Instance inst = Inst();
-		if (section == "changes")
+		if (!DZS_EntityExts.Alive(inst, o))
+			return false;
+		DZS_Json own = null;
+		DZS_Json items = null;
+		if (rule && rule.IsObj())
 		{
-			DZS_Json cv = null;
-			if (!IsEmpty(rule))
-				cv = rule.Clone();
-			DZS_EntityExts.SetChangeByRef(inst, rid, URL, cv);
+			own = rule.Clone();
+			items = own.Get("items");
+			own.Remove("items");
+			if (IsEmpty(own))
+				own = null;
 		}
-		else
-			PutBlock(inst, rid, rule);
+		DZS_EntityExts.SetValue(inst, o, URL, own);
+		map<string, ref DZS_Json> was = DZS_EntityExts.ItemValues(inst, o, URL);
+		for (int i = 0; i < was.Count(); i++)
+		{
+			string old = was.GetKey(i);
+			if (items && items.IsObj() && items.Has(old))
+				continue;
+			DZS_ExtOwner gone = DZS_EntityExts.ItemOwner(inst, o, old);
+			if (gone)
+				DZS_EntityExts.SetValue(inst, gone, URL, null);
+		}
+		if (items && items.IsObj())
+		{
+			for (int k = 0; k < items.m_Keys.Count(); k++)
+			{
+				string key = items.m_Keys[k];
+				DZS_ExtOwner io = DZS_EntityExts.ItemOwner(inst, o, key);
+				if (!io)
+				{
+					DZS_Log.Warn("dzbot: element " + key + " is not in the block any more, its rules are not stored");
+					continue;
+				}
+				DZS_Json one = items.Get(key);
+				DZS_Json oneCopy = null;
+				if (!IsEmpty(one))
+					oneCopy = one.Clone();
+				DZS_EntityExts.SetValue(inst, io, URL, oneCopy);
+			}
+		}
 		DZS_EntityExts.Commit(inst, "dzbot-Regeln ändern", "Edit dzbot rules");
 		m_Gen++;
+		return true;
 	}
 
+	// Rules of older files (opening only): a block by id, its elements' under "items" by "<list>[<index>]" of the file.
 	protected void PutBlock(DZS_Instance inst, string bid, DZS_Json rule)
 	{
 		DZS_Json own = null;

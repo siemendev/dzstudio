@@ -27,6 +27,62 @@ class DZS_LinesDialog : DZS_Dialog
 	protected ref array<ref DZS_Toggle> m_Toggles = new array<ref DZS_Toggle>();
 	protected ref array<string> m_ToggleTags = new array<string>();
 	protected string m_PickWhat;
+	// the project a dialog bound to an entity watches (Watch): a change of its state asks StateChanged
+	protected DZS_Instance m_WatchInst;
+	protected int m_WatchGen = -1;
+	protected float m_WatchWait;
+
+	protected void Watch(DZS_Instance inst)
+	{
+		m_WatchInst = inst;
+		if (inst)
+			m_WatchGen = inst.GetGen();
+	}
+
+	// Whether what the dialog edits is still in the project (by its identity, never by a place in a list).
+	bool TargetAlive() { return true; }
+
+	// The watched project changed (an own step, undo, a collab partner): a dialog whose entity is gone closes.
+	void StateChanged()
+	{
+		if (!TargetAlive())
+			Gone();
+	}
+
+	void Gone()
+	{
+		Close();
+		GoneNotice();
+	}
+
+	static void GoneNotice(string de = "Das Element wurde gelöscht", string en = "This element was deleted")
+	{
+		DZS_Kernel k = DZS_Kernel.Get();
+		if (k && k.GetScreen())
+			k.GetScreen().ShowMessage("extensions.gone", "warning", DZS_Texts.Pick(de, en), 3.0);
+		DZS_Log.Info("extensions: a dialog's element was deleted, dialog closed");
+	}
+
+	override void UpdateContent(float dt)
+	{
+		if (!m_WatchInst || m_Closed)
+			return;
+		m_WatchWait -= dt;
+		if (m_WatchWait > 0)
+			return;
+		m_WatchWait = 0.4;
+		DZS_Kernel k = DZS_Kernel.Get();
+		if (k && k.GetShown() != m_WatchInst)
+		{
+			Close();
+			return;
+		}
+		int g = m_WatchInst.GetGen();
+		if (g == m_WatchGen)
+			return;
+		m_WatchGen = g;
+		StateChanged();
+	}
 
 	protected DZS_RLine Line(float before = 0, float height = 28)
 	{

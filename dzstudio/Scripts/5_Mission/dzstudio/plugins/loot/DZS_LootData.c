@@ -13,6 +13,9 @@ class DZS_LootEPoint : Managed
 	int m_Src = -1;
 	// an own point's extensions as JSON text ("" = none), see DZS_EntityExts
 	string m_Ext;
+	// identity in the model (given when the entry is stored, kept by copies): what DZS_EntityExts and dialogs address,
+	// never the place in the list
+	string m_Uid;
 
 	DZS_LootEPoint Copy()
 	{
@@ -25,6 +28,7 @@ class DZS_LootEPoint : Managed
 		p.m_HasHeight = m_HasHeight;
 		p.m_Src = m_Src;
 		p.m_Ext = m_Ext;
+		p.m_Uid = m_Uid;
 		return p;
 	}
 
@@ -86,6 +90,7 @@ class DZS_LootEContainer : Managed
 	int m_Src = -1;
 	int m_Extra;
 	string m_Ext;
+	string m_Uid;
 
 	DZS_LootEContainer Copy()
 	{
@@ -102,6 +107,7 @@ class DZS_LootEContainer : Managed
 		c.m_Src = m_Src;
 		c.m_Extra = m_Extra;
 		c.m_Ext = m_Ext;
+		c.m_Uid = m_Uid;
 		return c;
 	}
 }
@@ -220,8 +226,59 @@ class DZS_LootEEntry : Managed
 		return v;
 	}
 
+	// Every container and point without an identity gets one (unique in the entry).
+	void GiveUids()
+	{
+		map<string, bool> seen = new map<string, bool>();
+		foreach (DZS_LootEContainer c0 : m_Containers)
+		{
+			if (c0.m_Uid == "" || seen.Contains(c0.m_Uid))
+				c0.m_Uid = NewUid(seen);
+			seen.Set(c0.m_Uid, true);
+			foreach (DZS_LootEPoint p0 : c0.m_Points)
+			{
+				if (p0.m_Uid == "" || seen.Contains(p0.m_Uid))
+					p0.m_Uid = NewUid(seen);
+				seen.Set(p0.m_Uid, true);
+			}
+		}
+	}
+
+	protected static string NewUid(map<string, bool> seen)
+	{
+		string u = DZS_Random.Code(8);
+		while (seen.Contains(u))
+			u = DZS_Random.Code(8);
+		return u;
+	}
+
+	DZS_LootEContainer ContainerByUid(string uid)
+	{
+		foreach (DZS_LootEContainer c : m_Containers)
+		{
+			if (uid != "" && c.m_Uid == uid)
+				return c;
+		}
+		return null;
+	}
+
+	DZS_LootEPoint PointByUid(string uid)
+	{
+		foreach (DZS_LootEContainer c : m_Containers)
+		{
+			foreach (DZS_LootEPoint p : c.m_Points)
+			{
+				if (uid != "" && p.m_Uid == uid)
+					return p;
+			}
+		}
+		return null;
+	}
+
+	// The text form stores the identities ("I" after its container or point line), giving missing ones first.
 	string ToText()
 	{
+		GiveUids();
 		string en = Esc(m_Name);
 		string el = Esc(m_Lootmax);
 		string ex = Esc(m_ExtraSig);
@@ -239,6 +296,7 @@ class DZS_LootEEntry : Managed
 			s += ";C|" + c.m_Src + "|" + cn + "|" + cl + "|" + c.m_Extra;
 			if (c.m_Ext != "")
 				s += "|" + Esc(c.m_Ext);
+			s += ";I|" + c.m_Uid;
 			foreach (string k : c.m_Cats)
 				s += ";K|" + Esc(k);
 			foreach (string t : c.m_Tags)
@@ -251,6 +309,7 @@ class DZS_LootEEntry : Managed
 				s += ";P|" + p.m_Src + "|" + p.m_Pos + "|" + pr + "|" + ph + "|" + pf;
 				if (p.m_Ext != "")
 					s += "|" + Esc(p.m_Ext);
+				s += ";I|" + p.m_Uid;
 			}
 		}
 		return s;
@@ -282,6 +341,7 @@ class DZS_LootEEntry : Managed
 		SplitKeep(text, ";", lines);
 		DZS_LootEEntry e = new DZS_LootEEntry();
 		DZS_LootEContainer cur = null;
+		DZS_LootEPoint lastPoint = null;
 		foreach (string line : lines)
 		{
 			array<string> f = new array<string>();
@@ -319,6 +379,14 @@ class DZS_LootEEntry : Managed
 				if (f.Count() >= 6)
 					cur.m_Ext = Unesc(f[5]);
 				e.m_Containers.Insert(cur);
+				lastPoint = null;
+			}
+			else if (k == "I" && cur && f.Count() >= 2)
+			{
+				if (lastPoint)
+					lastPoint.m_Uid = f[1];
+				else
+					cur.m_Uid = f[1];
 			}
 			else if (k == "K" && cur && f.Count() >= 2)
 			{
@@ -345,6 +413,7 @@ class DZS_LootEEntry : Managed
 				if (f.Count() >= 7)
 					p.m_Ext = Unesc(f[6]);
 				cur.m_Points.Insert(p);
+				lastPoint = p;
 			}
 		}
 		return e;
