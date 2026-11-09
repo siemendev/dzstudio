@@ -38,14 +38,13 @@ class DZS_XmlCanon : Managed
 	string m_NoExpect;
 	int m_Ms;
 
+	// the file is parsed in the first steps (3 MB of loot files at a save would stop the game for seconds)
+	protected ref DZS_XmlSteps m_Parse;
+
 	void DZS_XmlCanon(string name, array<string> chunks)
 	{
 		m_Name = name;
-		int t0 = TickCount(0);
-		m_Doc = DZS_Xml.Parse(chunks);
-		m_Ms = (TickCount(0) - t0) / 10000;
-		if (m_Doc.m_Error != "")
-			m_Error = m_Doc.ErrorText();
+		m_Parse = new DZS_XmlSteps(chunks);
 	}
 
 	void AddAfter(DZS_DzbotAfter a)
@@ -297,6 +296,22 @@ class DZS_XmlCanon : Managed
 		if (Done())
 			return true;
 		int t0 = TickCount(0);
+		if (m_Parse)
+		{
+			bool parsed = m_Parse.Step(t0, ms);
+			m_Ms += (TickCount(0) - t0) / 10000;
+			if (!parsed)
+				return false;
+			m_Doc = m_Parse.Result();
+			m_Parse = null;
+			DZS_Log.Info("dzbot: " + m_Name + " parsed in steps in " + m_Ms + " ms");
+			if (m_Doc.m_Error != "")
+			{
+				m_Error = m_Doc.ErrorText();
+				return true;
+			}
+			return false;
+		}
 		if (m_Phase == 0)
 		{
 			array<ref DZS_XmlNode> top = m_Doc.m_Root.m_Children;

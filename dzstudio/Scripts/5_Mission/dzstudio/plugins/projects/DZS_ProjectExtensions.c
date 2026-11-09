@@ -3,7 +3,8 @@
 // consumer that does not know the URL must not apply the project). A plugin registers a DZS_ProjectExtension for its
 // URL; opening a project hands it its entry, saving writes back what it holds. Every other URL gets a generic handler
 // (DZS_ExtGeneric) that edits the fields its spec file offers and otherwise writes the entry back untouched. Blocks,
-// changes and list elements carry their own "extensions", kept on their elements in the model (DZS_EntityExts).
+// changes and list elements carry their own "extensions", kept on their elements in the model (DZS_EntityExts). Which
+// extensions the project carries is in the model too (List), so adding and removing one is a step of the history.
 // Contract: docs/extensions/README.md.
 class DZS_ProjectExtension : Managed
 {
@@ -31,16 +32,15 @@ class DZS_ProjectExtension : Managed
 class DZS_ProjectExtensions
 {
 	protected static ref array<ref DZS_ProjectExtension> s_All;
-	// the "extensions" object of the open project as it was read; entries nobody reads are written back from here
+	// the "extensions" object of the open project as it was read
 	protected static ref DZS_Json s_Loaded;
-	// URLs whose entry a registered extension took
-	protected static ref array<string> s_Taken;
-	// URLs of required entries this studio cannot read
-	protected static ref array<string> s_Blocking;
-	// a generic handler per URL of the open project that no plugin reads (DZS_ExtGeneric)
+	// a generic handler per URL of the project's list that no plugin reads (DZS_ExtGeneric), kept in step with the
+	// list in the model (undo and redo add and remove extensions)
 	protected static ref array<ref DZS_ExtGeneric> s_Generic;
-	// URLs removed from the open project since it was read
-	protected static ref array<string> s_Removed;
+	protected static DZS_Instance s_SyncInst;
+	protected static int s_SyncGen = -1;
+	// between reading a file and its model being complete: the generic handlers hold the file's data
+	protected static bool s_Pending;
 
 	static void Add(DZS_ProjectExtension e)
 	{
@@ -66,8 +66,22 @@ class DZS_ProjectExtensions
 		return null;
 	}
 
+	protected static DZS_Instance Shown()
+	{
+		DZS_Kernel k = DZS_Kernel.Get();
+		if (!k)
+			return null;
+		return k.GetShown();
+	}
+
 	// A generic handler of the open project for a URL no plugin reads, null when there is none.
 	static DZS_ExtGeneric Generic(string url)
+	{
+		SyncGeneric();
+		return OldGeneric(url);
+	}
+
+	protected static DZS_ExtGeneric OldGeneric(string url)
 	{
 		if (!s_Generic)
 			return null;
@@ -77,6 +91,33 @@ class DZS_ProjectExtensions
 				return g;
 		}
 		return null;
+	}
+
+	// One generic handler per URL of the list without plugin, those of URLs still listed kept.
+	protected static void SyncGeneric()
+	{
+		if (s_Pending)
+			return;
+		DZS_Instance inst = Shown();
+		int gen = -1;
+		if (inst)
+			gen = inst.GetGen();
+		if (s_Generic && s_SyncInst == inst && s_SyncGen == gen)
+			return;
+		s_SyncInst = inst;
+		s_SyncGen = gen;
+		DZS_Json list = List(inst);
+		array<ref DZS_ExtGeneric> fresh = new array<ref DZS_ExtGeneric>();
+		foreach (string url : list.m_Keys)
+		{
+			if (url == DZS_ProjectFile.EDITOR_EXT || Find(url))
+				continue;
+			DZS_ExtGeneric g = OldGeneric(url);
+			if (!g)
+				g = new DZS_ExtGeneric(url, null);
+			fresh.Insert(g);
+		}
+		s_Generic = fresh;
 	}
 
 	// The handler of a URL: a plugin's, else the generic one of the open project.
@@ -91,6 +132,7 @@ class DZS_ProjectExtensions
 	// Plugins, then the generic handlers of the open project.
 	static array<DZS_ProjectExtension> Handlers()
 	{
+		SyncGeneric();
 		array<DZS_ProjectExtension> r = new array<DZS_ProjectExtension>();
 		foreach (DZS_ProjectExtension e : All())
 			r.Insert(e);
@@ -105,26 +147,90 @@ class DZS_ProjectExtensions
 	static void Reset()
 	{
 		s_Loaded = null;
-		s_Taken = new array<string>();
-		s_Blocking = new array<string>();
 		s_Generic = new array<ref DZS_ExtGeneric>();
-		s_Removed = new array<string>();
+		s_SyncInst = null;
+		s_SyncGen = -1;
+		s_Pending = false;
 		foreach (DZS_ProjectExtension e : All())
 			e.Reset();
 		DZS_EntityExts.Reset();
 	}
 
-	// The URLs the open project uses, in file order: its own entries, then those only entities hold, then added ones.
+	// ---- the list of extensions the project carries ----
+
+	// The project's extensions, {"<url>": <its entry without "data">} in file order ("data": null marks where the
+	// data stood): the model's (DZS_EntityExts.ProjectList, a step of the history like everything else), else the
+	// opened file's. A copy.
+	static DZS_Json List(DZS_Instance inst)
+	{
+		DZS_Json own = DZS_EntityExts.ProjectList(inst);
+		if (own)
+			return own;
+		return LoadedList();
+	}
+
+	protected static DZS_Json LoadedList()
+	{
+		DZS_Json r = DZS_Json.Obj();
+		if (!s_Loaded)
+			return r;
+		foreach (string url : s_Loaded.m_Keys)
+		{
+			if (url == DZS_ProjectFile.EDITOR_EXT)
+				continue;
+			DZS_Json meta = MetaOf(s_Loaded.Get(url));
+			r.Set(url, meta);
+		}
+		return r;
+	}
+
+	// An entry without its data (an entry that is no object stays as it is).
+	protected static DZS_Json MetaOf(DZS_Json entry)
+	{
+		if (!entry)
+			return DZS_Json.Obj();
+		if (!entry.IsObj())
+			return entry.Clone();
+		DZS_Json meta = DZS_Json.Obj();
+		foreach (string k : entry.m_Keys)
+		{
+			if (k == "data")
+			{
+				DZS_Json mark = DZS_Json.Null();
+				meta.Set(k, mark);
+				continue;
+			}
+			DZS_Json one = entry.Get(k);
+			DZS_Json copy = one.Clone();
+			meta.Set(k, copy);
+		}
+		return meta;
+	}
+
+	// The open project carries the URL (staged as part of the edit being made, see DZS_EntityExts.SetProjectData).
+	static void Carry(DZS_Instance inst, string url)
+	{
+		if (!inst || url == DZS_ProjectFile.EDITOR_EXT)
+			return;
+		DZS_Json list = List(inst);
+		if (list.Has(url))
+			return;
+		DZS_Json meta = DZS_Json.Obj();
+		list.Set(url, meta);
+		DZS_EntityExts.SetProjectList(inst, list);
+	}
+
+	// The URLs the open project uses, in file order: its own entries, then those only entities hold, then plugins
+	// holding data outside the list.
 	static array<string> Urls()
 	{
 		array<string> r = new array<string>();
-		if (s_Loaded)
+		DZS_Instance inst = Shown();
+		DZS_Json list = List(inst);
+		foreach (string lu : list.m_Keys)
 		{
-			foreach (string lu : s_Loaded.m_Keys)
-			{
-				if (lu != DZS_ProjectFile.EDITOR_EXT && !IsRemoved(lu))
-					r.Insert(lu);
-			}
+			if (lu != DZS_ProjectFile.EDITOR_EXT)
+				r.Insert(lu);
 		}
 		array<string> ents = DZS_EntityExts.Urls();
 		foreach (string eu : ents)
@@ -132,84 +238,64 @@ class DZS_ProjectExtensions
 			if (r.Find(eu) < 0 && eu != DZS_ProjectFile.EDITOR_EXT)
 				r.Insert(eu);
 		}
-		if (s_Generic)
-		{
-			foreach (DZS_ExtGeneric g : s_Generic)
-			{
-				if (r.Find(g.Url()) < 0)
-					r.Insert(g.Url());
-			}
-		}
 		foreach (DZS_ProjectExtension e : All())
 		{
-			if (r.Find(e.Url()) < 0 && !IsRemoved(e.Url()) && e.Data() != null)
+			if (r.Find(e.Url()) < 0 && e.Data() != null)
 				r.Insert(e.Url());
 		}
 		return r;
 	}
 
-	protected static bool IsRemoved(string url)
-	{
-		return s_Removed && s_Removed.Find(url) >= 0;
-	}
-
 	// Whether the open project's own entry for the URL is required.
 	static bool IsRequired(string url)
 	{
-		DZS_ProjectExtension h = Handler(url);
-		if (h)
-			return h.Required();
-		if (!s_Loaded)
-			return false;
-		DZS_Json entry = s_Loaded.Get(url);
-		return entry && entry.IsObj() && entry.GetBool("required");
-	}
-
-	// Adds an extension to the open project: {"data": {}}, "required" as its spec says. A URL a plugin reads only
-	// comes back from the removed ones; its entry is written once it holds something.
-	static void AddUrl(DZS_Instance inst, string url, bool required)
-	{
-		Ensure();
-		s_Removed.RemoveItem(url);
-		if (url == DZS_ProjectFile.EDITOR_EXT || Find(url) || Generic(url))
-		{
-			Changed(inst);
-			return;
-		}
-		DZS_Json empty = DZS_Json.Obj();
-		DZS_ExtGeneric g = new DZS_ExtGeneric(url, required, empty);
-		g.MarkChanged();
-		s_Generic.Insert(g);
-		if (required && s_Blocking.Find(url) < 0)
-			s_Blocking.Insert(url);
-		DZS_ExtSpecs.Want(url);
-		Changed(inst);
-	}
-
-	// Removes an extension from the open project: its own entry and its values on every entity.
-	static void RemoveUrl(DZS_Instance inst, string url)
-	{
-		Ensure();
-		if (url == DZS_ProjectFile.EDITOR_EXT)
-			return;
-		if (s_Removed.Find(url) < 0)
-			s_Removed.Insert(url);
-		s_Taken.RemoveItem(url);
-		s_Blocking.RemoveItem(url);
 		DZS_ProjectExtension e = Find(url);
 		if (e)
-			e.Reset();
-		DZS_ExtGeneric g = Generic(url);
-		if (g)
-			s_Generic.RemoveItem(g);
-		DZS_EntityExts.RemoveUrl(inst, url);
-		Changed(inst);
+			return e.Required();
+		DZS_Json list = List(Shown());
+		DZS_Json meta = list.Get(url);
+		return meta && meta.IsObj() && meta.GetBool("required");
 	}
 
-	protected static void Ensure()
+	// Adds an extension to the open project as one step of the history: listed, "required" as its spec says, a URL no
+	// plugin reads with {"data": {}}; a plugin's entry is written once it holds something.
+	static void AddUrl(DZS_Instance inst, string url, bool required)
 	{
-		if (!s_Taken)
-			Reset();
+		if (!inst || url == DZS_ProjectFile.EDITOR_EXT)
+			return;
+		bool plugin = Find(url) != null;
+		DZS_Json list = List(inst);
+		if (!list.Has(url))
+		{
+			DZS_Json meta = DZS_Json.Obj();
+			if (required && !plugin)
+			{
+				DZS_Json rq = DZS_Json.Boolean(true);
+				meta.Set("required", rq);
+			}
+			list.Set(url, meta);
+			DZS_EntityExts.SetProjectList(inst, list);
+		}
+		if (!plugin && !DZS_EntityExts.HasProjectData(inst, url))
+		{
+			DZS_Json empty = DZS_Json.Obj();
+			DZS_EntityExts.SetProjectData(inst, url, empty);
+		}
+		DZS_EntityExts.Commit(inst, "Erweiterung hinzufügen", "Add extension");
+		DZS_ExtSpecs.Want(url);
+	}
+
+	// Removes an extension from the open project: its entry in the list, its data and its values on every entity, as
+	// one step of the history (undo brings all of it back).
+	static void RemoveUrl(DZS_Instance inst, string url)
+	{
+		if (!inst || url == DZS_ProjectFile.EDITOR_EXT)
+			return;
+		DZS_EntityExts.RemoveUrl(inst, url);
+		// a plugin that keeps project data outside the model forgets it (not undoable)
+		DZS_ProjectExtension e = Find(url);
+		if (e && !DZS_EntityExts.HasProjectData(inst, url))
+			e.Reset();
 	}
 
 	// Opening a project file (its root object); 'issues' gets a warning per required entry this studio cannot read.
@@ -218,6 +304,7 @@ class DZS_ProjectExtensions
 		Reset();
 		if (!root || !root.IsObj())
 			return;
+		s_Pending = true;
 		DZS_EntityExts.Load(root);
 		array<string> ents = DZS_EntityExts.FileUrls();
 		foreach (string eu : ents)
@@ -248,15 +335,11 @@ class DZS_ProjectExtensions
 			if (e)
 			{
 				e.Load(own);
-				s_Taken.Insert(url);
 				continue;
 			}
-			DZS_ExtGeneric g = new DZS_ExtGeneric(url, required, own);
+			DZS_ExtGeneric g = new DZS_ExtGeneric(url, own);
 			s_Generic.Insert(g);
-			if (!required)
-				continue;
-			s_Blocking.Insert(url);
-			if (issues)
+			if (required && issues)
 				issues.Add(DZS_Issue.WARNING, "Die Projektdatei braucht die Erweiterung " + url + ", die dieser Editor nicht kennt — sie bleibt unverändert, Anwenden ist gesperrt", "The project file needs the extension " + url + ", which this editor does not know — it stays as it is, applying is blocked");
 		}
 	}
@@ -289,105 +372,124 @@ class DZS_ProjectExtensions
 	{
 		de = "";
 		en = "";
-		if (!s_Blocking || s_Blocking.Count() == 0)
-			return false;
-		string list = "";
-		foreach (string b : s_Blocking)
+		DZS_Json list = List(Shown());
+		string names = "";
+		foreach (string url : list.m_Keys)
 		{
-			if (list != "")
-				list += ", ";
-			list += b;
+			DZS_Json meta = list.Get(url);
+			if (url == DZS_ProjectFile.EDITOR_EXT || Find(url) || !meta.IsObj() || !meta.GetBool("required"))
+				continue;
+			if (names != "")
+				names += ", ";
+			names += url;
 		}
-		de = "Braucht die Erweiterung " + list;
-		en = "Needs the extension " + list;
+		if (names == "")
+			return false;
+		de = "Braucht die Erweiterung " + names;
+		en = "Needs the extension " + names;
 		return true;
 	}
 
-	// The "extensions" object to save, in the order it was read, new entries after it; null when there is none.
+	// The "extensions" object to save, in the order of the project's list, then entries of plugins that hold data
+	// outside it; null when there is none.
 	static DZS_Json Save()
 	{
+		DZS_Instance inst = Shown();
 		DZS_Json result = DZS_Json.Obj();
-		if (s_Loaded)
+		DZS_Json list = List(inst);
+		foreach (string url : list.m_Keys)
 		{
-			for (int i = 0; i < s_Loaded.m_Keys.Count(); i++)
-			{
-				string url = s_Loaded.m_Keys[i];
-				DZS_Json was = s_Loaded.Get(url);
-				if (IsRemoved(url))
-					continue;
-				DZS_ExtGeneric lg = Generic(url);
-				bool taken = s_Taken && s_Taken.Find(url) >= 0;
-				if (!taken && (!lg || !lg.IsChanged()))
-				{
-					DZS_Json kept = was.Clone();
-					result.Set(url, kept);
-					continue;
-				}
-				DZS_ProjectExtension h = lg;
-				if (taken)
-					h = Find(url);
-				DZS_Json entry = Entry(h, was);
-				if (entry)
-					result.Set(url, entry);
-			}
+			if (url == DZS_ProjectFile.EDITOR_EXT)
+				continue;
+			DZS_Json entry = Entry(inst, url, list.Get(url));
+			if (entry)
+				result.Set(url, entry);
 		}
 		foreach (DZS_ProjectExtension e : All())
 		{
-			if (result.Has(e.Url()) || (s_Taken && s_Taken.Find(e.Url()) >= 0))
+			if (result.Has(e.Url()) || list.Has(e.Url()))
 				continue;
-			DZS_Json fresh = Entry(e, null);
-			if (fresh)
-				result.Set(e.Url(), fresh);
-		}
-		if (s_Generic)
-		{
-			foreach (DZS_ExtGeneric ng : s_Generic)
+			DZS_Json data = e.Data();
+			if (!data)
+				continue;
+			DZS_Json fresh = DZS_Json.Obj();
+			if (e.Required())
 			{
-				if (result.Has(ng.Url()) || (s_Loaded && s_Loaded.Has(ng.Url())))
-					continue;
-				DZS_Json added = Entry(ng, null);
-				if (added)
-					result.Set(ng.Url(), added);
+				DZS_Json rq = DZS_Json.Boolean(true);
+				fresh.Set("required", rq);
 			}
+			fresh.Set("data", data);
+			result.Set(e.Url(), fresh);
 		}
 		if (result.Count() == 0)
 			return null;
 		return result;
 	}
 
-	// An extension's entry: the members of the entry as read (other than required and data) stay.
-	protected static DZS_Json Entry(DZS_ProjectExtension e, DZS_Json was)
+	// An extension's entry: its members from the list, its data from its plugin, else from the model, else as read;
+	// null when a plugin has nothing to write.
+	protected static DZS_Json Entry(DZS_Instance inst, string url, DZS_Json meta)
 	{
-		if (!e)
-			return null;
-		DZS_Json data = e.Data();
-		if (!data)
-			return null;
+		if (!meta.IsObj())
+			return meta.Clone();
+		DZS_ProjectExtension plugin = Find(url);
+		DZS_Json data = null;
+		if (plugin)
+		{
+			data = plugin.Data();
+			if (!data)
+				return null;
+		}
+		else if (DZS_EntityExts.HasProjectData(inst, url))
+			data = DZS_EntityExts.ProjectData(inst, url);
+		else if (s_Loaded)
+		{
+			DZS_Json was = s_Loaded.Get(url);
+			if (was && was.IsObj() && was.Has("data"))
+			{
+				DZS_Json wasData = was.Get("data");
+				data = wasData.Clone();
+			}
+		}
 		DZS_Json entry = DZS_Json.Obj();
-		if (e.Required())
+		if (plugin && plugin.Required())
 		{
 			DZS_Json rq = DZS_Json.Boolean(true);
 			entry.Set("required", rq);
 		}
-		entry.Set("data", data);
-		if (was && was.IsObj())
+		foreach (string k : meta.m_Keys)
 		{
-			for (int i = 0; i < was.m_Keys.Count(); i++)
+			if (k == "data")
 			{
-				string k = was.m_Keys[i];
-				if (k == "required" || k == "data")
-					continue;
-				DZS_Json other = was.Get(k);
-				DZS_Json copy = other.Clone();
-				entry.Set(k, copy);
+				if (data)
+					entry.Set(k, data);
+				continue;
 			}
+			if (plugin && k == "required")
+				continue;
+			DZS_Json one = meta.Get(k);
+			DZS_Json copy = one.Clone();
+			entry.Set(k, copy);
 		}
+		if (data && !entry.Has("data"))
+			entry.Set("data", data);
 		return entry;
 	}
 
-	// The opened project's model is complete: entities take their extensions, extensions may look at the scene.
+	// The opened project's model is complete: the project's list of extensions goes into it (once: a restored backup
+	// or a live session brings its own), entities take their extensions, extensions may look at the scene.
 	static void Opened(DZS_Instance inst)
 	{
+		s_Pending = false;
+		if (inst && !DZS_EntityExts.ProjectList(inst))
+		{
+			DZS_Json loaded = LoadedList();
+			if (loaded.Count() > 0)
+			{
+				DZS_EntityExts.SetProjectList(inst, loaded);
+				DZS_EntityExts.Commit(inst, "", "", true);
+			}
+		}
 		DZS_EntityExts.Distribute(inst);
 		array<DZS_ProjectExtension> handlers = Handlers();
 		foreach (DZS_ProjectExtension e : handlers)

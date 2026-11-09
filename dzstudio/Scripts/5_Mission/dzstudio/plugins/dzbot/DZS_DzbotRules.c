@@ -167,6 +167,71 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		}
 	}
 
+	// ---- names of repeated blocks ----
+
+	// what a copy of a named block is called without a template in its repeat
+	static const string DEFAULT_COPY_NAME = "{name}_{n}";
+
+	// The template with {name}, {n} (from 1) and {index} (from 0) put in, in one pass like dzbot.
+	static string CopyName(string pattern, string name, int index)
+	{
+		string res = "";
+		int number = index + 1;
+		string nText = number.ToString();
+		string iText = index.ToString();
+		int len = pattern.Length();
+		int at = 0;
+		while (at < len)
+		{
+			string rest = pattern.Substring(at, len - at);
+			if (rest.IndexOf("{name}") == 0)
+			{
+				res += name;
+				at += 6;
+			}
+			else if (rest.IndexOf("{n}") == 0)
+			{
+				res += nText;
+				at += 3;
+			}
+			else if (rest.IndexOf("{index}") == 0)
+			{
+				res += iText;
+				at += 7;
+			}
+			else
+			{
+				res += pattern.Get(at);
+				at++;
+			}
+		}
+		return res;
+	}
+
+	// Why dzbot would not take a repeat's name template ("" = fine; empty means the default).
+	static string CopyNameProblem(string pattern)
+	{
+		if (pattern == "")
+			return "";
+		string rest = pattern;
+		rest.Replace("{name}", "");
+		rest.Replace("{n}", "");
+		rest.Replace("{index}", "");
+		if (rest.IndexOf("{") >= 0)
+			return DZS_Texts.Pick("nur {name}, {n} und {index} in Klammern", "only {name}, {n} and {index} in braces");
+		string allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
+		for (int i = 0; i < rest.Length(); i++)
+		{
+			if (allowed.IndexOf(rest.Get(i)) < 0)
+				return DZS_Texts.Pick("nur Buchstaben, Ziffern und _ (Namen im Spiel erlauben nichts anderes)", "only letters, digits and _ (game names allow nothing else)");
+		}
+		if (pattern.IndexOf("{n}") < 0 && pattern.IndexOf("{index}") < 0)
+			return DZS_Texts.Pick("braucht {n} oder {index}, sonst heißen alle Kopien gleich", "needs {n} or {index}, or every copy gets the same name");
+		if (pattern.Length() > 200)
+			return DZS_Texts.Pick("länger als 200 Zeichen", "longer than 200 characters");
+		return "";
+	}
+
 	// ---- settings (config fields of the mod) ----
 
 	// The project's own list of settings (a copy), null when it has none.
@@ -311,55 +376,17 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		return st;
 	}
 
-	// A copy of the project's list of settings to edit and hand to CommitSettings; without one, dzbot's list in
-	// dzbot's shape (options and multiple in "typeConfig"), which the first commit copies into the project. An object
-	// list's properties are not copied: dzbot sends their names only, and a list of bare names would replace their
-	// types and labels there.
+	// A copy of the project's list of settings to edit and hand to CommitSettings; without one, dzbot's list as it sent
+	// it (the project's shape, every member kept), which the first commit copies into the project.
 	DZS_Json SettingsForEdit()
 	{
 		DZS_Json list = SettingsList();
 		if (list)
 			return list;
-		list = DZS_Json.Arr();
 		if (m_P)
-		{
-			array<ref DZS_DzbotSetting> sent = m_P.OpenSettings();
-			foreach (DZS_DzbotSetting st : sent)
-			{
-				DZS_Json entry = DZS_Json.Obj();
-				DZS_Json idj = DZS_Json.Str(st.m_Id);
-				entry.Set("identifier", idj);
-				DZS_Json tj = DZS_Json.Str(st.m_Title);
-				entry.Set("title", tj);
-				DZS_Json ty = DZS_Json.Str(st.m_Type);
-				entry.Set("type", ty);
-				if (st.m_Multiple || st.m_Options.Count() > 0)
-				{
-					DZS_Json tc = DZS_Json.Obj();
-					if (st.m_Multiple)
-					{
-						DZS_Json mj = DZS_Json.Boolean(true);
-						tc.Set("multiple", mj);
-					}
-					if (st.m_Options.Count() > 0)
-					{
-						DZS_Json opts = DZS_Json.Arr();
-						foreach (string ov : st.m_Options)
-						{
-							DZS_Json oo = DZS_Json.Obj();
-							DZS_Json vj = DZS_Json.Str(ov);
-							oo.Set("value", vj);
-							DZS_Json lj = DZS_Json.Str(ov);
-							oo.Set("label", lj);
-							opts.Add(oo);
-						}
-						tc.Set("options", opts);
-					}
-					entry.Set("typeConfig", tc);
-				}
-				list.Add(entry);
-			}
-		}
+			list = m_P.OpenSettingsList();
+		if (!list)
+			list = DZS_Json.Arr();
 		return list;
 	}
 

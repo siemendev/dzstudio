@@ -543,6 +543,17 @@ class DZS_Xml
 
 	protected DZS_XmlNode Element(int lead)
 	{
+		DZS_XmlNode n = Tag(lead);
+		if (!n || n.m_SelfClose)
+			return n;
+		if (!Content(n, m_P))
+			return null;
+		return n;
+	}
+
+	// The start tag at m_P with its attributes, m_P after it; its content is not read yet (unless self-closing).
+	protected DZS_XmlNode Tag(int lead)
+	{
 		DZS_XmlNode n = new DZS_XmlNode();
 		n.m_LeadStart = lead;
 		n.m_Start = m_P;
@@ -571,8 +582,6 @@ class DZS_Xml
 			{
 				m_P++;
 				n.m_OpenEnd = m_P;
-				if (!Content(n, m_P))
-					return null;
 				return n;
 			}
 			if (c == "/")
@@ -754,6 +763,181 @@ class DZS_Xml
 		s.Replace(">", "&gt;");
 		s.Replace("\"", "&quot;");
 		return s;
+	}
+}
+
+// The same reader over several frames (a big mission file: mapgrouppos.xml, types.xml): the open elements are kept on
+// a stack instead of the call stack and the budget is checked between tags. Same document as DZS_Xml.Parse.
+class DZS_XmlSteps : DZS_Xml
+{
+	protected ref DZS_XmlDoc m_Own;
+	protected ref DZS_XmlNode m_Top;
+	protected ref array<DZS_XmlNode> m_Open = new array<DZS_XmlNode>();
+	protected ref array<int> m_Last = new array<int>();
+	protected bool m_Done;
+
+	void DZS_XmlSteps(array<string> chunks)
+	{
+		m_Own = new DZS_XmlDoc();
+		m_Own.SetSource(chunks);
+		m_Doc = m_Own;
+		m_N = m_Own.Length();
+		m_P = 0;
+		if (m_N >= 3 && m_Own.ByteAt(0) == 239 && m_Own.ByteAt(1) == 187 && m_Own.ByteAt(2) == 191)
+		{
+			m_Own.m_Bom = true;
+			m_P = 3;
+		}
+		int nl = m_Own.Find(0, "\n");
+		if (nl > 0 && m_Own.CharAt(nl - 1) == "\r")
+			m_Own.m_Eol = "\r\n";
+		m_Top = new DZS_XmlNode();
+		m_Top.m_Name = "";
+		m_Open.Insert(m_Top);
+		m_Last.Insert(m_P);
+	}
+
+	bool IsDone() { return m_Done; }
+
+	DZS_XmlDoc Result() { return m_Own; }
+
+	// Share of the source read, 0 … 1.
+	float Progress()
+	{
+		if (m_N <= 0)
+			return 1;
+		float n = m_N;
+		return m_P / n;
+	}
+
+	// Reads until 'ms' milliseconds since 't0' (TickCount) are used; true when the document is complete.
+	bool Step(int t0, float ms)
+	{
+		int k = 0;
+		while (!m_Done)
+		{
+			k++;
+			if ((k & 31) == 0 && DZS_Job.Over(t0, ms))
+				return false;
+			Next();
+		}
+		return true;
+	}
+
+	// One piece of the content of the innermost open element: a comment, declaration, start or end tag.
+	protected void Next()
+	{
+		int top = m_Open.Count() - 1;
+		DZS_XmlNode parent = m_Open[top];
+		int lt = m_Doc.Find(m_P, "<");
+		if (lt < 0)
+		{
+			if (parent.m_Name != "")
+			{
+				Fail("</" + parent.m_Name + "> missing", m_N);
+				m_Done = true;
+				return;
+			}
+			m_P = m_N;
+			Close();
+			return;
+		}
+		m_P = lt;
+		if (m_Doc.StartsAt(m_P, "<!--"))
+		{
+			int ce = m_Doc.FindStr(m_P + 4, "-->");
+			if (ce < 0)
+			{
+				Fail("unterminated comment", m_P);
+				m_Done = true;
+				return;
+			}
+			m_P = ce + 3;
+			m_Last[top] = m_P;
+			return;
+		}
+		if (m_Doc.StartsAt(m_P, "<![CDATA["))
+		{
+			int de = m_Doc.FindStr(m_P, "]]>");
+			if (de < 0)
+			{
+				Fail("unterminated CDATA", m_P);
+				m_Done = true;
+				return;
+			}
+			m_P = de + 3;
+			return;
+		}
+		string second = Ch(m_P + 1);
+		if (second == "?" || second == "!")
+		{
+			int pe = m_Doc.Find(m_P, ">");
+			if (pe < 0)
+			{
+				Fail("incomplete declaration", m_P);
+				m_Done = true;
+				return;
+			}
+			m_P = pe + 1;
+			m_Last[top] = m_P;
+			return;
+		}
+		if (second == "/")
+		{
+			int ee = m_Doc.Find(m_P, ">");
+			if (ee < 0)
+			{
+				Fail("incomplete end tag", m_P);
+				m_Done = true;
+				return;
+			}
+			string endName = m_Doc.Slice(m_P + 2, ee);
+			endName.TrimInPlace();
+			if (parent.m_Name == "" || endName != parent.m_Name)
+			{
+				Fail("</" + endName + "> does not match", m_P);
+				m_Done = true;
+				return;
+			}
+			m_P = ee + 1;
+			parent.m_End = m_P;
+			m_Open.Remove(top);
+			m_Last.Remove(top);
+			m_Last[top - 1] = parent.m_End;
+			return;
+		}
+		DZS_XmlNode n = Tag(m_Last[top]);
+		if (!n)
+		{
+			m_Done = true;
+			return;
+		}
+		parent.m_Children.Insert(n);
+		if (n.m_SelfClose)
+		{
+			m_Last[top] = n.m_End;
+			return;
+		}
+		m_Open.Insert(n);
+		m_Last.Insert(m_P);
+	}
+
+	// The top level is read: its one element is the root.
+	protected void Close()
+	{
+		m_Done = true;
+		foreach (DZS_XmlNode c : m_Top.m_Children)
+		{
+			if (!m_Own.m_Root)
+				m_Own.m_Root = c;
+			else
+			{
+				Fail("more than one root element", c.m_Start);
+				return;
+			}
+		}
+		if (!m_Own.m_Root)
+			Fail("no root element", m_N);
 	}
 }
 

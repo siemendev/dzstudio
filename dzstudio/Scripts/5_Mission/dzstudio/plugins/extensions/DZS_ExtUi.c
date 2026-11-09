@@ -271,7 +271,7 @@ class DZS_ExtListDialog : DZS_LinesDialog
 		if (spec)
 			title = spec.Title();
 		string text = DZS_Texts.Pick("„", "'") + title;
-		text += DZS_Texts.Pick("“ mit allen Werten im Projekt entfernen (auch an Blöcken, Änderungen und Objekten)? Wirksam beim Speichern.", "' with all its values in the project (also on blocks, changes and objects)? Takes effect when saved.");
+		text += DZS_Texts.Pick("“ mit allen Werten im Projekt entfernen (auch an Blöcken, Änderungen und Objekten)? Rückgängig (Strg+Z) holt alles zurück.", "' with all its values in the project (also on blocks, changes and objects)? Undo (Ctrl+Z) brings all of it back.");
 		DZS_ConfirmDialog c = new DZS_ConfirmDialog(DZS_Texts.Pick("Erweiterungen", "Extensions"), DZS_Texts.Pick("Erweiterung entfernen", "Remove extension"), text);
 		c.AddFootButton("cancel", DZS_Texts.Get("core.dialog.cancel"), "side");
 		DZS_Button yes = c.AddFootButton("remove", DZS_Texts.Pick("Entfernen", "Remove"), "danger");

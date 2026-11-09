@@ -31,6 +31,8 @@ class DZS_OpenJob : Managed
 	static const int GROUPS = 0;
 	static const int LOAD = 1;
 	static const int SHOW = 2;
+	// the working folder of a version 2 project (DZS_WorkBuild)
+	static const int WORK = 3;
 
 	string m_Folder;
 	// where the group files are read: the folder, or the working folder of a version 2 project
@@ -79,6 +81,20 @@ class DZS_OpenJob : Managed
 	ref DZS_Json m_BackupHead;
 	ref DZS_SrcJsonSteps m_Parse;
 	ref DZS_SrcDoc m_Doc;
+	ref DZS_WorkBuild m_Work;
+	// the loot files read ahead while the groups are read
+	ref DZS_LootPrefetch m_LootRead;
+	// the index for the file's entity extensions, built while the scene shows the objects
+	ref DZS_ProjectBuild m_Index;
+	bool m_Sliced;
+	// the share of the progress the working folder takes
+	float m_From;
+
+	// A share of the reading after the working folder, as a share of the whole opening.
+	float Scaled(float share)
+	{
+		return m_From + (1 - m_From) * share;
+	}
 	DZS_SrcNode m_Elems;
 	int m_Ei;
 	ref DZS_Operation m_Built;
@@ -134,6 +150,22 @@ class DZS_PlanBuild : Managed
 	int m_Frames;
 	float m_Slowest;
 	float m_Started;
+	// the building blocks, built over several slices after the groups
+	ref DZS_ProjectBuild m_Build;
+	string m_ProjectPart;
+	// the generation of the state the freeze holds
+	int m_Gen;
+
+	// How far the plan is, 0 … 1: the groups through their formats, then the building blocks.
+	float Share()
+	{
+		float groups = 0;
+		if (m_Groups && m_Groups.Count() > 0)
+			groups = Math.Min(m_Next, m_Groups.Count()) / (m_Groups.Count() * 1.0);
+		if (!m_Build)
+			return 0.5 * groups;
+		return 0.5 + 0.5 * m_Build.m_Share;
+	}
 }
 
 class DZS_SavePlan : Managed
@@ -1350,13 +1382,12 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		DZS_Log.Info("open project " + folder);
 		array<string> pchunks = DZS_Files.Read(DZS_LocalStore.File(folder));
 		bool v2 = DZS_ProjectFile.IsV2(pchunks);
-		if (v2 && WaitForBase(DZS_WorkFolder.RootOf(pchunks), folder, sliced, backupHead))
-			return;
 		DZS_OpenJob j = new DZS_OpenJob();
 		j.m_BackupHead = backupHead;
 		j.m_T0 = TickCount(0);
 		j.m_Started = m_Now;
 		j.m_Folder = folder;
+		j.m_Sliced = sliced;
 		string skipText;
 		if (GetCLIParam("dzsOpenSkip", skipText))
 			j.m_Skip = skipText.ToInt();
@@ -1368,32 +1399,104 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		j.m_Lp = lp;
 		if (lp)
 			op.m_Provider = lp.Id();
-		DZS_Issues issues = op.m_OpenIssues;
 		if (pchunks)
 			op.Remember(DZS_ProjectFile.NAME, DZS_Files.Checksum(pchunks));
 		else
 			op.Remember(DZS_ProjectFile.NAME, "");
-		string src = folder;
-		// an older project's files, taken along when its folder was converted, are not read any more once it is saved
-		if (v2 && !lp && folder.IndexOf("$profile:") != 0 && DZS_Files.IsFolder(DZS_LocalStore.Dir(folder)))
-			DZS_Files.DeleteTree(DZS_LocalStore.Dir(folder));
-		if (v2)
+		if (!v2)
 		{
-			DZS_WorkResult wr = DZS_WorkFolder.Build(folder, pchunks, LoadedMapKey(), issues);
-			if (wr.m_Error != "")
-			{
-				DZS_Log.Error("open: project file of " + folder + ": " + wr.m_Error);
-				Message("projects.open", "danger", "Projektdatei nicht lesbar: " + wr.m_Error, "Project file not readable: " + wr.m_Error, 6.0);
-				ShowHome(true);
-				return;
-			}
-			DZS_ProjectExtensions.Load(DZS_WorkFolder.RootOf(pchunks), issues);
-			pchunks = wr.m_Manifest;
-			src = wr.m_Dir;
-			op.m_Work = src;
-			op.m_Base = wr.m_Base;
-			op.m_Origin = wr.m_Origin;
+			OpenRead(j, pchunks, folder, false);
+			return;
 		}
+		// version 2: the working folder first (DZS_WorkBuild), over several frames with the progress dialog
+		j.m_Work = new DZS_WorkBuild(folder, pchunks, LoadedMapKey(), op.m_OpenIssues);
+		if (!sliced)
+		{
+			DZS_Jobs.RunNow(j.m_Work);
+			AfterWork(j);
+			return;
+		}
+		j.m_Phase = DZS_OpenJob.WORK;
+		j.m_From = 0.3;
+		m_Opening = j;
+		string title = folder;
+		int cut = title.LastIndexOf("\\");
+		if (cut >= 0)
+			title = title.Substring(cut + 1, title.Length() - cut - 1);
+		j.m_Progress = new DZS_ProgressDialog(DZS_Texts.Pick("Projekt", "Project"), title, DZS_Texts.Pick("Öffnet", "Opening"), true);
+		j.m_Progress.m_OnResult.Insert(OnOpenCancel);
+		j.m_Progress.Open();
+	}
+
+	// The working folder is there (or the project waits for its base): on to reading it like any project folder.
+	protected void AfterWork(DZS_OpenJob j)
+	{
+		DZS_WorkBuild w = j.m_Work;
+		DZS_OpenProject op = j.m_Op;
+		string folder = j.m_Folder;
+		DZS_Issues issues = op.m_OpenIssues;
+		if (w.m_NeedBase)
+		{
+			EndOpening(j);
+			if (!WaitForBase(w.m_Root, folder, j.m_Sliced, j.m_BackupHead))
+				LoadProject(folder, j.m_Sliced, j.m_BackupHead);
+			return;
+		}
+		DZS_WorkResult wr = w.m_Result;
+		if (wr.m_Error != "")
+		{
+			DZS_Log.Error("open: project file of " + folder + ": " + wr.m_Error);
+			Message("projects.open", "danger", "Projektdatei nicht lesbar: " + wr.m_Error, "Project file not readable: " + wr.m_Error, 6.0);
+			EndOpening(j);
+			ShowHome(true);
+			return;
+		}
+		// an older project's files, taken along when its folder was converted, are not read any more once it is saved
+		if (!j.m_Lp && folder.IndexOf("$profile:") != 0 && DZS_Files.IsFolder(DZS_LocalStore.Dir(folder)))
+			DZS_Files.DeleteTree(DZS_LocalStore.Dir(folder));
+		DZS_ProjectExtensions.Load(w.m_Root, issues);
+		op.m_Work = wr.m_Dir;
+		op.m_Base = wr.m_Base;
+		op.m_Origin = wr.m_Origin;
+		OpenRead(j, wr.m_Manifest, wr.m_Dir, true);
+	}
+
+	// The opening stops before its load (cancelled, failed, waiting for the base): nothing of it stays.
+	protected void EndOpening(DZS_OpenJob j)
+	{
+		if (m_Opening == j)
+			m_Opening = null;
+		if (j.m_Progress)
+			j.m_Progress.Close();
+		j.m_Progress = null;
+	}
+
+	// The cancel knob of the opening dialog: possible until the groups are read (the load is not applied yet).
+	void OnOpenCancel(DZS_Dialog d, string result)
+	{
+		DZS_OpenJob j = m_Opening;
+		if (result != "cancel" || !j || j.m_Progress != d)
+			return;
+		if (j.m_Phase != DZS_OpenJob.WORK && j.m_Phase != DZS_OpenJob.GROUPS)
+			return;
+		DZS_Log.Info("open: " + j.m_Folder + " cancelled by the user (" + j.m_Phase + ")");
+		if (j.m_LootRead)
+			DZS_Jobs.Cancel(j.m_LootRead);
+		DZS_LootFiles.DropReady();
+		j.m_Progress = null;
+		m_Opening = null;
+		ShowHome(true);
+	}
+
+	// Reads the group files of 'src' (the project folder, or the working folder of a version 2 project) and its
+	// manifest 'pchunks' into the load.
+	protected void OpenRead(DZS_OpenJob j, array<string> pchunks, string src, bool v2)
+	{
+		DZS_OpenProject op = j.m_Op;
+		DZS_StoreProvider lp = j.m_Lp;
+		DZS_Issues issues = op.m_OpenIssues;
+		string folder = j.m_Folder;
+		bool sliced = j.m_Sliced;
 		j.m_Src = src;
 		DZS_PFData pf = DZS_ProjectFile.Read(pchunks);
 		j.m_Pf = pf;
@@ -1459,7 +1562,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				rest.Insert(files[r]);
 		}
 		SortPaths(rest);
-		if (backupHead && !manifestMissing)
+		if (j.m_BackupHead && !manifestMissing)
 			rest.Clear();
 		foreach (string rf : rest)
 		{
@@ -1507,7 +1610,21 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			return;
 		}
 		m_Opening = j;
-		j.m_Progress = new DZS_ProgressDialog(DZS_Texts.Pick("Projekt", "Project"), op.m_Name, DZS_Texts.Pick("Öffnet", "Opening"));
+		j.m_Phase = DZS_OpenJob.GROUPS;
+		// the loot files the loot plugin reads when the project is shown: read ahead while the groups are read
+		DZS_LootFiles.DropReady();
+		if (pf.m_LootEnabled && j.m_Skip == 0 && DZS_LootFiles.Present(src))
+		{
+			j.m_LootRead = DZS_LootPlugin.StartPrefetch(src, op.m_MapKey);
+			j.m_LootRead.m_Quiet = true;
+		}
+		if (j.m_Progress)
+		{
+			j.m_Progress.SetTitle(DZS_W.Literal(op.m_Name));
+			return;
+		}
+		j.m_Progress = new DZS_ProgressDialog(DZS_Texts.Pick("Projekt", "Project"), op.m_Name, DZS_Texts.Pick("Öffnet", "Opening"), true);
+		j.m_Progress.m_OnResult.Insert(OnOpenCancel);
 		j.m_Progress.Open();
 	}
 
@@ -1575,7 +1692,14 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		if (!j)
 			return;
 		int t0 = TickCount(0);
-		if (j.m_Restore && j.m_Phase == DZS_OpenJob.GROUPS)
+		if (j.m_Phase == DZS_OpenJob.WORK)
+		{
+			bool built = j.m_Work.Step(OPEN_SLICE_MS);
+			j.m_Progress.SetShare(j.m_From * j.m_Work.m_Share);
+			if (built)
+				AfterWork(j);
+		}
+		else if (j.m_Restore && j.m_Phase == DZS_OpenJob.GROUPS)
 		{
 			string rerr;
 			if (!StepRestoreBuild(j, OPEN_SLICE_MS, rerr))
@@ -1586,13 +1710,21 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		}
 		else if (j.m_Phase == DZS_OpenJob.GROUPS)
 		{
-			if (StepOpenGroups(j, OPEN_SLICE_MS))
+			bool grouped = StepOpenGroups(j, OPEN_SLICE_MS);
+			float gs = j.Share();
+			if (grouped)
+				gs = 1;
+			bool lootRead = !j.m_LootRead || j.m_LootRead.m_Done;
+			if (grouped && lootRead)
 			{
 				j.m_Phase = DZS_OpenJob.LOAD;
-				j.m_Progress.SetShare(0.9);
+				j.m_Progress.SetShare(j.Scaled(0.9));
+				j.m_Progress.AllowCancel(false);
 			}
+			else if (j.m_LootRead)
+				j.m_Progress.SetShare(j.Scaled(0.9 * (0.4 * gs + 0.6 * j.m_LootRead.m_Share)));
 			else
-				j.m_Progress.SetShare(0.9 * j.Share());
+				j.m_Progress.SetShare(j.Scaled(0.9 * gs));
 		}
 		else if (j.m_Phase == DZS_OpenJob.LOAD)
 		{
@@ -1613,7 +1745,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			}
 			if (!j.m_Loaded)
 			{
-				j.m_Progress.SetShare(0.9 + 0.05 * j.LoadShare());
+				j.m_Progress.SetShare(j.Scaled(0.9 + 0.05 * j.LoadShare()));
 				return;
 			}
 			if (j.m_Restore)
@@ -1635,11 +1767,19 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			int left = 0;
 			if (sc)
 				left = sc.PendingObjects();
+			if (j.m_Index && j.m_Index.m_Done)
+			{
+				j.m_Index = null;
+				if (j.m_Inst && j.m_Inst == Shown())
+					DZS_ProjectExtensions.Opened(j.m_Inst);
+			}
 			if (left > 0 && j.m_ShowTotal > 0)
 			{
 				float shownShare = 1.0 - left / (j.m_ShowTotal * 1.0);
-				j.m_Progress.SetShare(0.95 + 0.05 * shownShare);
+				j.m_Progress.SetShare(j.Scaled(0.95 + 0.05 * shownShare));
 			}
+			else if (j.m_Index)
+				j.m_Progress.SetShare(j.Scaled(0.95 + 0.05 * j.m_Index.m_Share));
 			else
 			{
 				m_Opening = null;
@@ -1872,7 +2012,16 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		m_Kernel.AddLoaded(inst);
 		tk = TickCount(0);
 		m_Kernel.ShowInstance(inst);
-		DZS_ProjectExtensions.Opened(inst);
+		DZS_LootFiles.DropReady();
+		// the file's entity extensions go to the model by the index of the loaded state: a big project's is built over
+		// the next frames while the scene shows its objects, and the extensions follow when it is there
+		if (j.m_Sliced && DZS_EntityExts.Pending() > 0)
+		{
+			j.m_Index = DZS_ProjectV2.Start(m_Kernel, inst, "", "");
+			j.m_Index.m_Quiet = true;
+		}
+		else
+			DZS_ProjectExtensions.Opened(inst);
 		int tShow = TickCount(0) - tk;
 		DZS_Log.Info("open timing: read " + DZS_Num.Fixed(j.m_TRead / 10000.0, 0) + " ms, checksum " + DZS_Num.Fixed(j.m_TSum / 10000.0, 0) + " ms, parse " + DZS_Num.Fixed(j.m_TParse / 10000.0, 0) + " ms, build " + DZS_Num.Fixed(j.m_TBuild / 10000.0, 0) + " ms, load " + DZS_Num.Fixed(tLoad / 10000.0, 0) + " ms, show " + DZS_Num.Fixed(tShow / 10000.0, 0) + " ms, total " + DZS_Num.Fixed((TickCount(0) - j.m_T0) / 10000.0, 0) + " ms");
 		if ((skip & 2) == 0)
@@ -2189,6 +2338,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 
 	// Saving: the plan is built in slices of about 4 ms; changes meanwhile count for the next save.
 	protected ref DZS_PlanBuild m_Building;
+	static const string SAVE_PLATE = "projects.saveProgress";
 
 	protected void StepBuilding()
 	{
@@ -2199,6 +2349,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		if (inst != b.m_Inst || !m_Open)
 		{
 			m_Building = null;
+			DZS_Jobs.HidePlate(SAVE_PLATE);
 			if (b.m_Inst)
 			{
 				b.m_Inst.SetSaving(false);
@@ -2214,7 +2365,12 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		if (ms > b.m_Slowest)
 			b.m_Slowest = ms;
 		if (!done)
+		{
+			if (m_Now - b.m_Started >= DZS_Jobs.SHOW_AFTER)
+				DZS_Jobs.Plate(SAVE_PLATE, DZS_Texts.Pick("Projekt wird gespeichert …", "Saving the project …"), b.Share(), false);
 			return;
+		}
+		DZS_Jobs.HidePlate(SAVE_PLATE);
 		m_Building = null;
 		inst.SetSaving(false);
 		ContinueSave(b.m_Plan, b);
@@ -2752,6 +2908,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		b.m_Entries = new array<string>();
 		b.m_BlockIds = DZS_ProjectV2.GroupIds(inst);
 		b.m_Freeze = inst.BeginFreeze();
+		b.m_Gen = inst.GetGen();
 		return b;
 	}
 
@@ -2822,6 +2979,11 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			b.m_GPlugins = gplugins;
 			b.m_Writer = m_Kernel.GetFormat(fmtId).BeginWrite(inst, gid);
 		}
+		if (!b.m_Build)
+			BeginFinish(b);
+		float rest = ms - (TickCount(0) - t0) / 10000.0;
+		if (rest <= 0 || !b.m_Build.Step(rest))
+			return false;
 		FinishPlan(b);
 		return true;
 	}
@@ -2861,9 +3023,9 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		b.m_Entries.Insert(entry);
 	}
 
-	// The project file: the building blocks (DZS_ProjectV2) and the editor part. Loot is written into no file; its
-	// contributor still checks the entries and follows its working state.
-	protected void FinishPlan(DZS_PlanBuild b)
+	// The project file: the building blocks (DZS_ProjectV2, built over the next slices) and the editor part. Loot is
+	// written into no file; its contributor still checks the entries and follows its working state.
+	protected void BeginFinish(DZS_PlanBuild b)
 	{
 		DZS_Instance inst = b.m_Inst;
 		DZS_SavePlan plan = b.m_Plan;
@@ -2891,9 +3053,18 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		inst.GetCompanion(DZS_PROJECT_ID, DZS_LocalStore.GROUP_PLUGINS, pv, pplugins);
 		pplugins = DZS_ProjectSections.Merge(inst, pplugins);
 		array<string> none = new array<string>();
-		string proj = DZS_ProjectFile.ProjectPart(entries, le == "true", lh == "true", ll == "true", "", none, none, true, pplugins);
+		b.m_ProjectPart = DZS_ProjectFile.ProjectPart(entries, le == "true", lh == "true", ll == "true", "", none, none, true, pplugins);
+		b.m_Build = DZS_ProjectBuild.Make(m_Kernel, inst, m_Open.m_Name, m_Open.m_MapKey, noLoot, false);
+		b.m_Build.StampGen(b.m_Gen);
+	}
+
+	protected void FinishPlan(DZS_PlanBuild b)
+	{
+		DZS_SavePlan plan = b.m_Plan;
+		string proj = b.m_ProjectPart;
 		plan.m_ProjectPart = proj;
-		plan.m_Blocks = DZS_ProjectV2.Build(m_Kernel, inst, m_Open.m_Name, m_Open.m_MapKey, noLoot);
+		plan.m_Blocks = b.m_Build.m_Root;
+		b.m_Build = null;
 		plan.m_Base = m_Open.m_Base;
 		DZS_SaveFile pf = new DZS_SaveFile();
 		pf.m_Rel = DZS_ProjectFile.NAME;

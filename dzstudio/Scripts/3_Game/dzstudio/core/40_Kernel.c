@@ -276,6 +276,7 @@ class DZS_Kernel : DZS_ActionHandler
 	void Shutdown()
 	{
 		DZS_Log.Info("kernel shutdown");
+		DZS_Jobs.Clear();
 		for (int i = m_Plugins.Count() - 1; i >= 0; i--)
 			m_Plugins[i].OnSessionEnd();
 		while (m_Instances.Count() > 0)
@@ -392,6 +393,7 @@ class DZS_Kernel : DZS_ActionHandler
 				m_Slow = 2;
 		}
 		bool slow = m_Slow == 2;
+		DZS_Jobs.Update(dt);
 		if (!s_Prof && !slow)
 		{
 			foreach (DZS_Plugin p : m_Plugins)

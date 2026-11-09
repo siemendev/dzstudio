@@ -619,20 +619,26 @@ class DZS_ConfirmDialog : DZS_Dialog
 	}
 }
 
-// Work that keeps the editor busy for a while: block indicator and "‹verb› … n %"; no knobs,
-// Esc and clicks do nothing until the owner closes it.
+// Work that keeps the editor busy for a while: "‹verb› …" and the shared progress bar (DZS_ProgressBar). Esc and
+// clicks do nothing until the owner closes it; with a cancel knob (AllowCancel) a click on it, or Esc, ends it with
+// the result "cancel" while the owner allows that.
 class DZS_ProgressDialog : DZS_Dialog
 {
 	protected string m_Verb;
 	protected float m_Share;
-	protected float m_T;
 	protected TextWidget m_Line;
-	protected ref array<Widget> m_Blocks = new array<Widget>();
+	protected ref DZS_ProgressBar m_Bar;
+	protected bool m_CanCancel;
 
-	void DZS_ProgressDialog(string kicker, string title, string verb)
+	void DZS_ProgressDialog(string kicker, string title, string verb, bool cancel = false)
 	{
 		m_Verb = verb;
 		Setup(SMALL, kicker, DZS_W.Literal(title), false);
+		if (cancel)
+		{
+			m_CanCancel = true;
+			AddFootButton("cancel", DZS_Texts.Get("core.dialog.cancel"), "secondary");
+		}
 	}
 
 	void SetVerb(string verb)
@@ -645,45 +651,51 @@ class DZS_ProgressDialog : DZS_Dialog
 		m_Share = Math.Clamp(share, 0, 1);
 	}
 
-	override void Cancel() {}
+	// Whether the cancel knob works now (false from the point where the work cannot be taken back).
+	void AllowCancel(bool on)
+	{
+		m_CanCancel = on && FootButton("cancel") != null;
+		DZS_Button b = FootButton("cancel");
+		if (b)
+			b.SetEnabled(on);
+	}
+
+	override void Cancel()
+	{
+		if (m_CanCancel)
+			super.Cancel();
+	}
+
+	override void OnFoot(string tag)
+	{
+		if (tag == "cancel" && m_CanCancel)
+			super.OnFoot(tag);
+	}
 
 	override void BuildContent(Widget inner)
 	{
-		for (int i = 0; i < 4; i++)
-			m_Blocks.Insert(DZS_W.Panel(inner, DZS_Color.Get("blockEmpty")));
 		m_Line = DZS_W.Text(inner, DZS_Font.READ, 14, DZS_Color.Get("text"));
+		m_Bar = new DZS_ProgressBar(inner);
 		m_CloseX.m_Hit.m_W.Show(false);
 		Refresh();
 	}
 
 	override float LayoutContent(float width)
 	{
-		float bs = DZS_Scale.Px(10);
-		for (int i = 0; i < m_Blocks.Count(); i++)
-			DZS_W.Place(m_Blocks[i], i * (bs + DZS_Scale.Px(4)), DZS_Scale.Px(7), bs, bs);
-		DZS_W.Place(m_Line, 4 * (bs + DZS_Scale.Px(4)) + DZS_Scale.Px(8), 0, width - DZS_Scale.Px(72), DZS_Scale.Px(24));
-		return DZS_Scale.Px(28);
+		DZS_W.Place(m_Line, 0, 0, width, DZS_Scale.Px(24));
+		m_Bar.Place(0, DZS_Scale.Px(30));
+		return DZS_Scale.Px(30) + DZS_ProgressBar.Height() + DZS_Scale.Px(4);
 	}
 
 	override void UpdateContent(float dt)
 	{
-		m_T += dt;
 		m_CloseX.m_Hit.m_W.Show(false);
 		Refresh();
 	}
 
 	protected void Refresh()
 	{
-		int lit = Math.Floor(m_T / 0.2);
-		lit = lit % 4;
-		for (int i = 0; i < m_Blocks.Count(); i++)
-		{
-			if (i == lit)
-				m_Blocks[i].SetColor(DZS_Color.Get("accent"));
-			else
-				m_Blocks[i].SetColor(DZS_Color.Get("blockEmpty"));
-		}
-		int pct = Math.Floor(m_Share * 100);
-		m_Line.SetText(m_Verb + " … " + pct + " %");
+		m_Line.SetText(m_Verb + " …");
+		m_Bar.SetShare(m_Share);
 	}
 }

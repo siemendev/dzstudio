@@ -315,101 +315,239 @@ class DZS_ApplyStore : Managed
 
 	// Every touched file back to its original, then every listed project in order. focusRun: the run of the project
 	// 'focus'; others: the names of the other projects applied again (unreadable ones are left out and named in
-	// 'skipped'). An empty list leaves the folder as it was before the first project.
+	// 'skipped'). An empty list leaves the folder as it was before the first project. At once; over several frames with
+	// BeginRebuild and StepRebuild.
 	bool Rebuild(string focus, string baseName, out DZS_Patcher focusRun, array<string> others, array<string> skipped, out string err)
 	{
-		if (m_Projects.Count() > 0 && !DZS_Files.IsFolder(m_Base))
+		BeginRebuild(focus, baseName);
+		while (!StepRebuild(1000000))
 		{
-			err = "base missing: " + m_Base;
-			return false;
 		}
-		foreach (string back : m_Touched)
-			Restore(back);
-		array<string> touched = new array<string>();
-		array<string> own = new array<string>();
-		map<string, string> over = new map<string, string>();
-		if (m_Base == m_Target)
-			over = Originals(m_Target);
-		foreach (DZS_AppliedProject ap : m_Projects)
+		focusRun = m_FocusRun;
+		others.Copy(m_Others);
+		skipped.Copy(m_Skipped);
+		err = m_Err;
+		return m_Ok;
+	}
+
+	// a rebuild over several frames: the step (0 originals back, 1 a project's file read, 2 its patcher run, 3 its files
+	// written, 4 the end), the project at hand
+	protected int m_RStep;
+	protected int m_RAt;
+	protected string m_RFocus;
+	protected string m_RBaseName;
+	protected ref array<string> m_RTouched;
+	protected ref array<string> m_ROwn;
+	protected ref map<string, string> m_ROver;
+	protected ref DZS_SrcJsonSteps m_RParse;
+	protected ref DZS_Patcher m_RRun;
+	bool m_RDone;
+	bool m_Ok;
+	string m_Err;
+	ref DZS_Patcher m_FocusRun;
+	ref array<string> m_Others = new array<string>();
+	ref array<string> m_Skipped = new array<string>();
+
+	void BeginRebuild(string focus, string baseName)
+	{
+		m_RFocus = focus;
+		m_RBaseName = baseName;
+		m_RStep = 0;
+		m_RAt = 0;
+		m_RDone = false;
+		m_Ok = false;
+		m_Err = "";
+		m_FocusRun = null;
+		m_Others.Clear();
+		m_Skipped.Clear();
+	}
+
+	// How far the rebuild is, 0 … 1.
+	float RebuildShare()
+	{
+		if (m_RDone)
+			return 1;
+		float n = Math.Max(1, m_Projects.Count());
+		float inProject = 0;
+		if (m_RStep == 1 && m_RParse)
+			inProject = 0.2 * m_RParse.Progress();
+		else if (m_RStep == 2 && m_RRun)
+			inProject = 0.2 + 0.7 * m_RRun.Share();
+		else if (m_RStep == 3)
+			inProject = 0.9;
+		return (m_RAt + inProject) / n;
+	}
+
+	// One slice; true when the rebuild is complete (m_Ok, m_Err). The folder's files change from the first slice on.
+	bool StepRebuild(float ms)
+	{
+		int t0 = TickCount(0);
+		while (!m_RDone)
 		{
-			DZS_Json root = DZS_WorkFolder.RootOf(DZS_Files.Read(CopyPath(ap.m_Slug)));
-			string perr = "unreadable";
-			DZS_PatchProject pj = null;
-			if (root)
-				pj = DZS_PatchProject.FromJson(root, perr);
-			if (!pj)
+			if (DZS_Job.Over(t0, ms))
+				return false;
+			if (m_RStep == 0)
 			{
-				DZS_Log.Warn("patch: applied project " + ap.m_Slug + " in " + m_Target + " left out: " + perr);
-				skipped.Insert(ap.m_Name);
+				if (m_Projects.Count() > 0 && !DZS_Files.IsFolder(m_Base))
+				{
+					m_Err = "base missing: " + m_Base;
+					m_RDone = true;
+					return true;
+				}
+				foreach (string back : m_Touched)
+					Restore(back);
+				m_RTouched = new array<string>();
+				m_ROwn = new array<string>();
+				m_ROver = new map<string, string>();
+				if (m_Base == m_Target)
+					m_ROver = Originals(m_Target);
+				m_RAt = 0;
+				m_RStep = 1;
 				continue;
 			}
-			DZS_Patcher run = DZS_Patcher.Run(pj, m_Base, over);
-			if (ap.m_Slug == focus)
-				focusRun = run;
-			else
-				others.Insert(ap.m_Name);
-			foreach (string rel : run.m_OutPaths)
+			if (m_RStep == 1)
 			{
-				if (IndexLow(touched, rel) >= 0)
-					continue;
-				if (!KeepOriginal(rel, own))
+				if (m_RAt >= m_Projects.Count())
 				{
-					err = "cannot keep " + rel;
-					return false;
+					EndRebuild();
+					return true;
 				}
-				touched.Insert(rel);
-			}
-			array<string> pending = new array<string>();
-			pending.Copy(m_Touched);
-			foreach (string tr : touched)
-			{
-				if (IndexLow(pending, tr) < 0)
-					pending.Insert(tr);
-			}
-			array<string> pendingOwn = new array<string>();
-			pendingOwn.Copy(m_Own);
-			foreach (string orr : own)
-			{
-				if (IndexLow(pendingOwn, orr) < 0)
-					pendingOwn.Insert(orr);
-			}
-			SaveState(pending, pendingOwn);
-			foreach (string w : run.m_OutPaths)
-			{
-				string full = m_Target + "\\" + Win(w);
-				MakeParent(full);
-				array<string> data = run.m_Out.Get(w);
-				if (!DZS_Files.Write(full, data))
+				if (!m_RParse)
 				{
-					err = "cannot write " + w;
-					return false;
+					array<string> copy = DZS_Files.Read(CopyPath(m_Projects[m_RAt].m_Slug));
+					if (!copy)
+						copy = new array<string>();
+					m_RParse = new DZS_SrcJsonSteps(copy, 5);
 				}
-				over.Set(DZS_PatchText.Lower(w), full);
+				float left = ms - (TickCount(0) - t0) / 10000.0;
+				if (!m_RParse.Step(Math.Max(left, 0.5)))
+					return false;
+				StartProject();
+				continue;
 			}
-			array<string> lines = DZS_ApplyResult.Lines(run.m_Report, baseName);
-			string text = "";
-			foreach (string l : lines)
-				text += l + "\n";
-			array<string> reportChunks = DZS_Files.Chunk(text);
-			DZS_Files.Write(ReportPath(ap.m_Slug), reportChunks);
+			if (m_RStep == 2)
+			{
+				float rest = ms - (TickCount(0) - t0) / 10000.0;
+				if (!m_RRun.Step(Math.Max(rest, 0.5)))
+					return false;
+				m_RStep = 3;
+				continue;
+			}
+			if (m_RStep == 3)
+			{
+				if (!WriteProject())
+				{
+					m_RDone = true;
+					return true;
+				}
+				m_RRun = null;
+				m_RAt++;
+				m_RStep = 1;
+			}
 		}
-		// files no project changes any more are back to their original already; dzStudio's .original goes
+		return true;
+	}
+
+	// The project at hand read: its patcher run starts (an unreadable one is left out).
+	protected void StartProject()
+	{
+		DZS_AppliedProject ap = m_Projects[m_RAt];
+		DZS_SrcDoc doc = m_RParse.Result();
+		m_RParse = null;
+		DZS_Json root = null;
+		if (doc && doc.m_Root && doc.m_Root.IsObj())
+			root = doc.m_Root.ToJson();
+		string perr = "unreadable";
+		DZS_PatchProject pj = null;
+		if (root)
+			pj = DZS_PatchProject.FromJson(root, perr);
+		if (!pj)
+		{
+			DZS_Log.Warn("patch: applied project " + ap.m_Slug + " in " + m_Target + " left out: " + perr);
+			m_Skipped.Insert(ap.m_Name);
+			m_RAt++;
+			return;
+		}
+		m_RRun = DZS_Patcher.Begin(pj, m_Base, m_ROver);
+		m_RStep = 2;
+	}
+
+	// The run's files into the folder (their originals kept first) and its report; false when that failed (m_Err).
+	protected bool WriteProject()
+	{
+		DZS_AppliedProject ap = m_Projects[m_RAt];
+		DZS_Patcher run = m_RRun;
+		if (ap.m_Slug == m_RFocus)
+			m_FocusRun = run;
+		else
+			m_Others.Insert(ap.m_Name);
+		foreach (string rel : run.m_OutPaths)
+		{
+			if (IndexLow(m_RTouched, rel) >= 0)
+				continue;
+			if (!KeepOriginal(rel, m_ROwn))
+			{
+				m_Err = "cannot keep " + rel;
+				return false;
+			}
+			m_RTouched.Insert(rel);
+		}
+		array<string> pending = new array<string>();
+		pending.Copy(m_Touched);
+		foreach (string tr : m_RTouched)
+		{
+			if (IndexLow(pending, tr) < 0)
+				pending.Insert(tr);
+		}
+		array<string> pendingOwn = new array<string>();
+		pendingOwn.Copy(m_Own);
+		foreach (string orr : m_ROwn)
+		{
+			if (IndexLow(pendingOwn, orr) < 0)
+				pendingOwn.Insert(orr);
+		}
+		SaveState(pending, pendingOwn);
+		foreach (string w : run.m_OutPaths)
+		{
+			string full = m_Target + "\\" + Win(w);
+			MakeParent(full);
+			array<string> data = run.m_Out.Get(w);
+			if (!DZS_Files.Write(full, data))
+			{
+				m_Err = "cannot write " + w;
+				return false;
+			}
+			m_ROver.Set(DZS_PatchText.Lower(w), full);
+		}
+		array<string> lines = DZS_ApplyResult.Lines(run.m_Report, m_RBaseName);
+		string text = "";
+		foreach (string l : lines)
+			text += l + "\n";
+		array<string> reportChunks = DZS_Files.Chunk(text);
+		DZS_Files.Write(ReportPath(ap.m_Slug), reportChunks);
+		return true;
+	}
+
+	// files no project changes any more are back to their original already; dzStudio's .original goes
+	protected void EndRebuild()
+	{
+		m_RDone = true;
 		foreach (string gone : m_Touched)
 		{
-			if (IndexLow(touched, gone) >= 0 || IndexLow(m_Own, gone) < 0)
+			if (IndexLow(m_RTouched, gone) >= 0 || IndexLow(m_Own, gone) < 0)
 				continue;
 			DeleteFile(m_Target + "\\" + Win(gone) + ORIGINAL);
 			PruneUp(m_Target, gone);
 		}
-		m_Touched = touched;
-		m_Own = own;
+		m_Touched = m_RTouched;
+		m_Own = m_ROwn;
+		m_Ok = true;
 		if (m_Projects.Count() == 0)
 		{
 			Drop();
-			return true;
+			return;
 		}
 		SaveState(m_Touched, m_Own);
-		return true;
 	}
 
 	// No project left: .dzstudio goes, and a vanilla copy that holds nothing else by then.
@@ -431,6 +569,8 @@ class DZS_PatchApply : Managed
 	ref DZS_PatchBase m_Pending;
 	ref DZS_PatchBase m_UndoBase;
 	DZS_ApplyDialog m_UndoFrom;
+	// applying or undoing over several frames
+	ref DZS_ApplyJob m_Job;
 
 	void DZS_PatchApply(DZS_Kernel k)
 	{
@@ -477,6 +617,12 @@ class DZS_PatchApply : Managed
 		{
 			reasonDe = "Vanilla-Mission wird geladen";
 			reasonEn = "Loading the vanilla mission";
+			return false;
+		}
+		if (m_Job)
+		{
+			reasonDe = "Wird gerade angewendet";
+			reasonEn = "Applying is in progress";
 			return false;
 		}
 		// a required extension this studio does not know changes what the project means
@@ -666,7 +812,8 @@ class DZS_PatchApply : Managed
 	}
 
 	// The project goes into the target folder's list (in its place when it is there already) and the folder is rebuilt
-	// from its originals with every listed project, so applying again changes nothing twice.
+	// from its originals with every listed project, so applying again changes nothing twice. Over several frames with the
+	// progress plate (DZS_ApplyJob): cancelling is possible while the project is put together, not once files change.
 	void Run(DZS_PatchBase b)
 	{
 		DZS_ProjectsPlugin pp = Projects();
@@ -680,11 +827,33 @@ class DZS_PatchApply : Managed
 			Failed(DZS_Texts.Pick(blockedDe, blockedEn));
 			return;
 		}
+		if (m_Job)
+		{
+			Failed(DZS_Texts.Pick("es wird gerade angewendet", "applying is in progress"));
+			return;
+		}
 		string name = pp.m_Open.m_Name;
 		string mapKey = MapKey();
 		Describe(b, name, mapKey);
-		int t0 = TickCount(0);
-		DZS_Json project = DZS_ProjectV2.Build(m_Kernel, inst, name, mapKey);
+		DZS_ApplyJob j = new DZS_ApplyJob();
+		j.m_De = "Projekt wird angewendet";
+		j.m_En = "Applying the project";
+		j.m_Cancelable = true;
+		j.m_Base = b;
+		j.m_Name = name;
+		j.m_MapKey = mapKey;
+		j.m_T0 = TickCount(0);
+		j.m_Build = DZS_ProjectBuild.Make(m_Kernel, inst, name, mapKey, false, true);
+		j.m_Prepare = this;
+		j.m_OnDone.Insert(OnApplied);
+		m_Job = j;
+		DZS_Jobs.Start(j);
+	}
+
+	// The project is put together: its copy goes into the folder's list and the rebuild begins (false: m_Err).
+	bool Prepare(DZS_ApplyJob j, DZS_Json project)
+	{
+		DZS_PatchBase b = j.m_Base;
 		// the stored copy is the project as applied: its extensions too (the patcher ignores them), not the editor's view
 		DZS_Json exts = DZS_ProjectExtensions.Save();
 		if (exts)
@@ -697,35 +866,61 @@ class DZS_PatchApply : Managed
 		DZS_PatchProject pj = DZS_PatchProject.FromJson(project, err);
 		if (!pj)
 		{
-			Failed(err);
-			return;
+			j.m_Err = err;
+			return false;
 		}
 		if (b.m_Vanilla)
 			DZS_ApplyStore.MarkVanillaCopy(b.m_Target);
-		string slug = DZS_ProjectV2.Slug(name);
+		string slug = DZS_ProjectV2.Slug(j.m_Name);
 		DZS_ApplyStore st = new DZS_ApplyStore(b.m_Target, b.m_Dir);
 		array<string> text = project.ToChunks(true);
-		if (!st.Put(slug, name, text))
+		if (!st.Put(slug, j.m_Name, text))
 		{
-			Failed("cannot write " + st.CopyPath(slug));
+			j.m_Err = "cannot write " + st.CopyPath(slug);
+			return false;
+		}
+		j.m_Slug = slug;
+		st.BeginRebuild(slug, b.m_Name);
+		j.m_Store = st;
+		return true;
+	}
+
+	void OnApplied(DZS_Job job)
+	{
+		DZS_ApplyJob j = DZS_ApplyJob.Cast(job);
+		if (m_Job == j)
+			m_Job = null;
+		if (!j)
+			return;
+		if (j.m_Cancelled)
+		{
+			m_Kernel.GetScreen().ShowMessage("patcher.apply", "info", DZS_Texts.Pick("Anwenden abgebrochen – nichts geändert", "Applying cancelled – nothing changed"), 6.0);
+			DZS_Log.Info("patch: apply cancelled before any file changed");
 			return;
 		}
-		DZS_Patcher p = null;
-		array<string> others = new array<string>();
-		array<string> skipped = new array<string>();
-		if (!st.Rebuild(slug, b.m_Name, p, others, skipped, err) || !p)
+		if (j.m_Err != "")
 		{
+			Failed(j.m_Err);
+			return;
+		}
+		DZS_ApplyStore st = j.m_Store;
+		DZS_Patcher p = st.m_FocusRun;
+		if (!st.m_Ok || !p)
+		{
+			string err = st.m_Err;
 			if (err == "")
 				err = "no result";
 			Failed(err);
 			return;
 		}
-		Describe(b, name, mapKey);
-		int ms = (TickCount(0) - t0) / 10000;
-		string done = "patch: applied '" + name + "' to " + b.m_Dir + " in " + ms + " ms -> " + b.m_Target;
-		done += ", " + p.m_OutPaths.Count() + " file(s), " + st.m_Touched.Count() + " touched in all, " + others.Count() + " other project(s) again";
+		DZS_PatchBase b = j.m_Base;
+		Describe(b, j.m_Name, j.m_MapKey);
+		int ms = (TickCount(0) - j.m_T0) / 10000;
+		string done = "patch: applied '" + j.m_Name + "' to " + b.m_Dir + " in " + ms + " ms";
+		done += " (" + j.m_Frames + " frames, slowest " + DZS_Num.Fixed(j.m_Slowest, 1) + " ms) -> " + b.m_Target;
+		done += ", " + p.m_OutPaths.Count() + " file(s), " + st.m_Touched.Count() + " touched in all, " + st.m_Others.Count() + " other project(s) again";
 		DZS_Log.Info(done);
-		DZS_ApplyResultDialog d = new DZS_ApplyResultDialog(this, p.m_Report, b, p.m_OutPaths.Count(), others, skipped, slug);
+		DZS_ApplyResultDialog d = new DZS_ApplyResultDialog(this, p.m_Report, b, p.m_OutPaths.Count(), st.m_Others, st.m_Skipped, j.m_Slug);
 		d.Open();
 	}
 
@@ -755,32 +950,57 @@ class DZS_PatchApply : Managed
 		m_UndoFrom = null;
 		if (result != "undo" || !b)
 			return;
+		if (m_Job)
+		{
+			Failed(DZS_Texts.Pick("es wird gerade angewendet", "applying is in progress"));
+			return;
+		}
 		string slug = DZS_ProjectV2.Slug(ProjectName());
 		DZS_ApplyStore st = new DZS_ApplyStore(b.m_Target, b.m_Dir);
-		int before = st.m_Touched.Count();
 		if (st.m_Projects.Count() > 1 && !DZS_Files.IsFolder(b.m_Dir))
 		{
 			Failed(DZS_Texts.Pick("Basis fehlt: ", "base missing: ") + b.m_Name);
 			return;
 		}
+		DZS_ApplyJob j = new DZS_ApplyJob();
+		j.m_De = "Wird rückgängig gemacht";
+		j.m_En = "Undoing";
+		j.m_Base = b;
+		j.m_Name = ProjectName();
+		j.m_MapKey = MapKey();
+		j.m_T0 = TickCount(0);
+		j.m_Before = st.m_Touched.Count();
+		j.m_Source = source;
 		st.Take(slug);
-		DZS_Patcher none = null;
-		array<string> others = new array<string>();
-		array<string> skipped = new array<string>();
-		string err;
-		if (!st.Rebuild("", b.m_Name, none, others, skipped, err))
+		st.BeginRebuild("", b.m_Name);
+		j.m_Store = st;
+		j.m_OnDone.Insert(OnUndone);
+		m_Job = j;
+		DZS_Jobs.Start(j);
+	}
+
+	void OnUndone(DZS_Job job)
+	{
+		DZS_ApplyJob j = DZS_ApplyJob.Cast(job);
+		if (m_Job == j)
+			m_Job = null;
+		if (!j)
+			return;
+		DZS_ApplyStore st = j.m_Store;
+		DZS_PatchBase b = j.m_Base;
+		if (!st.m_Ok)
 		{
-			Failed(err);
+			Failed(st.m_Err);
 			return;
 		}
-		DZS_Log.Info("patch: undone '" + ProjectName() + "' in " + b.m_Target + ": " + before + " file(s) back to the original, " + others.Count() + " other project(s) again, " + st.m_Touched.Count() + " touched now");
+		DZS_Log.Info("patch: undone '" + j.m_Name + "' in " + b.m_Target + ": " + j.m_Before + " file(s) back to the original, " + st.m_Others.Count() + " other project(s) again, " + st.m_Touched.Count() + " touched now");
 		string msg = DZS_Texts.Pick("Rückgängig gemacht: Originale zurück", "Undone: originals back");
-		if (others.Count() > 0)
-			msg += DZS_Texts.Pick(", erneut angewendet: ", ", applied again: ") + Joined(others);
+		if (st.m_Others.Count() > 0)
+			msg += DZS_Texts.Pick(", erneut angewendet: ", ", applied again: ") + Joined(st.m_Others);
 		m_Kernel.GetScreen().ShowMessage("patcher.apply", "success", msg, 8.0);
-		Describe(b, ProjectName(), MapKey());
-		if (source)
-			source.Refresh();
+		Describe(b, j.m_Name, j.m_MapKey);
+		if (j.m_Source)
+			j.m_Source.Refresh();
 	}
 
 	static string Joined(array<string> names)
@@ -793,6 +1013,77 @@ class DZS_PatchApply : Managed
 			r += n;
 		}
 		return r;
+	}
+}
+
+// Applying (or undoing) over several frames: the project put together (DZS_ProjectBuild, the state as it was at the
+// click; cancelling possible), then the folder rebuilt (DZS_ApplyStore.StepRebuild: files change, no cancel).
+class DZS_ApplyJob : DZS_Job
+{
+	ref DZS_PatchBase m_Base;
+	string m_Name;
+	string m_MapKey;
+	string m_Slug;
+	string m_Err;
+	int m_T0;
+	int m_Before;
+	DZS_ApplyDialog m_Source;
+	DZS_PatchApply m_Prepare;
+	ref DZS_ProjectBuild m_Build;
+	ref DZS_ApplyStore m_Store;
+
+	override bool CanCancelNow()
+	{
+		return m_Cancelable && m_Build != null;
+	}
+
+	override void OnCancel()
+	{
+		if (m_Build)
+			m_Build.OnCancel();
+		m_Build = null;
+	}
+
+	override bool Step(float ms)
+	{
+		int t0 = TickCount(0);
+		if (m_Build)
+		{
+			SetStep("Bausteine", "building blocks");
+			if (!m_Build.Step(ms))
+			{
+				m_Share = 0.4 * m_Build.m_Share;
+				return false;
+			}
+			DZS_Json project = m_Build.m_Root;
+			m_Build = null;
+			if (!project)
+			{
+				m_Err = DZS_Texts.Pick("Projekt geschlossen", "project closed");
+				return true;
+			}
+			if (!m_Prepare || !m_Prepare.Prepare(this, project))
+			{
+				if (m_Err == "")
+					m_Err = "not prepared";
+				return true;
+			}
+			m_Share = 0.4;
+			return false;
+		}
+		if (!m_Store)
+			return true;
+		SetStep("Missionsordner", "mission folder");
+		float left = ms - (TickCount(0) - t0) / 10000.0;
+		if (!m_Store.StepRebuild(Math.Max(left, 0.5)))
+		{
+			float from = 0;
+			if (m_Prepare)
+				from = 0.4;
+			m_Share = from + (1 - from) * m_Store.RebuildShare();
+			return false;
+		}
+		return true;
 	}
 }
 

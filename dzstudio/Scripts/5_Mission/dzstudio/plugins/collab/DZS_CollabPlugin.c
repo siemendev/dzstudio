@@ -1172,8 +1172,17 @@ class DZS_CollabPlugin : DZS_Plugin
 	protected int m_CpPart;
 	protected ref array<ref array<string>> m_CpParts;
 
+	// the text of the state for a checkpoint, written over several frames (the state as it was at its start)
+	protected ref DZS_StateSlicer m_CpSlicer;
+	protected DZS_Instance m_CpInst;
+
 	protected void TryCheckpoint()
 	{
+		if (m_CpSlicer)
+		{
+			StepCheckpoint();
+			return;
+		}
 		if (!m_CpWanted || m_CpBusy || !m_S || !m_S.m_Ready || m_S.m_Ended || !m_Net)
 			return;
 		if (m_S.m_Held.Count() > 0 || m_S.m_SentUnseen.Count() > 0 || m_S.m_Units.Count() > 0 || m_S.m_InFlightUnits.Count() > 0 || m_S.m_ChainBuf || m_S.m_PartBuf)
@@ -1181,12 +1190,35 @@ class DZS_CollabPlugin : DZS_Plugin
 		DZS_Instance inst = Shown();
 		if (!inst)
 			return;
-		array<string> state = inst.ExportState();
-		m_CpParts = PartsOf(state);
+		m_CpSlicer = inst.BeginSlices();
+		m_CpInst = inst;
 		m_CpSeq = m_S.m_Applied;
-		m_CpPart = 0;
 		m_CpBusy = true;
-		DZS_Log.Info("collab: checkpoint at seq " + m_CpSeq + ", " + DZS_Files.Length(state) + " bytes in " + m_CpParts.Count() + " part(s)");
+		StepCheckpoint();
+	}
+
+	protected void StepCheckpoint()
+	{
+		DZS_Instance inst = m_CpInst;
+		if (!inst || inst != Shown() || !m_CpBusy || !m_S || m_S.m_Ended)
+		{
+			if (inst)
+				inst.EndSlices(m_CpSlicer);
+			m_CpSlicer = null;
+			m_CpInst = null;
+			m_CpBusy = false;
+			DZS_Log.Info("collab: checkpoint text stopped");
+			return;
+		}
+		if (!m_CpSlicer.Step(DZS_Jobs.SLICE_MS))
+			return;
+		array<string> state = m_CpSlicer.m_Chunks;
+		inst.EndSlices(m_CpSlicer);
+		m_CpSlicer = null;
+		m_CpInst = null;
+		m_CpParts = PartsOf(state);
+		m_CpPart = 0;
+		DZS_Log.Info("collab: checkpoint at seq " + m_CpSeq + ", " + DZS_Files.Length(state) + " bytes in " + m_CpParts.Count() + " part(s), text written over several frames");
 		SendCpPart();
 	}
 

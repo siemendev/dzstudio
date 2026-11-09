@@ -457,6 +457,10 @@ class DZS_RuleDialog : DZS_RulesBase
 	protected DZS_TextField m_Formula;
 	protected DZS_TextField m_Count;
 	protected DZS_TextField m_Over;
+	// repeat: the copies' name template and the preview of their first names
+	protected DZS_TextField m_RepeatName;
+	protected TextWidget m_NamePreview;
+	protected string m_NameShown;
 	protected ref array<string> m_ItemPaths = new array<string>();
 	protected int m_PickIndex;
 	protected ref DZS_ExtOwner m_Owner;
@@ -858,8 +862,82 @@ class DZS_RuleDialog : DZS_RulesBase
 			m_Count = Field(l, r.GetStr("count"), DZS_Texts.Pick("Formel, z. B. canisters", "Formula, e.g. canisters"), 0);
 		else
 			Label(l, DZS_Texts.Pick("einmal", "once"), 0, "textQuiet", 13);
-		if (r && r.IsObj())
-			Note(DZS_Texts.Pick("In den Kopien lesen Formeln index (0, 1, 2 …) und bei einer Liste item, item.<Eigenschaft>.", "In the copies, formulas read index (0, 1, 2 …) and with a list item, item.<property>."));
+		if (!r || !r.IsObj())
+			return;
+		Note(DZS_Texts.Pick("In den Kopien lesen Formeln index (0, 1, 2 …) und bei einer Liste item, item.<Eigenschaft>.", "In the copies, formulas read index (0, 1, 2 …) and with a list item, item.<property>."));
+		string field = NameField();
+		if (field == "")
+			return;
+		DZS_Json fields = m_Work.Get("fields");
+		if (fields && fields.IsObj() && fields.Has(field))
+		{
+			Note(DZS_Texts.Pick("Namen der Kopien: aus dem Wert für " + field + " (unten).", "Names of the copies: from the value for " + field + " (below)."));
+			return;
+		}
+		DZS_RLine nl = Line(6, 28);
+		Label(nl, DZS_Texts.Pick("Namen der Kopien", "Names of the copies"), 170, "text", 13);
+		m_NameShown = r.GetStr("name");
+		m_RepeatName = Field(nl, m_NameShown, DZS_DzbotRules.DEFAULT_COPY_NAME, 0);
+		DZS_RLine pl = Line(0, 22);
+		m_NamePreview = Label(pl, NamePreview(m_NameShown), 0, "textQuiet", 13);
+		Note(DZS_Texts.Pick("{name} ist der Name des Blocks, {n} zählt ab 1, {index} ab 0. Leer: {name}_{n}.", "{name} is the block's name, {n} counts from 1, {index} from 0. Empty: {name}_{n}."));
+	}
+
+	// The member of the block's data that names it when its copies need names of their own ("" = they keep it): kinds
+	// keyed by a name, except those whose entries may share one or are known by a position (as dzbot decides).
+	protected string NameField()
+	{
+		if (m_Kind != "block" || !m_Target)
+			return "";
+		DZS_PKind k = DZS_PKinds.Get(m_Target.GetStr("kind"));
+		if (!k || k.m_KeyAttr == "" || k.m_Repeats || k.m_Fixed || k.m_Tol >= 0)
+			return "";
+		return k.m_KeyAttr;
+	}
+
+	// "First names: …" of the template, or why dzbot would not take it (it falls back to {name}_{n} then).
+	protected string NamePreview(string pattern)
+	{
+		string t = pattern;
+		t.TrimInPlace();
+		string problem = DZS_DzbotRules.CopyNameProblem(t);
+		if (t == "" || problem != "")
+			t = DZS_DzbotRules.DEFAULT_COPY_NAME;
+		string own = "";
+		DZS_Json d = Data();
+		if (d && d.IsObj())
+			own = d.GetStr(NameField());
+		if (own == "")
+			own = DZS_Texts.Pick("Name", "name");
+		string names = "";
+		for (int i = 0; i < 3; i++)
+		{
+			if (names != "")
+				names += ", ";
+			names += DZS_DzbotRules.CopyName(t, own, i);
+		}
+		if (problem != "")
+		{
+			string why = DZS_Texts.Pick("Wird nicht genommen (", "Not taken (") + problem;
+			why += DZS_Texts.Pick("), stattdessen: ", "), instead: ");
+			return why + names + " …";
+		}
+		string first = DZS_DzbotRules.CopyName(t, own, 0);
+		if (m_Target.GetStr("kind") == "event" && !DZS_PKinds.KnownPrefix(first))
+			return names + DZS_Texts.Pick(" … — ein Event-Name muss mit seinem Präfix beginnen (Vehicle, Static …)", " … — an event's name must start with its prefix (Vehicle, Static …)");
+		return DZS_Texts.Pick("Erste Namen: ", "First names: ") + names + " …";
+	}
+
+	override void UpdateContent(float dt)
+	{
+		super.UpdateContent(dt);
+		if (m_Closed || !m_RepeatName || !m_NamePreview)
+			return;
+		string typed = m_RepeatName.GetText();
+		if (typed == m_NameShown)
+			return;
+		m_NameShown = typed;
+		m_NamePreview.SetText(DZS_W.Literal(NamePreview(typed)));
 	}
 
 	// ---- values from settings and formulas ----
@@ -1129,6 +1207,18 @@ class DZS_RuleDialog : DZS_RulesBase
 				DZS_Json ovj = DZS_Json.Str(over);
 				r.Set("over", ovj);
 			}
+			if (m_RepeatName)
+			{
+				string copyName = m_RepeatName.GetText();
+				copyName.TrimInPlace();
+				if (copyName == "")
+					r.Remove("name");
+				else
+				{
+					DZS_Json cnj = DZS_Json.Str(copyName);
+					r.Set("name", cnj);
+				}
+			}
 		}
 		if (m_Kind != "change")
 		{
@@ -1375,9 +1465,22 @@ class DZS_RuleDialog : DZS_RulesBase
 				m_Work.Remove("repeat");
 			else
 			{
+				// the other mode's value goes, the name template and members it does not know stay
 				DZS_Json r = DZS_Json.Obj();
 				DZS_Json empty = DZS_Json.Str("");
 				r.Set(tag, empty);
+				DZS_Json was = m_Work.Get("repeat");
+				if (was && was.IsObj())
+				{
+					foreach (string wk : was.m_Keys)
+					{
+						if (wk == "count" || wk == "over")
+							continue;
+						DZS_Json wv = was.Get(wk);
+						DZS_Json wvCopy = wv.Clone();
+						r.Set(wk, wvCopy);
+					}
+				}
 				m_Work.Set("repeat", r);
 			}
 			Reopen(false);

@@ -71,14 +71,12 @@ class DZS_ExtTarget : Managed
 	}
 }
 
-// The handler of an extension no plugin reads: keeps the project's entry as it was read (written back unchanged until
-// a field is edited) and edits the values of the fields its spec file offers — on the project inside "data", on blocks,
+// The handler of an extension no plugin reads (one per URL of the project's list): edits the values of the fields its spec file offers — on the project inside "data", on blocks,
 // changes and elements inside their own "extensions", all of it in the model (DZS_EntityExts, the project's entry data
 // on the project element from opening on; every edit is a step of the history). Members nobody edits stay as they are.
 class DZS_ExtGeneric : DZS_ProjectExtension
 {
 	protected string m_Url;
-	protected bool m_Required;
 	// the entry's data as read, until Opened moved it into the model (or added without a project open)
 	protected ref DZS_Json m_Data;
 	protected string m_LoadedText;
@@ -90,10 +88,9 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 	protected int m_MarkTick;
 	protected ref map<string, string> m_Marks = new map<string, string>();
 
-	void DZS_ExtGeneric(string url, bool required, DZS_Json data)
+	void DZS_ExtGeneric(string url, DZS_Json data)
 	{
 		m_Url = url;
-		m_Required = required;
 		m_Data = data;
 		m_LoadedText = TextOf(data);
 	}
@@ -133,7 +130,8 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 	}
 
 	override string Url() { return m_Url; }
-	override bool Required() { return m_Required; }
+	// as the project's list of extensions says (DZS_ProjectExtensions, in the model)
+	override bool Required() { return DZS_ProjectExtensions.IsRequired(m_Url); }
 
 	override bool IsActive()
 	{

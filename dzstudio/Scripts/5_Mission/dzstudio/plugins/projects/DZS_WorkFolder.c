@@ -190,55 +190,14 @@ class DZS_WorkFolder
 		return ok;
 	}
 
-	// Builds the working folder of the project file in 'folder'. m_Error set when the file is no readable version 2.
+	// Builds the working folder of the project file in 'folder' at once (DZS_WorkBuild over several frames). m_Error set
+	// when the file is no readable version 2.
 	static DZS_WorkResult Build(string folder, array<string> chunks, string loadedMap, DZS_Issues issues)
 	{
-		DZS_WorkResult res = new DZS_WorkResult();
-		int t0 = TickCount(0);
-		DZS_Json root = RootOf(chunks);
-		if (!root)
-		{
-			res.m_Error = "unreadable";
-			return res;
-		}
-		string err;
-		DZS_PatchProject pp = DZS_PatchProject.FromJson(root, err);
-		if (!pp)
-		{
-			res.m_Error = err;
-			return res;
-		}
-		string slug = pp.m_Slug;
-		if (slug == "")
-			slug = "project";
-		string mapKey = MapOf(root);
-		if (DZS_Maps.WorldOf(mapKey) == "")
-			mapKey = loadedMap;
-		res.m_Base = BaseOf(root);
-		string dir = DirOf(folder);
-		if (DZS_Files.IsFolder(dir))
-			DZS_Files.DeleteTree(dir);
-		DZS_Files.MakeDirs(dir);
-		res.m_Dir = dir;
-		map<string, string> paths = new map<string, string>();
-		int groups = 0;
-		foreach (DZS_PatchBlock b : pp.m_Blocks)
-		{
-			if (b.m_Kind != "spawnerGroup")
-				continue;
-			array<string> text = GroupText(b);
-			string rel = SpawnerPath(slug, b.m_Id);
-			string full = dir + "\\" + rel;
-			full.Replace("/", "\\");
-			DZS_Files.MakeDirs(full.Substring(0, full.LastIndexOf("\\")));
-			DZS_Files.Write(full, text);
-			paths.Set(b.m_Id, rel);
-			groups++;
-		}
-		res.m_Manifest = Manifest(root, mapKey, paths);
-		Loot(root, pp, mapKey, dir, res, issues);
-		DZS_Log.Info("work folder " + dir + ": " + groups + " group file(s), base " + res.m_Base + ", " + res.m_Origin.m_OwnTypes.Count() + " own loot type(s), " + res.m_Origin.m_OwnRows.Count() + " own row(s) in " + ((TickCount(0) - t0) / 10000) + " ms");
-		return res;
+		DZS_WorkBuild j = new DZS_WorkBuild(folder, chunks, loadedMap, issues);
+		j.m_Wait = false;
+		DZS_Jobs.RunNow(j);
+		return j.m_Result;
 	}
 
 	// The spawner file of a group as the editor reads and writes it: the block's objects as they stand (the spawner
@@ -402,26 +361,12 @@ class DZS_WorkFolder
 		return DZS_Files.Join(chunks);
 	}
 
-	// The loot files of the base with the project's loot blocks and changes applied, and the project's loot origin.
-	protected static void Loot(DZS_Json root, DZS_PatchProject pp, string mapKey, string dir, DZS_WorkResult res, DZS_Issues issues)
+	// The loot blocks and changes of a project (the types they name into 'types', own rows into the origin).
+	static DZS_PatchProject LootPart(DZS_PatchProject pp, array<string> types, DZS_LootOrigin origin)
 	{
-		string baseDir = UsableBase(res.m_Base, mapKey, issues);
-		if (baseDir == "")
-		{
-			if (NeedsBase(root))
-				issues.Add(DZS_Issue.WARNING, "Basis des Projekts fehlt — Loot lässt sich erst nach dem Laden der Vanilla-Mission bearbeiten", "The project's base is missing — loot can be edited only after the vanilla mission is fetched");
-			return;
-		}
-		if (!CopyLoot(baseDir, mapKey, dir))
-		{
-			if (NeedsBase(root))
-				issues.Add(DZS_Issue.WARNING, "Die Basis hat keine Loot-Dateien (mapgroupproto.xml, mapgrouppos.xml)", "The base has no loot files (mapgroupproto.xml, mapgrouppos.xml)");
-			return;
-		}
 		DZS_PatchProject lp = new DZS_PatchProject();
 		lp.m_Map = pp.m_Map;
 		lp.m_Slug = pp.m_Slug;
-		array<string> types = new array<string>();
 		foreach (DZS_PatchBlock b : pp.m_Blocks)
 		{
 			if (b.m_Kind.IndexOf("loot") != 0)
@@ -430,7 +375,7 @@ class DZS_WorkFolder
 			if (b.m_Kind == "lootType")
 				AddType(types, b.m_Data.GetStr("name"));
 			else if (b.m_Kind == "lootRow")
-				AddRow(res.m_Origin, b.m_Data);
+				AddRow(origin, b.m_Data);
 			else if (b.m_Parent)
 				AddType(types, b.m_Parent.GetStr("group"));
 		}
@@ -444,10 +389,12 @@ class DZS_WorkFolder
 			else if (c.m_Block != "lootRow")
 				AddType(types, c.m_Key.GetStr("group"));
 		}
-		if (lp.m_Blocks.Count() + lp.m_Changes.Count() == 0)
-			return;
-		map<string, string> originals = DZS_ApplyStore.Originals(baseDir);
-		DZS_Patcher p = DZS_Patcher.Run(lp, baseDir, originals);
+		return lp;
+	}
+
+	// The patched loot files into the working folder; changes that do not fit the base are noted in 'issues'.
+	static void WriteLoot(DZS_Patcher p, string dir, DZS_Issues issues)
+	{
 		foreach (string rel : p.m_OutPaths)
 		{
 			string low = DZS_PatchText.Lower(rel);
@@ -468,12 +415,15 @@ class DZS_WorkFolder
 			string en = bad.ToString() + DZS_Issues.Plural(bad, " loot change does", " loot changes do") + " not fit the base and do not apply";
 			issues.Add(DZS_Issue.WARNING, de, en);
 		}
-		if (types.Count() == 0)
-			return;
+	}
+
+	// The text of the project's own loot types in the base's mapgroupproto.xml, read from the base.
+	static void OriginsFromBase(string baseDir, map<string, string> originals, string dir, array<string> types, DZS_LootOrigin origin)
+	{
 		DZS_PatchFiles look = new DZS_PatchFiles(baseDir);
 		string protoPath = baseDir + "\\" + look.Resolve(DZS_LootFiles.PROTO);
 		string protoAlt;
-		if (originals.Find(DZS_LootFiles.PROTO, protoAlt) && protoAlt != "")
+		if (originals && originals.Find(DZS_LootFiles.PROTO, protoAlt) && protoAlt != "")
 			protoPath = protoAlt;
 		DZS_LootFiles basis = DZS_LootFiles.ReadBase(protoPath, dir + "\\" + DZS_LootFiles.LIMITS);
 		foreach (string t : types)
@@ -481,8 +431,8 @@ class DZS_WorkFolder
 			string orig = "";
 			if (basis.m_Error == "")
 				orig = basis.SourceOf(t);
-			res.m_Origin.m_OwnTypes.Insert(t);
-			res.m_Origin.m_Origs.Insert(orig);
+			origin.m_OwnTypes.Insert(t);
+			origin.m_Origs.Insert(orig);
 		}
 	}
 
@@ -508,5 +458,252 @@ class DZS_WorkFolder
 		if (err != "")
 			return;
 		o.m_OwnRows.Set(data.GetStr("name") + "\n" + pos, true);
+	}
+}
+
+// DZS_WorkFolder.Build over several frames, for opening: the project file read in steps, one spawner group file at a
+// time, the patcher run on the base's loot files in steps (DZS_Patcher.Step). Before anything is written it finds out
+// whether the project needs its base and the base is not here (m_NeedBase: the caller fetches it and starts again).
+class DZS_WorkBuild : DZS_Job
+{
+	static const int PARSE = 0;
+	static const int ROOT = 1;
+	static const int GROUPS = 2;
+	static const int LOOT = 3;
+	static const int PATCH = 4;
+	static const int ORIGIN = 5;
+	static const int DONE = 6;
+
+	string m_Folder;
+	string m_LoadedMap;
+	ref DZS_Issues m_Issues;
+	ref DZS_WorkResult m_Result = new DZS_WorkResult();
+	// the project file as read (also for the caller: extensions, the base it waits for)
+	ref DZS_Json m_Root;
+	bool m_NeedBase;
+	// stop for a missing base (m_NeedBase) instead of building without its loot
+	bool m_Wait = true;
+	protected ref array<string> m_Chunks;
+	protected ref DZS_SrcJsonSteps m_Parse;
+	protected ref DZS_PatchProject m_Project;
+	protected int m_Phase;
+	protected int m_At;
+	protected string m_Slug;
+	protected string m_MapKey;
+	protected string m_Dir;
+	protected int m_GroupFiles;
+	protected ref map<string, string> m_Paths = new map<string, string>();
+	protected string m_BaseDir;
+	protected ref map<string, string> m_Originals;
+	protected ref array<string> m_Types = new array<string>();
+	protected ref DZS_Patcher m_Run;
+	protected int m_T0;
+
+	void DZS_WorkBuild(string folder, array<string> chunks, string loadedMap, DZS_Issues issues)
+	{
+		m_De = "Projekt wird geöffnet";
+		m_En = "Opening the project";
+		m_Folder = folder;
+		m_Chunks = chunks;
+		m_LoadedMap = loadedMap;
+		m_Issues = issues;
+		m_T0 = TickCount(0);
+		if (!m_Chunks)
+			m_Chunks = new array<string>();
+		m_Parse = new DZS_SrcJsonSteps(m_Chunks, 5);
+	}
+
+	// Opening may stop here: only the hidden working folder is half made, the next opening makes it again.
+	override bool CanCancelNow()
+	{
+		return true;
+	}
+
+	override bool Step(float ms)
+	{
+		int t0 = TickCount(0);
+		while (m_Phase != DONE)
+		{
+			if (DZS_Job.Over(t0, ms))
+				break;
+			if (m_Phase == PARSE)
+			{
+				SetStep("Projektdatei", "project file");
+				float left = ms - (TickCount(0) - t0) / 10000.0;
+				if (!m_Parse.Step(Math.Max(left, 0.5)))
+				{
+					m_Share = 0.3 * m_Parse.Progress();
+					break;
+				}
+				m_Phase = ROOT;
+			}
+			else if (m_Phase == ROOT)
+				TakeRoot();
+			else if (m_Phase == GROUPS)
+				OneGroup();
+			else if (m_Phase == LOOT)
+				PrepareLoot();
+			else if (m_Phase == PATCH)
+			{
+				SetStep("Loot der Basis", "the base's loot");
+				float rest = ms - (TickCount(0) - t0) / 10000.0;
+				if (!m_Run.Step(Math.Max(rest, 0.5)))
+				{
+					m_Share = 0.5 + 0.45 * m_Run.Share();
+					break;
+				}
+				WriteLoot();
+				m_Phase = ORIGIN;
+			}
+			else if (m_Phase == ORIGIN)
+			{
+				Origins();
+				m_Phase = DONE;
+			}
+		}
+		if (m_Phase != DONE)
+			return false;
+		m_Share = 1;
+		if (m_Result.m_Error == "" && !m_NeedBase)
+		{
+			DZS_WorkResult res = m_Result;
+			DZS_Log.Info("work folder " + res.m_Dir + ": " + m_GroupFiles + " group file(s), base " + res.m_Base + ", " + res.m_Origin.m_OwnTypes.Count() + " own loot type(s), " + res.m_Origin.m_OwnRows.Count() + " own row(s) in " + ((TickCount(0) - m_T0) / 10000) + " ms");
+		}
+		return true;
+	}
+
+	protected void TakeRoot()
+	{
+		m_Phase = DONE;
+		DZS_SrcDoc doc = m_Parse.Result();
+		m_Parse = null;
+		if (!doc || !doc.m_Root || !doc.m_Root.IsObj())
+		{
+			m_Result.m_Error = "unreadable";
+			return;
+		}
+		m_Root = doc.m_Root.ToJson();
+		string err;
+		m_Project = DZS_PatchProject.FromJson(m_Root, err);
+		if (!m_Project)
+		{
+			m_Result.m_Error = err;
+			return;
+		}
+		m_MapKey = DZS_WorkFolder.MapOf(m_Root);
+		if (DZS_Maps.WorldOf(m_MapKey) == "")
+			m_MapKey = m_LoadedMap;
+		m_Result.m_Base = DZS_WorkFolder.BaseOf(m_Root);
+		if (m_Wait && DZS_WorkFolder.NeedsBase(m_Root) && DZS_WorkFolder.UsableBase(m_Result.m_Base, m_MapKey, null) == "")
+		{
+			m_NeedBase = true;
+			return;
+		}
+		m_Slug = m_Project.m_Slug;
+		if (m_Slug == "")
+			m_Slug = "project";
+		m_Dir = DZS_WorkFolder.DirOf(m_Folder);
+		if (DZS_Files.IsFolder(m_Dir))
+			DZS_Files.DeleteTree(m_Dir);
+		DZS_Files.MakeDirs(m_Dir);
+		m_Result.m_Dir = m_Dir;
+		m_At = 0;
+		m_Share = 0.3;
+		m_Phase = GROUPS;
+	}
+
+	protected void OneGroup()
+	{
+		SetStep("Gruppen", "groups");
+		if (m_At >= m_Project.m_Blocks.Count())
+		{
+			m_Result.m_Manifest = DZS_WorkFolder.Manifest(m_Root, m_MapKey, m_Paths);
+			m_Phase = LOOT;
+			return;
+		}
+		DZS_PatchBlock b = m_Project.m_Blocks[m_At];
+		m_At++;
+		m_Share = 0.3 + 0.2 * m_At / Math.Max(1, m_Project.m_Blocks.Count());
+		if (b.m_Kind != "spawnerGroup")
+			return;
+		array<string> text = DZS_WorkFolder.GroupText(b);
+		string rel = DZS_WorkFolder.SpawnerPath(m_Slug, b.m_Id);
+		string full = m_Dir + "\\" + rel;
+		full.Replace("/", "\\");
+		DZS_Files.MakeDirs(full.Substring(0, full.LastIndexOf("\\")));
+		DZS_Files.Write(full, text);
+		m_Paths.Set(b.m_Id, rel);
+		m_GroupFiles++;
+	}
+
+	// The base's loot files into the working folder and the patcher run on them for the project's loot.
+	protected void PrepareLoot()
+	{
+		m_Phase = DONE;
+		m_Share = 0.5;
+		m_BaseDir = DZS_WorkFolder.UsableBase(m_Result.m_Base, m_MapKey, m_Issues);
+		if (m_BaseDir == "")
+		{
+			if (DZS_WorkFolder.NeedsBase(m_Root))
+				m_Issues.Add(DZS_Issue.WARNING, "Basis des Projekts fehlt — Loot lässt sich erst nach dem Laden der Vanilla-Mission bearbeiten", "The project's base is missing — loot can be edited only after the vanilla mission is fetched");
+			return;
+		}
+		if (!DZS_WorkFolder.CopyLoot(m_BaseDir, m_MapKey, m_Dir))
+		{
+			if (DZS_WorkFolder.NeedsBase(m_Root))
+				m_Issues.Add(DZS_Issue.WARNING, "Die Basis hat keine Loot-Dateien (mapgroupproto.xml, mapgrouppos.xml)", "The base has no loot files (mapgroupproto.xml, mapgrouppos.xml)");
+			return;
+		}
+		DZS_PatchProject lp = DZS_WorkFolder.LootPart(m_Project, m_Types, m_Result.m_Origin);
+		if (lp.m_Blocks.Count() + lp.m_Changes.Count() == 0)
+			return;
+		m_Originals = DZS_ApplyStore.Originals(m_BaseDir);
+		m_Run = DZS_Patcher.Begin(lp, m_BaseDir, m_Originals);
+		m_Phase = PATCH;
+	}
+
+	protected void WriteLoot()
+	{
+		SetStep("Loot-Dateien", "loot files");
+		DZS_WorkFolder.WriteLoot(m_Run, m_Dir, m_Issues);
+	}
+
+	// The project's own loot types with their text in the base: from the base's mapgroupproto.xml as the patcher read
+	// it (read again only when the run did not read it).
+	protected void Origins()
+	{
+		if (!m_Run || m_Types.Count() == 0)
+			return;
+		DZS_PatchFile pf = m_Run.m_Files.m_Files.Get(DZS_LootFiles.PROTO);
+		if (pf && pf.Ok() && pf.m_Xml && pf.m_Xml.m_Root && pf.m_Xml.m_Root.m_Name == "prototype")
+		{
+			map<string, int> first = new map<string, int>();
+			DZS_XmlNode root = pf.m_Xml.m_Root;
+			for (int i = 0; i < root.m_Children.Count(); i++)
+			{
+				DZS_XmlNode g = root.m_Children[i];
+				if (g.m_Name != "group")
+					continue;
+				string key = g.Get("name");
+				if (key == "")
+					continue;
+				key.ToLower();
+				if (!first.Contains(key))
+					first.Set(key, i);
+			}
+			foreach (string t : m_Types)
+			{
+				string low = t;
+				low.ToLower();
+				string orig = "";
+				int at;
+				if (first.Find(low, at))
+					orig = pf.m_Xml.Raw(root.m_Children[at]);
+				m_Result.m_Origin.m_OwnTypes.Insert(t);
+				m_Result.m_Origin.m_Origs.Insert(orig);
+			}
+			return;
+		}
+		DZS_WorkFolder.OriginsFromBase(m_BaseDir, m_Originals, m_Dir, m_Types, m_Result.m_Origin);
 	}
 }

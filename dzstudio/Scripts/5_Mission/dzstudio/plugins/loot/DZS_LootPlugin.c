@@ -325,6 +325,7 @@ class DZS_LootPlugin : DZS_Plugin
 		m_SigCache.Clear();
 		m_VanSig.Clear();
 		m_WVer = -1;
+		m_Listed = null;
 		m_PosPatches = null;
 		m_ProtoPatches = null;
 	}
@@ -435,6 +436,7 @@ class DZS_LootPlugin : DZS_Plugin
 		m_Files = f;
 		m_SigCache.Clear();
 		m_WVer = -1;
+		m_Listed = null;
 		LoadBase(Folder());
 		m_Files.Match(inst, ClassObjects(inst), Mark(inst));
 		m_StateVer++;
@@ -598,6 +600,7 @@ class DZS_LootPlugin : DZS_Plugin
 		DZS_Operation op = b.GetOperation();
 		inst.SubmitSystem(op);
 		m_WVer = -1;
+		m_Listed = null;
 		string en = Plural(dropped, "Eintrag", "Einträge", "entry", "entries");
 		m_Kernel.GetScreen().ShowMessage("loot.marks", "info", en + DZS_Texts.Pick(" dieses Projekts stehen nicht mehr in mapgroupproto.xml — aus der Liste genommen", " of this project are no longer in mapgroupproto.xml — taken out of the list"), 10.0);
 		DZS_Log.Info("loot: " + dropped + " written type(s) without the mark dropped, " + unknown.Count() + " marked without original text");
@@ -625,13 +628,17 @@ class DZS_LootPlugin : DZS_Plugin
 		DZS_Operation op = b.GetOperation();
 		inst.SubmitSystem(op);
 		m_WVer = -1;
+		m_Listed = null;
 		DZS_Log.Info("loot: written types from the provider: " + lo.m_OwnTypes.Count());
 	}
 
 	// Reads the working state and the vanilla state (project folder vanilla\, else the fetched one).
-	protected bool ReadFiles(DZS_Instance inst, string folder, DZS_Issues issues = null)
+	// ready: the files read already (Toggle's check), else they are read here
+	protected bool ReadFiles(DZS_Instance inst, string folder, DZS_Issues issues = null, DZS_LootFiles ready = null)
 	{
-		DZS_LootFiles f = DZS_LootFiles.Read(folder);
+		DZS_LootFiles f = ready;
+		if (!f)
+			f = DZS_LootFiles.Read(folder);
 		if (f.m_Error != "")
 		{
 			DZS_Log.Warn("loot: " + f.m_ErrorFile + " unreadable: " + f.m_Error);
@@ -651,6 +658,7 @@ class DZS_LootPlugin : DZS_Plugin
 		Remember(f);
 		m_SigCache.Clear();
 		m_WVer = -1;
+		m_Listed = null;
 		LoadBase(folder, issues);
 		array<string> objs = ClassObjects(inst);
 		string mark = Mark(inst);
@@ -1285,6 +1293,48 @@ class DZS_LootPlugin : DZS_Plugin
 
 	// ---- switch ----
 
+	protected ref DZS_LootPrefetch m_Prefetch;
+	protected bool m_Prefetched;
+
+	// The files of a project folder and of the base LoadBase will take, read ahead over the next frames.
+	static DZS_LootPrefetch StartPrefetch(string folder, string mapKey)
+	{
+		string baseProto = "";
+		string baseLimits = "";
+		string own = DZS_LocalStore.Path(folder, "vanilla/" + DZS_LootFiles.PROTO);
+		if (folder != "" && FileExist(own))
+		{
+			baseProto = own;
+			baseLimits = DZS_LocalStore.Path(folder, "vanilla/" + DZS_LootFiles.LIMITS);
+			if (!FileExist(baseLimits))
+				baseLimits = DZS_LootVanilla.PathOf(mapKey, DZS_LootFiles.LIMITS);
+		}
+		else if (mapKey != "" && DZS_LootVanilla.Have(mapKey))
+		{
+			baseProto = DZS_LootVanilla.PathOf(mapKey, DZS_LootFiles.PROTO);
+			baseLimits = DZS_LootVanilla.PathOf(mapKey, DZS_LootFiles.LIMITS);
+		}
+		DZS_LootPrefetch j = new DZS_LootPrefetch(folder, baseProto, baseLimits);
+		DZS_Jobs.Start(j);
+		return j;
+	}
+
+	void OnPrefetched(DZS_Job j)
+	{
+		if (j != m_Prefetch)
+			return;
+		m_Prefetch = null;
+		if (j.m_Cancelled)
+		{
+			DZS_LootFiles.DropReady();
+			return;
+		}
+		m_Prefetched = true;
+		Toggle();
+		m_Prefetched = false;
+		DZS_LootFiles.DropReady();
+	}
+
 	void Toggle()
 	{
 		DZS_Instance inst = m_Kernel.GetShown();
@@ -1331,6 +1381,16 @@ class DZS_LootPlugin : DZS_Plugin
 			DZS_Log.Info("loot: cannot switch on, files missing in " + folder);
 			return;
 		}
+		// the files are read over several frames first (progress plate); Toggle runs again when they are there
+		if (!m_Prefetched)
+		{
+			if (m_Prefetch)
+				return;
+			m_Prefetch = StartPrefetch(folder, MapKey());
+			m_Prefetch.m_OnDone.Insert(OnPrefetched);
+			return;
+		}
+		m_Prefetched = false;
 		DZS_LootFiles probe = DZS_LootFiles.Read(folder);
 		if (probe.m_Error != "")
 		{
@@ -1343,8 +1403,9 @@ class DZS_LootPlugin : DZS_Plugin
 			DZS_Log.Info("loot: cannot switch on: " + txt);
 			return;
 		}
+		ReadFiles(inst, folder, null, probe);
 		probe = null;
-		ReadFiles(inst, folder);
+		DZS_LootFiles.DropReady();
 		array<string> objs = ClassObjects(inst);
 		DZS_OpBuilder b = inst.BeginOperation("loot:edit", 1);
 		b.SetField(DZS_PROJECT_ID, "lootEnabled", "true");
@@ -2396,7 +2457,29 @@ class DZS_LootPlugin : DZS_Plugin
 
 	// Types of the loot group: of project objects with loot, and types whose entry is own,
 	// in the order of their shown names.
+	// the listed types of the last state: the project bar asks every frame (a walk over every object each time)
+	protected ref array<string> m_Listed;
+	protected int m_ListedVer = -1;
+	protected DZS_Instance m_ListedInst;
+	protected DZS_LootFiles m_ListedFiles;
+	protected DZS_LootFiles m_ListedBase;
+
 	array<string> ListedTypes(DZS_Instance inst)
+	{
+		if (!m_Listed || m_ListedVer != m_StateVer || m_ListedInst != inst || m_ListedFiles != m_Files || m_ListedBase != m_Base)
+		{
+			m_Listed = ListTypes(inst);
+			m_ListedVer = m_StateVer;
+			m_ListedInst = inst;
+			m_ListedFiles = m_Files;
+			m_ListedBase = m_Base;
+		}
+		array<string> copy = new array<string>();
+		copy.Copy(m_Listed);
+		return copy;
+	}
+
+	protected array<string> ListTypes(DZS_Instance inst)
 	{
 		map<string, string> byKey = new map<string, string>();
 		array<string> objs = ClassObjects(inst);

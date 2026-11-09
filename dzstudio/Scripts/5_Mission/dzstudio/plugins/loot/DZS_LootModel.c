@@ -38,6 +38,8 @@ class DZS_LootFiles : Managed
 	// type key (lower case) -> index of its group element among the children of <prototype>
 	ref map<string, int> m_Index = new map<string, int>();
 	ref array<ref DZS_LootRow> m_Rows = new array<ref DZS_LootRow>();
+	// object id -> its first row (RowOfObject); built again after the rows or their objects changed
+	protected ref map<string, DZS_LootRow> m_ByObj;
 	ref map<string, int> m_RowsOfType = new map<string, int>();
 	ref map<string, int> m_Foreign = new map<string, int>();
 	int m_DefGroup = -1;
@@ -69,10 +71,13 @@ class DZS_LootFiles : Managed
 
 	static DZS_LootFiles Read(string folder)
 	{
-		DZS_LootFiles f = new DZS_LootFiles();
 		string a = DZS_LocalStore.Path(folder, PROTO);
 		string b = DZS_LocalStore.Path(folder, POS);
 		string c = DZS_LocalStore.Path(folder, LIMITS);
+		DZS_LootFiles ready = TakeReady(ReadyKey(a, b, c, true));
+		if (ready)
+			return ready;
+		DZS_LootFiles f = new DZS_LootFiles();
 		f.Load(a, b, c);
 		return f;
 	}
@@ -88,6 +93,9 @@ class DZS_LootFiles : Managed
 	// Only mapgroupproto.xml and the name lists (the base state from the vanilla folder).
 	static DZS_LootFiles ReadBase(string protoPath, string limitsPath)
 	{
+		DZS_LootFiles ready = TakeReady(ReadyKey(protoPath, "", limitsPath, false));
+		if (ready)
+			return ready;
 		DZS_LootFiles f = new DZS_LootFiles();
 		f.Load(protoPath, "", limitsPath, false);
 		return f;
@@ -180,6 +188,271 @@ class DZS_LootFiles : Managed
 		}
 	}
 
+	// ---- reading over several frames (DZS_LootPrefetch) ----
+
+	// files read ahead, by the paths they were read from, until Read or ReadBase asks for them (taken once)
+	protected static ref map<string, ref DZS_LootFiles> s_Ready;
+	protected string m_ReadyKey;
+	protected int m_SStep = -1;
+	protected bool m_SSha;
+	protected string m_SLimits;
+	protected int m_SAt;
+	protected ref DZS_FileSum m_SSum;
+	protected ref DZS_Sha256 m_SHash;
+	protected ref DZS_XmlSteps m_SParse;
+
+	protected static string ReadyKey(string protoPath, string posPath, string limPath, bool sha)
+	{
+		string k = protoPath + "|" + posPath;
+		k += "|" + limPath;
+		if (sha)
+			return k + "|sha";
+		return k;
+	}
+
+	protected static DZS_LootFiles TakeReady(string key)
+	{
+		if (!s_Ready)
+			return null;
+		DZS_LootFiles f = s_Ready.Get(key);
+		if (f)
+			s_Ready.Remove(key);
+		return f;
+	}
+
+	// What was read ahead and not asked for goes (the opening is over).
+	static void DropReady()
+	{
+		s_Ready = null;
+	}
+
+	// The project folder's files (as Read) to be read in steps.
+	static DZS_LootFiles BeginRead(string folder)
+	{
+		DZS_LootFiles f = new DZS_LootFiles();
+		string a = DZS_LocalStore.Path(folder, PROTO);
+		string b = DZS_LocalStore.Path(folder, POS);
+		string c = DZS_LocalStore.Path(folder, LIMITS);
+		f.BeginSteps(a, b, c, true);
+		return f;
+	}
+
+	// A base's files (as ReadBase) to be read in steps.
+	static DZS_LootFiles BeginReadBase(string protoPath, string limitsPath)
+	{
+		DZS_LootFiles f = new DZS_LootFiles();
+		f.BeginSteps(protoPath, "", limitsPath, false);
+		return f;
+	}
+
+	protected void BeginSteps(string protoPath, string posPath, string limPath, bool sha)
+	{
+		m_ReadyKey = ReadyKey(protoPath, posPath, limPath, sha);
+		m_SSha = sha;
+		m_SLimits = limPath;
+		m_SStep = 0;
+		array<string> pc = DZS_Files.Read(protoPath);
+		array<string> qc = null;
+		if (posPath != "" && (s_Skip & 16) == 0)
+			qc = DZS_Files.Read(posPath);
+		else
+			posPath = "";
+		if (!pc || (posPath != "" && !qc))
+		{
+			m_Error = "file missing";
+			m_SStep = 99;
+			return;
+		}
+		m_ProtoChunks = pc;
+		m_PosChunks = qc;
+	}
+
+	// How far the reading is, 0 … 1 (checksums, then the documents).
+	float StepShare()
+	{
+		if (m_SStep >= 99)
+			return 1;
+		float s = m_SStep;
+		if (m_SStep == 10)
+			s = 4.5;
+		float inStep = 0;
+		if (m_SParse)
+			inStep = m_SParse.Progress();
+		return Math.Min(1, (s + inStep) / 9.0);
+	}
+
+	// One slice of the reading; true when the files are read (m_Error as Read would set it). The steps of LoadChunks:
+	// checksums, SHA-256, mapgroupproto.xml, mapgrouppos.xml, the entries and rows, the name lists.
+	bool StepLoad(float ms)
+	{
+		int t0 = TickCount(0);
+		while (m_SStep < 99)
+		{
+			if (DZS_Job.Over(t0, ms))
+				return false;
+			int left = Math.Max(1, ms - (TickCount(0) - t0) / 10000.0);
+			if (m_SStep == 0)
+			{
+				if ((s_Skip & 1) != 0)
+				{
+					m_SStep = 3;
+					continue;
+				}
+				if (!m_SSum)
+					m_SSum = new DZS_FileSum();
+				if (!m_SSum.Feed(m_ProtoChunks, left))
+					return false;
+				m_ProtoSum = m_SSum.Result();
+				m_SSum = null;
+				m_SStep = 1;
+				if (!m_SSha)
+					m_SStep = 3;
+			}
+			else if (m_SStep == 1 || m_SStep == 2)
+			{
+				array<string> hashed = m_ProtoChunks;
+				if (m_SStep == 2)
+					hashed = m_PosChunks;
+				if (!hashed)
+				{
+					m_SStep = 3;
+					continue;
+				}
+				if (!m_SHash)
+					m_SHash = new DZS_Sha256();
+				if (!m_SHash.Feed(hashed, left))
+					return false;
+				if (m_SStep == 1)
+					m_ProtoSha = m_SHash.Finish();
+				else
+					m_PosSha = m_SHash.Finish();
+				m_SHash = null;
+				m_SStep++;
+			}
+			else if (m_SStep == 3 || m_SStep == 5)
+			{
+				array<string> parsed = m_ProtoChunks;
+				if (m_SStep == 5)
+					parsed = m_PosChunks;
+				if (!m_SParse)
+					m_SParse = new DZS_XmlSteps(parsed);
+				if (!m_SParse.Step(t0, ms))
+					return false;
+				DZS_XmlDoc doc = m_SParse.Result();
+				m_SParse = null;
+				if (m_SStep == 3)
+					m_Proto = doc;
+				else
+					m_PosDoc = doc;
+				m_SStep++;
+			}
+			else if (m_SStep == 4)
+			{
+				DZS_Log.Info("loot: " + PROTO + " parsed in steps, error '" + m_Proto.m_Error + "'");
+				if (m_Proto.m_Error != "")
+				{
+					m_Error = m_Proto.ErrorText();
+					m_ErrorFile = PROTO;
+					m_SStep = 99;
+					continue;
+				}
+				if (m_Proto.m_Root.m_Name != "prototype")
+				{
+					m_Error = "different root element";
+					m_ErrorFile = PROTO;
+					m_SStep = 99;
+					continue;
+				}
+				m_SStep = 10;
+				if (!m_PosChunks)
+					m_SStep = 7;
+				else if ((s_Skip & 1) != 0)
+					m_SStep = 5;
+			}
+			else if (m_SStep == 10)
+			{
+				if (!m_SSum)
+					m_SSum = new DZS_FileSum();
+				if (!m_SSum.Feed(m_PosChunks, left))
+					return false;
+				m_PosSum = m_SSum.Result();
+				m_SSum = null;
+				m_SStep = 5;
+			}
+			else if (m_SStep == 6)
+			{
+				DZS_Log.Info("loot: " + POS + " parsed in steps, error '" + m_PosDoc.m_Error + "'");
+				if (m_PosDoc.m_Error != "")
+				{
+					m_Error = m_PosDoc.ErrorText();
+					m_ErrorFile = POS;
+					m_SStep = 99;
+					continue;
+				}
+				if (m_PosDoc.m_Root.m_Name != "map")
+				{
+					m_Error = "different root element";
+					m_ErrorFile = POS;
+					m_SStep = 99;
+					continue;
+				}
+				m_SStep = 7;
+			}
+			else if (m_SStep == 7)
+			{
+				if ((s_Skip & 2) == 0)
+					ReadProto();
+				m_Rows.Clear();
+				m_ByObj = null;
+				m_SAt = 0;
+				m_SStep = 8;
+				if (!m_PosDoc || (s_Skip & 4) != 0)
+					m_SStep = 9;
+			}
+			else if (m_SStep == 8)
+			{
+				array<ref DZS_XmlNode> kids = m_PosDoc.m_Root.m_Children;
+				while (m_SAt < kids.Count())
+				{
+					if ((m_SAt & 63) == 0 && DZS_Job.Over(t0, ms))
+						return false;
+					DZS_XmlNode g = kids[m_SAt];
+					m_SAt++;
+					if (g.m_Name != "group")
+						continue;
+					DZS_LootRow r = RowOf(g);
+					m_Rows.Insert(r);
+					if (m_PosIndent == "")
+						m_PosIndent = m_PosDoc.IndentOf(g);
+				}
+				CountRows();
+				m_SStep = 9;
+			}
+			else if (m_SStep == 9)
+			{
+				array<string> lc = null;
+				if ((s_Skip & 8) == 0)
+					lc = DZS_Files.Read(m_SLimits);
+				if (lc)
+				{
+					DZS_XmlDoc lim = DZS_Xml.Parse(lc);
+					if (lim.m_Error == "" && lim.m_Root)
+						ReadLimits(lim.m_Root);
+				}
+				m_SStep = 99;
+			}
+		}
+		return true;
+	}
+
+	// The reading is complete: Read or ReadBase with the same paths takes this one instead of reading again.
+	void KeepReady()
+	{
+		if (!s_Ready)
+			s_Ready = new map<string, ref DZS_LootFiles>();
+		s_Ready.Set(m_ReadyKey, this);
+	}
+
 	protected void ReadProto()
 	{
 		DZS_XmlNode root = m_Proto.m_Root;
@@ -235,6 +508,7 @@ class DZS_LootFiles : Managed
 
 	protected void ReadRows()
 	{
+		m_ByObj = null;
 		m_Rows.Clear();
 		foreach (DZS_XmlNode g : m_PosDoc.m_Root.m_Children)
 		{
@@ -460,6 +734,7 @@ class DZS_LootFiles : Managed
 			}
 			list.Insert(id);
 		}
+		m_ByObj = null;
 		foreach (DZS_LootRow r : m_Rows)
 		{
 			if (keep && r.m_Obj != "")
@@ -520,19 +795,27 @@ class DZS_LootFiles : Managed
 		}
 	}
 
+	// The first row of an object (a map instead of a walk over the 11,700 rows of a map for every object).
 	DZS_LootRow RowOfObject(string objId)
 	{
-		foreach (DZS_LootRow r : m_Rows)
+		if (objId == "")
+			return null;
+		if (!m_ByObj)
 		{
-			if (r.m_Obj == objId)
-				return r;
+			m_ByObj = new map<string, DZS_LootRow>();
+			foreach (DZS_LootRow r : m_Rows)
+			{
+				if (r.m_Obj != "" && !m_ByObj.Contains(r.m_Obj))
+					m_ByObj.Set(r.m_Obj, r);
+			}
 		}
-		return null;
+		return m_ByObj.Get(objId);
 	}
 
 	// After a save: rows whose element went are dropped, rows written for objects are added (patch tag = object id).
 	void FollowRows(array<ref DZS_XmlPatch> patches)
 	{
+		m_ByObj = null;
 		for (int i = m_Rows.Count() - 1; i >= 0; i--)
 		{
 			DZS_LootRow r = m_Rows[i];
@@ -613,5 +896,49 @@ class DZS_LootFiles : Managed
 		if (mark != "")
 			mk = " dzstudio=\"" + mark + "\"";
 		return "<group name=\"" + nm + "\" pos=\"" + pt + "\" rpy=\"" + rpy + "\" a=\"" + aText + "\"" + mk + " />";
+	}
+}
+
+// Reading the loot files ahead over several frames (opening a project with loot on, switching loot on): the project
+// folder's files and its base's, each checksummed and parsed in steps; DZS_LootFiles.Read and ReadBase then take them
+// instead of reading them in one frame (seconds for a map's 2.8 MB).
+class DZS_LootPrefetch : DZS_Job
+{
+	protected ref array<ref DZS_LootFiles> m_Reads = new array<ref DZS_LootFiles>();
+	protected int m_At;
+
+	void DZS_LootPrefetch(string folder, string baseProto, string baseLimits)
+	{
+		m_De = "Loot wird gelesen";
+		m_En = "Reading the loot";
+		m_Cancelable = true;
+		DZS_LootFiles own = DZS_LootFiles.BeginRead(folder);
+		m_Reads.Insert(own);
+		if (baseProto != "")
+		{
+			DZS_LootFiles base = DZS_LootFiles.BeginReadBase(baseProto, baseLimits);
+			m_Reads.Insert(base);
+		}
+	}
+
+	override bool Step(float ms)
+	{
+		int t0 = TickCount(0);
+		while (m_At < m_Reads.Count())
+		{
+			float left = ms - (TickCount(0) - t0) / 10000.0;
+			if (left <= 0)
+				return false;
+			DZS_LootFiles f = m_Reads[m_At];
+			if (!f.StepLoad(left))
+			{
+				m_Share = (m_At + f.StepShare()) / m_Reads.Count();
+				return false;
+			}
+			f.KeepReady();
+			m_At++;
+		}
+		m_Share = 1;
+		return true;
 	}
 }

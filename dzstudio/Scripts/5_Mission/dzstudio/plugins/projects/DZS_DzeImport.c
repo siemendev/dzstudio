@@ -53,6 +53,7 @@ class DZS_DzeReader : Managed
 	protected FileHandle m_Fh;
 	protected int m_Stage = 4;
 	protected int m_ObjLeft;
+	protected int m_ObjTotal;
 
 	// The whole file as bytes (ReadFile into an int array keeps every byte, also NUL).
 	static DZS_DzeData Read(string path)
@@ -333,7 +334,18 @@ class DZS_DzeReader : Managed
 		if (!Count(objects, 4))
 			return false;
 		m_ObjLeft = objects;
+		m_ObjTotal = objects;
 		return true;
+	}
+
+	// How far the reading is, 0 … 1 (the file's size is not known before it is loaded).
+	float Share()
+	{
+		if (m_Stage >= 3)
+			return 1;
+		if (m_Stage < 2 || m_ObjTotal <= 0)
+			return 0.1;
+		return 0.1 + 0.9 * (m_ObjTotal - m_ObjLeft) / (m_ObjTotal * 1.0);
 	}
 
 	protected void ParseTail()
@@ -533,6 +545,18 @@ class DZS_DzeImport : Managed
 		return im;
 	}
 
+	// How far reading (half) and converting (half) are, 0 … 1.
+	float Share()
+	{
+		if (m_Done)
+			return 1;
+		if (m_Reader)
+			return 0.5 * m_Reader.Share();
+		if (!m_Data || m_Data.m_Objects.Count() == 0)
+			return 0.5;
+		return 0.5 + 0.5 * m_ConvI / (m_Data.m_Objects.Count() * 1.0);
+	}
+
 	// True when reading and converting are done; ticks = budget in TickCount units (0 = no limit).
 	bool Step(int ticks)
 	{
@@ -709,7 +733,7 @@ class DZS_DzeFileDialog : DZS_Dialog
 	protected float m_JobT;
 	protected bool m_Busy;
 	protected TextWidget m_BusyText;
-	protected ref array<Widget> m_BusyBlocks = new array<Widget>();
+	protected ref DZS_ProgressBar m_BusyBar;
 
 	void DZS_DzeFileDialog(DZS_ProjectsPlugin p, bool intoOpen)
 	{
@@ -812,7 +836,7 @@ class DZS_DzeFileDialog : DZS_Dialog
 				br.m_Hit.m_W.Show(false);
 			m_Search.Show(false);
 			m_Empty.Show(false);
-			return DZS_Scale.Px(72);
+			return DZS_Scale.Px(80);
 		}
 		m_Search.Place(0, DZS_Scale.Px(28), DZS_Scale.Px(32));
 		float y = DZS_Scale.Px(72);
@@ -894,11 +918,7 @@ class DZS_DzeFileDialog : DZS_Dialog
 		m_BusyText = DZS_W.Text(m_Inner, DZS_Font.READ, 13, DZS_Color.Get("textMuted"));
 		string bt = DZS_Texts.Pick("Liest ", "Reading ") + m_JobLeaf + " …";
 		m_BusyText.SetText(DZS_W.Literal(bt));
-		for (int i = 0; i < 4; i++)
-		{
-			Widget b = DZS_W.Panel(m_Inner, DZS_Color.Get("blockEmpty"));
-			m_BusyBlocks.Insert(b);
-		}
+		m_BusyBar = new DZS_ProgressBar(m_Inner);
 		foreach (DZS_ListRow r : m_Rows)
 			r.m_Hit.m_W.Show(false);
 		m_Search.Show(false);
@@ -906,19 +926,11 @@ class DZS_DzeFileDialog : DZS_Dialog
 
 	protected void AnimateBlocks()
 	{
-		float bs = DZS_Scale.Px(10);
-		float top = DZS_Scale.Px(40);
-		int lit = Math.Floor(m_JobT / 0.2);
-		lit = lit % 4;
-		for (int i = 0; i < m_BusyBlocks.Count(); i++)
-		{
-			DZS_W.Place(m_BusyBlocks[i], i * (bs + DZS_Scale.Px(4)), top, bs, bs);
-			if (i == lit)
-				m_BusyBlocks[i].SetColor(DZS_Color.Get("accent"));
-			else
-				m_BusyBlocks[i].SetColor(DZS_Color.Get("blockEmpty"));
-		}
-		DZS_W.Place(m_BusyText, 4 * (bs + DZS_Scale.Px(4)) + DZS_Scale.Px(8), top - DZS_Scale.Px(5), DZS_Scale.Px(600), DZS_Scale.Px(20));
+		float top = DZS_Scale.Px(34);
+		DZS_W.Place(m_BusyText, 0, top - DZS_Scale.Px(2), DZS_Scale.Px(600), DZS_Scale.Px(20));
+		m_BusyBar.Place(0, top + DZS_Scale.Px(22));
+		if (m_Job)
+			m_BusyBar.SetShare(m_Job.Share());
 	}
 }
 

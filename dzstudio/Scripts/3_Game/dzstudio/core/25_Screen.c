@@ -14,6 +14,9 @@ class DZS_Banner : Managed
 	ref DZS_Plate m_Plate;
 	ref array<ref DZS_Button> m_Buttons;
 	DZS_MessageListener m_Listener;
+	// a progress plate (ShowProgress): its bar and the text it was laid out for
+	ref DZS_ProgressBar m_Bar;
+	string m_Markup;
 
 	void OnButton(DZS_Button b)
 	{
@@ -28,6 +31,8 @@ class DZS_Banner : Managed
 			foreach (DZS_Button b : m_Buttons)
 				b.Destroy();
 		}
+		if (m_Bar)
+			m_Bar.Destroy();
 		m_Plate.Destroy();
 	}
 }
@@ -1217,6 +1222,79 @@ class DZS_Screen : DZS_EventListener
 		}
 		m_Banners.Insert(nb);
 		DZS_Log.Info("banner [" + id + "] " + markup);
+	}
+
+	// A progress plate (DZS_Jobs): the text, the shared progress bar with its number and, with a listener, a cancel
+	// knob (a click calls listener.OnMessageButton("‹id›:cancel")). Called every frame while the work runs.
+	void ShowProgress(string id, int order, string markup, float share, DZS_MessageListener listener)
+	{
+		bool cancel = listener != null;
+		foreach (DZS_Banner b : m_Banners)
+		{
+			if (b.m_Id != id)
+				continue;
+			if (b.m_Bar && (b.m_Buttons != null) == cancel)
+			{
+				if (b.m_Markup != markup)
+					LayoutProgress(b, markup);
+				b.m_Bar.SetShare(share);
+				return;
+			}
+			break;
+		}
+		HideBanner(id);
+		DZS_Banner nb = new DZS_Banner();
+		nb.m_Id = id;
+		nb.m_Order = order;
+		m_BannerSeq++;
+		nb.m_Seq = m_BannerSeq;
+		nb.m_Plate = new DZS_Plate(m_OverlayLayer, "info", markup, DZS_Font.READ, 13);
+		nb.m_Bar = new DZS_ProgressBar(nb.m_Plate.m_Frame);
+		if (cancel)
+		{
+			nb.m_Listener = listener;
+			nb.m_Buttons = new array<ref DZS_Button>();
+			DZS_Button cb = new DZS_Button(nb.m_Plate.m_Frame, "secondary", DZS_Texts.Get("core.dialog.cancel"), "", 24);
+			cb.m_Tag = "cancel";
+			cb.m_OnClick.Insert(nb.OnButton);
+			nb.m_Buttons.Insert(cb);
+		}
+		LayoutProgress(nb, markup);
+		nb.m_Bar.SetShare(share);
+		m_Banners.Insert(nb);
+	}
+
+	protected void LayoutProgress(DZS_Banner b, string markup)
+	{
+		b.m_Markup = markup;
+		DZS_Plate p = b.m_Plate;
+		p.SetText(markup);
+		float pad = DZS_Scale.Px(12);
+		float barX = p.m_W;
+		float w = barX + DZS_ProgressBar.Width() + pad;
+		float h = p.m_H;
+		h = Math.Max(h, DZS_ProgressBar.Height() + DZS_Scale.Px(10));
+		DZS_Button knob = null;
+		if (b.m_Buttons && b.m_Buttons.Count() > 0)
+		{
+			knob = b.m_Buttons[0];
+			w += knob.GetWidth() + DZS_Scale.Px(8);
+			h = Math.Max(h, knob.GetHeight() + DZS_Scale.Px(8));
+		}
+		p.m_W = Math.Round(w);
+		p.m_H = Math.Round(h);
+		p.Resize();
+		float lineX = pad;
+		if (p.m_HasIcon)
+		{
+			float icon = DZS_Scale.Px(16);
+			DZS_W.Place(p.m_Icon, pad, (p.m_H - icon) / 2, icon, icon);
+			lineX += icon + DZS_Scale.Px(8);
+		}
+		p.m_Line.Place(lineX, (p.m_H - p.m_Line.GetHeight()) / 2);
+		b.m_Bar.Place(barX, (p.m_H - DZS_ProgressBar.Height()) / 2);
+		if (knob)
+			knob.Place(p.m_W - knob.GetWidth() - DZS_Scale.Px(8), (p.m_H - knob.GetHeight()) / 2);
 	}
 
 	void HideBanner(string id)

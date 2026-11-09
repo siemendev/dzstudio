@@ -13,8 +13,41 @@ class DZS_Patcher : DZS_PatcherJson
 	protected ref array<string> m_RegLists = new array<string>();
 	protected bool m_Gameplay;
 
-	// 'ground' defaults to the game's terrain; the conformance runner passes a flat one.
+	// steps of a run (Step): read ahead, changes, own blocks, registrations, files
+	static const int READ = 0;
+	static const int CHANGES = 1;
+	static const int OWN = 2;
+	static const int REGISTER = 3;
+	static const int FILES = 4;
+	static const int DONE = 5;
+	protected int m_Phase;
+	protected int m_At;
+	protected ref array<string> m_Reads;
+	protected ref DZS_PatchFileRead m_Reading;
+	// own blocks in steps: their entries, the pass (0 top level, 1 and 2 nested by depth, 3 the text of each)
+	protected ref array<DZS_PatchEntry> m_OEntries;
+	protected ref array<string> m_OAreaNames;
+	protected ref array<string> m_OSafeKeys;
+	protected ref array<string> m_OIds;
+	protected bool m_OWeather;
+	protected int m_OPass;
+	// finishing in steps: the files, the pass (0 changed files, 1 created files)
+	protected ref array<DZS_PatchFile> m_FAll;
+	protected int m_FPass;
+	protected bool m_FGameplayOk;
+
+	// 'ground' defaults to the game's terrain; the conformance runner passes a flat one. The whole run at once.
 	static DZS_Patcher Run(DZS_PatchProject project, string baseDir, map<string, string> over = null, DZS_PatchGround ground = null)
+	{
+		DZS_Patcher p = Begin(project, baseDir, over, ground);
+		while (!p.Step(1000000))
+		{
+		}
+		return p;
+	}
+
+	// A run to be stepped over several frames (Step); the same result as Run.
+	static DZS_Patcher Begin(DZS_PatchProject project, string baseDir, map<string, string> over = null, DZS_PatchGround ground = null)
 	{
 		DZS_Patcher p = new DZS_Patcher();
 		p.m_Project = project;
@@ -24,21 +57,155 @@ class DZS_Patcher : DZS_PatcherJson
 		p.m_Files = new DZS_PatchFiles(baseDir);
 		if (over)
 			p.m_Files.m_Over.Copy(over);
-		p.Work();
+		p.PlanReads();
 		return p;
 	}
 
-	protected void Work()
+	bool IsDone() { return m_Phase == DONE; }
+
+	// How far the run is, 0 … 1 (reading the base's XML files is most of the time).
+	float Share()
 	{
-		for (int i = 0; i < m_Project.m_Changes.Count(); i++)
+		float part = 0;
+		if (m_Phase == READ)
 		{
-			DZS_PatchChange c = m_Project.m_Changes[i];
-			DZS_PatchEntry e = ChangeEntry(i, c);
-			Change(e, c);
+			float reads = Math.Max(1, m_Reads.Count());
+			float inFile = 0;
+			if (m_Reading && m_Reading.m_Parse)
+				inFile = m_Reading.m_Parse.Progress();
+			return 0.6 * (m_At + inFile) / reads;
 		}
-		OwnBlocks();
-		Registrations();
-		FinishFiles();
+		if (m_Phase == CHANGES)
+		{
+			float changes = Math.Max(1, m_Project.m_Changes.Count());
+			return 0.6 + 0.15 * m_At / changes;
+		}
+		if (m_Phase == OWN)
+		{
+			float blocks = Math.Max(1, m_Project.m_Blocks.Count());
+			part = (Math.Max(0, m_OPass) + m_At / blocks) / 4.0;
+			return 0.75 + 0.15 * part;
+		}
+		if (m_Phase == REGISTER)
+			return 0.9;
+		if (m_Phase == FILES && m_FAll)
+		{
+			float files = Math.Max(1, m_FAll.Count());
+			part = (m_FPass + m_At / files) / 2.0;
+			return 0.9 + 0.1 * part;
+		}
+		if (m_Phase == DONE)
+			return 1;
+		return 0;
+	}
+
+	// One slice of about 'ms' milliseconds; true when the run is complete. The pieces: a part of an XML file of the
+	// base (read ahead), one change, one own block, the registrations, one file finished.
+	bool Step(float ms)
+	{
+		int t0 = TickCount(0);
+		while (m_Phase != DONE)
+		{
+			if (DZS_Job.Over(t0, ms))
+				return false;
+			if (m_Phase == READ)
+			{
+				if (!StepReads(t0, ms))
+					return false;
+				m_Phase = CHANGES;
+				m_At = 0;
+			}
+			else if (m_Phase == CHANGES)
+			{
+				if (m_At >= m_Project.m_Changes.Count())
+				{
+					m_Phase = OWN;
+					m_At = 0;
+					m_OPass = -1;
+					continue;
+				}
+				DZS_PatchChange c = m_Project.m_Changes[m_At];
+				DZS_PatchEntry e = ChangeEntry(m_At, c);
+				Change(e, c);
+				m_At++;
+			}
+			else if (m_Phase == OWN)
+			{
+				if (OwnStep())
+				{
+					m_Phase = REGISTER;
+					m_At = 0;
+				}
+			}
+			else if (m_Phase == REGISTER)
+			{
+				Registrations();
+				m_Phase = FILES;
+				m_At = 0;
+				m_FPass = 0;
+				m_FAll = m_Files.All();
+			}
+			else if (m_Phase == FILES)
+			{
+				if (FinishStep())
+					m_Phase = DONE;
+			}
+		}
+		return true;
+	}
+
+	// The base's XML files the changes and own blocks name, read ahead in steps (a file the run then does not ask for
+	// changes nothing; one it asks for that is not here is read when asked for).
+	protected void PlanReads()
+	{
+		m_Reads = new array<string>();
+		foreach (DZS_PatchChange c : m_Project.m_Changes)
+			AddRead(PlannedFile(c.m_Block));
+		foreach (DZS_PatchBlock b : m_Project.m_Blocks)
+			AddRead(PlannedFile(b.m_Kind));
+	}
+
+	protected static string PlannedFile(string kind)
+	{
+		DZS_PKind k = DZS_PKinds.Get(kind);
+		if (!k || k.m_FileInKey)
+			return "";
+		return k.m_File;
+	}
+
+	protected void AddRead(string rel)
+	{
+		if (rel == "")
+			return;
+		string low = DZS_PatchText.Lower(rel);
+		int n = low.Length();
+		if (n < 4 || low.Substring(n - 4, 4) != ".xml")
+			return;
+		if (m_Reads.Find(low) < 0)
+			m_Reads.Insert(low);
+	}
+
+	protected bool StepReads(int t0, float ms)
+	{
+		while (m_At < m_Reads.Count())
+		{
+			if (!m_Reading)
+			{
+				m_Reading = m_Files.BeginRead(m_Reads[m_At]);
+				if (!m_Reading)
+				{
+					m_At++;
+					continue;
+				}
+			}
+			if (!m_Files.StepRead(m_Reading, t0, ms))
+				return false;
+			m_Reading = null;
+			m_At++;
+			if (DZS_Job.Over(t0, ms))
+				return m_At >= m_Reads.Count();
+		}
+		return true;
 	}
 
 	// ---- changes ----
@@ -321,88 +488,119 @@ class DZS_Patcher : DZS_PatcherJson
 
 	// ---- own blocks ----
 
-	protected void OwnBlocks()
+	// One piece of the own blocks: their entries, then one block of the top level, one nested block per depth, one
+	// own element's text; true when all are done (the order of the whole run at once).
+	protected bool OwnStep()
 	{
-		array<DZS_PatchEntry> entries = new array<DZS_PatchEntry>();
-		for (int i = 0; i < m_Project.m_Blocks.Count(); i++)
+		int count = m_Project.m_Blocks.Count();
+		if (m_OPass < 0)
 		{
-			DZS_PatchBlock b = m_Project.m_Blocks[i];
-			DZS_PatchEntry e = BlockEntry(i, b);
-			entries.Insert(e);
+			m_OEntries = new array<DZS_PatchEntry>();
+			for (int i = 0; i < count; i++)
+			{
+				DZS_PatchBlock b = m_Project.m_Blocks[i];
+				DZS_PatchEntry e = BlockEntry(i, b);
+				m_OEntries.Insert(e);
+			}
+			m_OAreaNames = new array<string>();
+			m_OSafeKeys = new array<string>();
+			m_OIds = new array<string>();
+			m_OWeather = false;
+			m_OPass = 0;
+			m_At = 0;
+			return false;
 		}
-		array<string> areaNames = new array<string>();
-		array<string> safeKeys = new array<string>();
-		array<string> ids = new array<string>();
-		bool weather = false;
-		for (int a = 0; a < m_Project.m_Blocks.Count(); a++)
+		if (m_OPass == 0)
 		{
-			DZS_PatchBlock ba = m_Project.m_Blocks[a];
-			DZS_PatchEntry ea = entries[a];
-			if (ids.Find(ba.m_Id) >= 0 || ba.m_Id == "")
+			if (m_At >= count)
 			{
-				ea.m_Status = "invalid";
-				ea.m_Detail = "bad-id";
-				continue;
+				m_OPass = 1;
+				m_At = 0;
+				return false;
 			}
-			ids.Insert(ba.m_Id);
-			if (ba.m_Kind == "effectArea")
-				OwnArea(ea, ba, areaNames);
-			else if (ba.m_Kind == "safePosition")
-				OwnSafe(ea, ba, safeKeys);
-			else if (ba.m_Kind == "spawnerGroup" || ba.m_Kind == "gearPreset" || ba.m_Kind == "restrictedArea")
-				OwnFile(ea, ba);
-			else if (ba.m_Kind == "weather")
-			{
-				if (weather)
-				{
-					ea.m_Status = "collision";
-					continue;
-				}
-				weather = true;
-				OwnWeather(ea, ba);
-			}
-			else
-			{
-				DZS_PKind k = DZS_PKinds.Get(ba.m_Kind);
-				if (!k || k.m_Singleton || k.m_Fixed)
-				{
-					ea.m_Status = "invalid";
-					ea.m_Detail = "unknown-kind";
-				}
-				else if (k.m_ParentKind == "")
-					OwnTop(ea, ba, k);
-			}
+			OwnFirst(m_Project.m_Blocks[m_At], m_OEntries[m_At]);
+			m_At++;
+			return false;
 		}
 		// nested blocks by depth, so a loot point can go into an own container of an own loot type
-		for (int depth = 1; depth <= 2; depth++)
+		if (m_OPass == 1 || m_OPass == 2)
 		{
-			for (int n = 0; n < m_Project.m_Blocks.Count(); n++)
+			if (m_At >= count)
 			{
-				DZS_PatchBlock bn = m_Project.m_Blocks[n];
-				DZS_PatchEntry en = entries[n];
-				if (en.m_Status != "")
-					continue;
-				DZS_PKind kn = DZS_PKinds.Get(bn.m_Kind);
-				if (kn && kn.m_ParentKind != "" && Depth(kn) == depth)
-					OwnNested(en, bn, kn);
+				m_OPass++;
+				m_At = 0;
+				return false;
 			}
+			DZS_PatchBlock bn = m_Project.m_Blocks[m_At];
+			DZS_PatchEntry en = m_OEntries[m_At];
+			m_At++;
+			if (en.m_Status != "")
+				return false;
+			DZS_PKind kn = DZS_PKinds.Get(bn.m_Kind);
+			if (kn && kn.m_ParentKind != "" && Depth(kn) == m_OPass)
+				OwnNested(en, bn, kn);
+			return false;
 		}
-		foreach (DZS_POwn o : m_Owns)
+		if (m_At >= m_Owns.Count())
 		{
-			if (!o.m_Ok)
-				continue;
-			DZS_PatchFile f = File(o.m_File);
-			// one level below the root is the neighbours' indent, also where it differs from the rest of the file
-			string unit = f.m_Unit;
-			string near = f.ChildIndent(f.m_Xml.m_Root);
-			if (near != "" && !o.m_Into)
-				unit = near;
-			string text = GenOwn(o, unit);
-			if (o.m_Into)
-				InsertInto(f, DZS_PKinds.Get(o.m_Kind.m_ParentKind), o.m_Kind, o.m_Into, text);
-			else
-				f.AppendChild(f.m_Xml.m_Root, text);
-			DependsAll(o, f);
+			m_OEntries = null;
+			return true;
+		}
+		DZS_POwn o = m_Owns[m_At];
+		m_At++;
+		if (!o.m_Ok)
+			return false;
+		DZS_PatchFile f = File(o.m_File);
+		// one level below the root is the neighbours' indent, also where it differs from the rest of the file
+		string unit = f.m_Unit;
+		string near = f.ChildIndent(f.m_Xml.m_Root);
+		if (near != "" && !o.m_Into)
+			unit = near;
+		string text = GenOwn(o, unit);
+		if (o.m_Into)
+			InsertInto(f, DZS_PKinds.Get(o.m_Kind.m_ParentKind), o.m_Kind, o.m_Into, text);
+		else
+			f.AppendChild(f.m_Xml.m_Root, text);
+		DependsAll(o, f);
+		return false;
+	}
+
+	// The first pass over the own blocks: ids, and every block that is no nested one.
+	protected void OwnFirst(DZS_PatchBlock ba, DZS_PatchEntry ea)
+	{
+		if (m_OIds.Find(ba.m_Id) >= 0 || ba.m_Id == "")
+		{
+			ea.m_Status = "invalid";
+			ea.m_Detail = "bad-id";
+			return;
+		}
+		m_OIds.Insert(ba.m_Id);
+		if (ba.m_Kind == "effectArea")
+			OwnArea(ea, ba, m_OAreaNames);
+		else if (ba.m_Kind == "safePosition")
+			OwnSafe(ea, ba, m_OSafeKeys);
+		else if (ba.m_Kind == "spawnerGroup" || ba.m_Kind == "gearPreset" || ba.m_Kind == "restrictedArea")
+			OwnFile(ea, ba);
+		else if (ba.m_Kind == "weather")
+		{
+			if (m_OWeather)
+			{
+				ea.m_Status = "collision";
+				return;
+			}
+			m_OWeather = true;
+			OwnWeather(ea, ba);
+		}
+		else
+		{
+			DZS_PKind k = DZS_PKinds.Get(ba.m_Kind);
+			if (!k || k.m_Singleton || k.m_Fixed)
+			{
+				ea.m_Status = "invalid";
+				ea.m_Detail = "unknown-kind";
+			}
+			else if (k.m_ParentKind == "")
+				OwnTop(ea, ba, k);
 		}
 	}
 
@@ -1061,80 +1259,99 @@ class DZS_Patcher : DZS_PatcherJson
 
 	// ---- finishing ----
 
-	protected void FinishFiles()
+	// One file finished: first every file read from the base, then every file the run created (registered ones only
+	// when cfggameplay.json could take them). True when all are done.
+	protected bool FinishStep()
 	{
-		array<DZS_PatchFile> all = m_Files.All();
-		DZS_PatchFile gameplay = null;
-		foreach (DZS_PatchFile f : all)
+		if (m_FPass == 0)
 		{
-			if (!f.m_Exists)
+			if (m_At >= m_FAll.Count())
 			{
-				if (f.m_Error != "")
-					m_Report.FileNote(f.m_Path, "broken", f.m_Error);
-				else
-					m_Report.FileNote(f.m_Path, "missing", "");
-				continue;
+				DZS_PatchFile g = m_Files.m_Files.Get(GAMEPLAY_FILE);
+				m_FGameplayOk = !g || m_Out.Contains(g.m_Path) || !g.m_Changed;
+				m_FPass = 1;
+				m_At = 0;
+				return false;
 			}
+			DZS_PatchFile f = m_FAll[m_At];
+			m_At++;
+			FinishRead(f);
+			return false;
+		}
+		if (m_At >= m_FAll.Count())
+		{
+			m_FAll = null;
+			return true;
+		}
+		DZS_PatchFile c = m_FAll[m_At];
+		m_At++;
+		if (!c.m_Created || !c.m_Out)
+			return false;
+		if (m_RegFiles.Find(c) >= 0 && !m_FGameplayOk)
+		{
+			Refuse(c, "registration");
+			return false;
+		}
+		string bad2 = "";
+		if (c.m_IsJson && DZS_PatchText.Lower(c.m_Path).IndexOf(".json") > 0)
+			bad2 = EngineCheck(DZS_PatchText.Lower(c.m_Path), c.m_Out);
+		if (bad2 != "")
+		{
+			Refuse(c, bad2);
+			return false;
+		}
+		m_Report.FileNote(c.m_Path, "created", "");
+		Output(c.m_Path, c.m_Out);
+		return false;
+	}
+
+	protected void FinishRead(DZS_PatchFile f)
+	{
+		if (!f.m_Exists)
+		{
 			if (f.m_Error != "")
-			{
 				m_Report.FileNote(f.m_Path, "broken", f.m_Error);
-				continue;
-			}
-			if (f.m_Created)
-				continue;
-			bool changed = f.Finish();
-			if (f.m_Fresh)
-			{
-				if (changed)
-				{
-					m_Report.FileNote(f.m_Path, "created", "");
-					Output(f.m_Path, f.m_Out);
-				}
-				else
-					m_Report.FileNote(f.m_Path, "missing", "");
-				continue;
-			}
-			if (changed && f.m_IsJson)
-			{
-				string bad = EngineCheck(DZS_PatchText.Lower(f.m_Path), f.m_Out);
-				if (bad != "")
-				{
-					Refuse(f, bad);
-					continue;
-				}
-			}
+			else
+				m_Report.FileNote(f.m_Path, "missing", "");
+			return;
+		}
+		if (f.m_Error != "")
+		{
+			m_Report.FileNote(f.m_Path, "broken", f.m_Error);
+			return;
+		}
+		if (f.m_Created)
+			return;
+		bool changed = f.Finish();
+		if (f.m_Fresh)
+		{
 			if (changed)
 			{
-				m_Report.FileNote(f.m_Path, "written", "");
+				m_Report.FileNote(f.m_Path, "created", "");
 				Output(f.m_Path, f.m_Out);
-				if (DZS_PatchText.Lower(f.m_Path) == GAMEPLAY_FILE)
-					m_Report.Note("enableCfgGameplayFile");
 			}
 			else
-				m_Report.FileNote(f.m_Path, "unchanged", "");
+				m_Report.FileNote(f.m_Path, "missing", "");
+			return;
 		}
-		DZS_PatchFile g = m_Files.m_Files.Get(GAMEPLAY_FILE);
-		bool gameplayOk = !g || m_Out.Contains(g.m_Path) || !g.m_Changed;
-		foreach (DZS_PatchFile c : all)
+		if (changed && f.m_IsJson)
 		{
-			if (!c.m_Created || !c.m_Out)
-				continue;
-			if (m_RegFiles.Find(c) >= 0 && !gameplayOk)
+			string bad = EngineCheck(DZS_PatchText.Lower(f.m_Path), f.m_Out);
+			if (bad != "")
 			{
-				Refuse(c, "registration");
-				continue;
+				Refuse(f, bad);
+				return;
 			}
-			string bad2 = "";
-			if (c.m_IsJson && DZS_PatchText.Lower(c.m_Path).IndexOf(".json") > 0)
-				bad2 = EngineCheck(DZS_PatchText.Lower(c.m_Path), c.m_Out);
-			if (bad2 != "")
-			{
-				Refuse(c, bad2);
-				continue;
-			}
-			m_Report.FileNote(c.m_Path, "created", "");
-			Output(c.m_Path, c.m_Out);
 		}
+		if (changed)
+		{
+			m_Report.FileNote(f.m_Path, "written", "");
+			Output(f.m_Path, f.m_Out);
+			if (DZS_PatchText.Lower(f.m_Path) == GAMEPLAY_FILE)
+				m_Report.Note("enableCfgGameplayFile");
+		}
+		else
+			m_Report.FileNote(f.m_Path, "unchanged", "");
 	}
 
 	protected void Refuse(DZS_PatchFile f, string why)

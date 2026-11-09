@@ -9,7 +9,8 @@
 //   m_Uid), a change in the loot:entry element's field "ext" (an object of extensions by change ref — the key of a base
 //   entry, never an index);
 // - the project's own entries (Project › Extensions, the dzbot settings): field "ext:project:<url>" of the project
-//   element, so they are undone, redone and shared like everything else.
+//   element, and which extensions the project carries in its field "ext:list", so they are undone, redone and shared
+//   like everything else.
 // An entity is addressed by where its extensions live (DZS_ExtOwner.Key: element id, field, change ref, loot part id) —
 // never by its place in a list; dialogs keep that and ask Alive before writing.
 // Opening hands the file's extensions to the model once: layers take theirs while restoring their elements (by block id
@@ -87,6 +88,8 @@ class DZS_EntityExts
 	static const string SLOT = "ext";
 	// field of the project element with a project entry's data: + url
 	static const string PROJECT_SLOT = "ext:project:";
+	// field of the project element with the extensions the project carries (DZS_ProjectExtensions.List)
+	static const string LIST_SLOT = "ext:list";
 
 	// being recorded by DZS_ProjectV2.Build
 	protected static ref DZS_ExtIndex s_Rec;
@@ -253,6 +256,13 @@ class DZS_EntityExts
 			fields.Set(slot, TextOf(e));
 	}
 
+	// How many of the opened file's entity extensions wait for the model (Distribute).
+	static int Pending()
+	{
+		Ensure();
+		return s_FileBlocks.Count() + s_FileElements.Count() + s_FileChanges.Count();
+	}
+
 	// The opened project's model is complete: what the layers did not take goes to its entity, then the file's data
 	// is let go (an entity the model has not got loses its extensions, as at saving).
 	static void Distribute(DZS_Instance inst)
@@ -368,16 +378,41 @@ class DZS_EntityExts
 
 	// ---- the index (DZS_ProjectV2.Build records it) ----
 
-	static void BeginRecord(DZS_Instance inst)
+	// A build has its own record (a build over several frames and one at once may run side by side); it is the one
+	// Attach and Bind write to while the build steps (SwapRecord around each step).
+	static DZS_ExtIndex NewRecord(DZS_Instance inst)
 	{
-		s_Rec = new DZS_ExtIndex();
-		s_Rec.m_Inst = inst;
+		DZS_ExtIndex rec = new DZS_ExtIndex();
+		rec.m_Inst = inst;
 		if (inst)
-			s_Rec.m_Gen = inst.GetGen();
+			rec.m_Gen = inst.GetGen();
+		return rec;
+	}
+
+	// The record being written from now on; returns the one before.
+	static DZS_ExtIndex SwapRecord(DZS_ExtIndex rec)
+	{
+		DZS_ExtIndex prev = s_Rec;
+		s_Rec = rec;
+		return prev;
+	}
+
+	// The build is complete. complete: false when it left something out (loot), the index is not kept then; nor when a
+	// newer state's index is there already (a build over several frames that started before it).
+	static void KeepRecord(DZS_ExtIndex rec, DZS_Json root, bool complete)
+	{
+		if (!rec || !complete)
+			return;
+		if (s_Index && s_Index.m_Inst == rec.m_Inst && s_Index.m_Gen > rec.m_Gen)
+			return;
+		DZS_ExtIndex keep = s_Rec;
+		s_Rec = rec;
+		EndRecord(root, true);
+		s_Rec = keep;
 	}
 
 	// complete: false when the build left something out (loot), the index is not kept then
-	static void EndRecord(DZS_Json root, bool complete)
+	protected static void EndRecord(DZS_Json root, bool complete)
 	{
 		if (complete && s_Rec)
 		{
@@ -413,6 +448,34 @@ class DZS_EntityExts
 		if (s_Index && s_Index.m_Inst == inst)
 			return s_Index;
 		return null;
+	}
+
+	// the index being built over several frames (IndexReady)
+	protected static ref DZS_ProjectBuild s_Pending;
+
+	// The index of the state as it is now when it is there; else null, and it is built over the next frames with the
+	// progress plate (a dialog shows "building …" and asks again; Index builds it at once instead).
+	static DZS_ExtIndex IndexReady(DZS_Instance inst)
+	{
+		if (!inst)
+			return null;
+		if (s_Index && s_Index.m_Inst == inst && s_Index.m_Gen == inst.GetGen())
+			return s_Index;
+		if (s_Pending && DZS_Jobs.Running(s_Pending) && s_Pending.m_Inst == inst && s_Pending.m_Gen == inst.GetGen())
+			return null;
+		if (s_Pending)
+			DZS_Jobs.Cancel(s_Pending);
+		DZS_Kernel k = DZS_Kernel.Get();
+		if (!k)
+			return null;
+		s_Pending = DZS_ProjectV2.Start(k, inst, "", "");
+		return null;
+	}
+
+	// Whether IndexReady is still building.
+	static bool IndexBuilding()
+	{
+		return s_Pending && DZS_Jobs.Running(s_Pending);
 	}
 
 	// Build: the entity's extensions from where they live, and that place remembered.
@@ -1029,7 +1092,8 @@ class DZS_EntityExts
 		}
 	}
 
-	// Removing an extension from the project: its values on every entity, as one step.
+	// Removing an extension from the project: its entry in the project's list, its data and its values on every
+	// entity, as one step.
 	static void RemoveUrl(DZS_Instance inst, string url)
 	{
 		Ensure();
@@ -1041,6 +1105,12 @@ class DZS_EntityExts
 				SetValue(inst, o, url, null);
 		}
 		SetProjectData(inst, url, null);
+		DZS_Json list = DZS_ProjectExtensions.List(inst);
+		if (list.Has(url))
+		{
+			list.Remove(url);
+			SetProjectList(inst, list);
+		}
 		Commit(inst, "Erweiterung entfernen", "Remove extension");
 	}
 
@@ -1239,18 +1309,42 @@ class DZS_EntityExts
 		return Raw(inst, DZS_PROJECT_ID, PROJECT_SLOT + url) != "";
 	}
 
-	// Replaces it (null removes it); committed with Commit, together with entity edits staged with it.
+	// Replaces it (null removes it); committed with Commit, together with entity edits staged with it. Data for an
+	// extension the project does not carry yet adds it to the project's list in the same step.
 	static void SetProjectData(DZS_Instance inst, string url, DZS_Json data)
 	{
 		if (!inst)
 			return;
 		string text = "";
 		if (data)
+		{
 			text = TextOf(data);
+			DZS_ProjectExtensions.Carry(inst, url);
+		}
 		string slot = PROJECT_SLOT + url;
 		if (Raw(inst, DZS_PROJECT_ID, slot) == text)
 			return;
 		Stage(inst, DZS_PROJECT_ID, slot, text);
+	}
+
+	// The project's list of extensions as the model holds it (a copy; staged edits included), null when the model has
+	// none yet.
+	static DZS_Json ProjectList(DZS_Instance inst)
+	{
+		if (!inst)
+			return null;
+		return Parse(Raw(inst, DZS_PROJECT_ID, LIST_SLOT));
+	}
+
+	// Replaces it; committed with Commit.
+	static void SetProjectList(DZS_Instance inst, DZS_Json list)
+	{
+		if (!inst || !list)
+			return;
+		string text = TextOf(list);
+		if (Raw(inst, DZS_PROJECT_ID, LIST_SLOT) == text)
+			return;
+		Stage(inst, DZS_PROJECT_ID, LIST_SLOT, text);
 	}
 
 	// Edits staged and not committed (a dialog that gives up drops them).
