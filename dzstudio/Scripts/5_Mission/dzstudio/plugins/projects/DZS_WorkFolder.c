@@ -66,8 +66,8 @@ class DZS_WorkFolder
 
 	static DZS_Json ProjectOf(DZS_Json root)
 	{
-		DZS_Json ed = root.Get("editor");
-		if (!ed || !ed.IsObj())
+		DZS_Json ed = DZS_ProjectFile.EditorOf(root);
+		if (!ed)
 			return null;
 		DZS_Json proj = ed.Get("project");
 		if (!proj || !proj.IsObj())
@@ -111,8 +111,8 @@ class DZS_WorkFolder
 	static string MapOf(DZS_Json root)
 	{
 		string mk = root.GetStr("map");
-		DZS_Json ed = root.Get("editor");
-		if (mk == "" && ed && ed.IsObj() && ed.Get("provider"))
+		DZS_Json ed = DZS_ProjectFile.EditorOf(root);
+		if (mk == "" && ed && ed.Get("provider"))
 			mk = ed.Get("provider").GetStr("map");
 		mk.ToLower();
 		return mk;
@@ -120,9 +120,9 @@ class DZS_WorkFolder
 
 	static string BaseOf(DZS_Json root)
 	{
-		DZS_Json ed = root.Get("editor");
+		DZS_Json ed = DZS_ProjectFile.EditorOf(root);
 		string b = "";
-		if (ed && ed.IsObj())
+		if (ed)
 			b = ed.GetStr("base");
 		if (b == "")
 			b = "vanilla";
@@ -259,8 +259,8 @@ class DZS_WorkFolder
 	{
 		string name = "";
 		string viewText = "";
-		DZS_Json ed = root.Get("editor");
-		if (ed && ed.IsObj())
+		DZS_Json ed = DZS_ProjectFile.EditorOf(root);
+		if (ed)
 		{
 			DZS_Json prov = ed.Get("provider");
 			if (prov && prov.IsObj())

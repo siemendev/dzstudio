@@ -23,13 +23,13 @@ class DZS_DzbotSetting : Managed
 	}
 }
 
-// dzbot's rules for a project mod (extension "dzbot.rules", docs/extensions/dzbot.rules.md): per own block (by its id)
+// dzbot's rules for a project mod (extension URL, docs/extensions/dzbot.rules.md): per own block (by its id)
 // and per change (by its ref) a condition on the mod's settings, a formula, "target required", and for blocks
 // repetition, values from settings and rules for single list elements. dzStudio edits them; dzbot applies them.
 // Members it does not know stay as they are.
 class DZS_DzbotRules : DZS_ProjectExtension
 {
-	static const string ID = "dzbot.rules";
+	static const string URL = "https://developers.dzbot.de/specs/dzbot/rules/1.json";
 
 	DZS_DzbotPlugin m_P;
 	protected ref DZS_Json m_Data;
@@ -39,15 +39,14 @@ class DZS_DzbotRules : DZS_ProjectExtension
 	protected int m_MarkTick;
 	protected ref map<string, string> m_Marks = new map<string, string>();
 
-	override string Id() { return ID; }
-	override int Version() { return 1; }
+	override string Url() { return URL; }
 
 	override bool IsActive()
 	{
 		return m_P && m_P.OpenProjectMod() != null;
 	}
 
-	override void Load(DZS_Json data, int version)
+	override void Load(DZS_Json data)
 	{
 		m_Data = null;
 		if (data && data.IsObj())

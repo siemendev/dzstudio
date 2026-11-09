@@ -1616,7 +1616,7 @@ class DZS_ProjTest : DZS_Plugin
 	}
 
 	// The project as building blocks, built again without change, must equal the blocks and changes of its project file
-	// (the editor part left out: it carries the camera).
+	// (the extensions left out: the editor part carries the camera).
 	protected void Stable(DZS_Instance inst)
 	{
 		DZS_ProjectsPlugin pp = DZS_ProjectsPlugin.Cast(m_Kernel.GetPlugin("projects"));
@@ -1627,7 +1627,7 @@ class DZS_ProjTest : DZS_Plugin
 			Log("stable: project file not readable");
 			return;
 		}
-		root.Remove("editor");
+		root.Remove("extensions");
 		DZS_Json built = DZS_ProjectV2.Build(m_Kernel, inst, pp.m_Open.m_Name, pp.m_Open.m_MapKey);
 		array<string> a = DZS_ProjectFile.Text(root);
 		array<string> b = DZS_ProjectFile.Text(built);

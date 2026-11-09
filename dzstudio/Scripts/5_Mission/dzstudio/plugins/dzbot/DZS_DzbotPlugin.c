@@ -2600,8 +2600,8 @@ class DZS_DzbotPlugin : DZS_Plugin
 		DZS_Log.Info("dzbot: save handed to the request in " + ((TickCount(0) - t0) / 10000) + " ms");
 	}
 
-	// A project mod holds the project as building blocks: the saved project file (blocks, the editor part and the
-	// extensions, the rules "dzbot.rules" among them — DZS_ProjectExtensions) replaces dzstudio/project.json.
+	// A project mod holds the project as building blocks: the saved project file (blocks and the extensions — the
+	// editor part and the dzbot rules among them) replaces dzstudio/project.json.
 	protected void ProjectPart(DZS_DzbotProject dp, DZS_DzbotSave sv, array<ref DZS_SaveFile> files)
 	{
 		DZS_DzbotFile pf = dp.m_ProjectFile;

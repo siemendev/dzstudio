@@ -1,14 +1,16 @@
-# Extension `dzbot.rules`, version 1
+# dzbot rules, version 1
+
+Extension URL: `https://developers.dzbot.de/specs/dzbot/rules/1.json` (spec file served there).
 
 The rules [dzbot](https://dzbot.de) applies to a project mod on each server it is installed on: whether a block or
-change takes part, values computed from the mod's settings, repetition. dzStudio edits them when the open project is a
-dzbot project mod (Project › dzbot rules …); other programs keep the entry as it is. Not `required`: without the rules
-the project means "everything, with the values as saved".
+change takes part, values computed from the mod's settings, repetition. They live in the project file itself — a
+dzbot project mod is that one file, `dzstudio/project.json`. dzStudio edits them when the open project is a dzbot
+project mod (Project › dzbot rules …), dzbot's web workbench and AI tools edit them there too; other programs keep the
+entry as it is. Not `required`: without the rules the project means "everything, with the values as saved".
 
 ```json
 "extensions": {
-  "dzbot.rules": {
-    "version": 1,
+  "https://developers.dzbot.de/specs/dzbot/rules/1.json": {
     "data": {
       "blocks": {
         "g-teleporter": {
@@ -80,3 +82,12 @@ groups with rules are marked "dzbot rules". A rule opens in its own dialog:
   positions first) and **Single elements** (each with its own condition, repetition and values).
 
 Edits count as an unsaved change of the project and are saved with it.
+
+## In dzbot
+
+dzbot reads `data` when it applies the project at a transfer and in the preview; a later version would be another URL,
+which this dzbot does not read. dzbot also knows dzStudio's editor extension (`https://developers.dzbot.de/specs/dzstudio/editor/1.json`) and ignores it; any other
+extension marked `required` keeps the project off every server ("Project not applied: it needs an extension dzbot does not support"), in
+the server's mod log and in the preview. The workbench writes only the entry's `data` and keeps every other byte of the
+file; renaming a mod setting rewrites its name in the conditions and formulas the same way. Export downloads the
+project file as it is, rules included; import replaces it with another project file.

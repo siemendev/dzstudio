@@ -120,6 +120,13 @@ class DZS_PatchPlugin : DZS_Plugin
 			DZS_Log.Error("patch: " + projectPath + ": " + err);
 			return false;
 		}
+		DZS_Json root = DZS_WorkFolder.RootOf(chunks);
+		array<string> unreadable = DZS_ProjectExtensions.UnreadableIn(root);
+		if (unreadable.Count() > 0)
+		{
+			DZS_Log.Error("patch: " + projectPath + " needs the extension " + unreadable[0] + ", which this editor does not know; not applied");
+			return false;
+		}
 		int t0 = TickCount(0);
 		DZS_Patcher p = DZS_Patcher.Run(project, baseDir);
 		int ms = (TickCount(0) - t0) / 10000;

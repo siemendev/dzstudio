@@ -1,7 +1,8 @@
 // The project file: <id>.dzstudio.json in the project list, project.dzstudio.json inside a folder (a backup, the
 // working folder). Version 2 (the saved form): the building blocks of the project ({format, version, map, slug,
-// blocks, changes}, DZS_ProjectV2) plus "editor" with what only dzStudio needs: provider part, base, project part
-// (groups by block id, loot switches, plugin parts) and view part. Version 1 (read when an older project opens, and the
+// blocks, changes}, DZS_ProjectV2) plus dzStudio's editor extension (EDITOR_EXT) with what only dzStudio needs: provider
+// part, base, project part (groups by block id, loot switches, plugin parts) and view part
+// (docs/extensions/dzstudio.editor.md). Version 1 (read when an older project opens, and the
 // form of the working folder and of dzbot placements): provider part, project part and view part.
 class DZS_Maps
 {
@@ -206,6 +207,73 @@ class DZS_ProjectFile
 	static const string NAME = "project.dzstudio.json";
 	static const int VERSION = 1;
 	static const int VERSION2 = 2;
+	// dzStudio's own part of a version 2 file, a built-in extension: the URL of its spec
+	static const string EDITOR_EXT = "https://developers.dzbot.de/specs/dzstudio/editor/1.json";
+
+	// The editor part of a version 2 file: the data of its extension EDITOR_EXT; a file written before the extension
+	// existed has it as the top-level "editor". Null when there is none.
+	static DZS_Json EditorOf(DZS_Json root)
+	{
+		if (!root || !root.IsObj())
+			return null;
+		DZS_Json list = root.Get("extensions");
+		if (list && list.IsObj())
+		{
+			DZS_Json entry = list.Get(EDITOR_EXT);
+			if (entry && entry.IsObj())
+			{
+				DZS_Json data = entry.Get("data");
+				if (data && data.IsObj())
+					return data;
+			}
+		}
+		DZS_Json old = root.Get("editor");
+		if (old && old.IsObj())
+			return old;
+		return null;
+	}
+
+	static DZS_SrcNode EditorNodeOf(DZS_SrcNode root)
+	{
+		if (!root || !root.IsObj())
+			return null;
+		DZS_SrcNode list = root.Get("extensions");
+		if (list && list.IsObj())
+		{
+			DZS_SrcNode entry = list.Get(EDITOR_EXT);
+			if (entry && entry.IsObj())
+			{
+				DZS_SrcNode data = entry.Get("data");
+				if (data && data.IsObj())
+					return data;
+			}
+		}
+		DZS_SrcNode old = root.Get("editor");
+		if (old && old.IsObj())
+			return old;
+		return null;
+	}
+
+	// Writes the editor part into its extension (added after the other extensions when the file has none yet); an
+	// old top-level "editor" goes.
+	static void SetEditor(DZS_Json root, DZS_Json ed)
+	{
+		root.Remove("editor");
+		DZS_Json list = root.Get("extensions");
+		if (!list || !list.IsObj())
+		{
+			list = DZS_Json.Obj();
+			root.Set("extensions", list);
+		}
+		DZS_Json entry = list.Get(EDITOR_EXT);
+		if (!entry || !entry.IsObj())
+		{
+			entry = DZS_Json.Obj();
+			list.Set(EDITOR_EXT, entry);
+		}
+		if (entry.Get("data") != ed)
+			entry.Set("data", ed);
+	}
 
 	static bool IsNeverGroup(string relPath)
 	{
@@ -316,8 +384,8 @@ class DZS_ProjectFile
 			if (DZS_Maps.WorldOf(rlow) != "")
 				d.m_MapKey = rlow;
 		}
-		DZS_SrcNode ed = root.Get("editor");
-		if (!ed || !ed.IsObj())
+		DZS_SrcNode ed = EditorNodeOf(root);
+		if (!ed)
 			return;
 		DZS_SrcNode prov = ed.Get("provider");
 		if (prov && prov.IsObj())
@@ -798,8 +866,8 @@ class DZS_ProjectFile
 		return DZS_Files.Chunk(s);
 	}
 
-	// Version 2: the building blocks plus the editor part (name, map, base, project part, view part; view "" = none) and
-	// the extensions (DZS_ProjectExtensions.Save, null = none).
+	// Version 2: the building blocks plus the extensions (DZS_ProjectExtensions.Save, null = none) with the editor part
+	// (name, map, base, project part, view part; view "" = none) as the editor extension (EDITOR_EXT).
 	static array<string> ComposeV2(DZS_Json blocks, string name, string mapKey, string base, string projectPart, string viewPart, DZS_Json extensions = null)
 	{
 		DZS_Json root = blocks.Clone();
@@ -827,9 +895,9 @@ class DZS_ProjectFile
 			if (view && view.IsObj())
 				ed.Set("view", view);
 		}
-		root.Set("editor", ed);
 		if (extensions)
 			root.Set("extensions", extensions);
+		SetEditor(root, ed);
 		return Text(root);
 	}
 
@@ -848,12 +916,9 @@ class DZS_ProjectFile
 			return null;
 		DZS_SrcDoc doc = DZS_SrcJson.Parse(chunks);
 		DZS_Json root = doc.m_Root.ToJson();
-		DZS_Json ed = root.Get("editor");
-		if (!ed || !ed.IsObj())
-		{
+		DZS_Json ed = EditorOf(root);
+		if (!ed)
 			ed = DZS_Json.Obj();
-			root.Set("editor", ed);
-		}
 		DZS_Json prov = ed.Get("provider");
 		if (!prov || !prov.IsObj())
 		{
@@ -886,6 +951,7 @@ class DZS_ProjectFile
 			if (view && view.IsObj())
 				ed.Set("view", view);
 		}
+		SetEditor(root, ed);
 		return Text(root);
 	}
 
@@ -898,8 +964,8 @@ class DZS_ProjectFile
 		if (!doc.m_Root || !doc.m_Root.IsObj())
 			return "";
 		DZS_SrcNode v = doc.m_Root.Get("view");
-		DZS_SrcNode ed = doc.m_Root.Get("editor");
-		if (ed && ed.IsObj())
+		DZS_SrcNode ed = EditorNodeOf(doc.m_Root);
+		if (ed)
 			v = ed.Get("view");
 		if (!v || !v.IsObj())
 			return "";

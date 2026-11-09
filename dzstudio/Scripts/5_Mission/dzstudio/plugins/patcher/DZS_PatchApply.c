@@ -479,6 +479,9 @@ class DZS_PatchApply : Managed
 			reasonEn = "Loading the vanilla mission";
 			return false;
 		}
+		// a required extension this studio does not know changes what the project means
+		if (DZS_ProjectExtensions.Blocked(reasonDe, reasonEn))
+			return false;
 		return true;
 	}
 
@@ -670,6 +673,13 @@ class DZS_PatchApply : Managed
 		DZS_Instance inst = m_Kernel.GetShown();
 		if (!pp || !pp.m_Open || !inst)
 			return;
+		string blockedDe;
+		string blockedEn;
+		if (DZS_ProjectExtensions.Blocked(blockedDe, blockedEn))
+		{
+			Failed(DZS_Texts.Pick(blockedDe, blockedEn));
+			return;
+		}
 		string name = pp.m_Open.m_Name;
 		string mapKey = MapKey();
 		Describe(b, name, mapKey);
