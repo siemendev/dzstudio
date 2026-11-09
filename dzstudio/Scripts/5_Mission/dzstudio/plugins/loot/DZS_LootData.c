@@ -11,6 +11,8 @@ class DZS_LootEPoint : Managed
 	bool m_HasRange;
 	bool m_HasHeight;
 	int m_Src = -1;
+	// an own point's extensions as JSON text ("" = none), see DZS_EntityExts
+	string m_Ext;
 
 	DZS_LootEPoint Copy()
 	{
@@ -22,6 +24,7 @@ class DZS_LootEPoint : Managed
 		p.m_HasRange = m_HasRange;
 		p.m_HasHeight = m_HasHeight;
 		p.m_Src = m_Src;
+		p.m_Ext = m_Ext;
 		return p;
 	}
 
@@ -82,6 +85,7 @@ class DZS_LootEContainer : Managed
 	ref array<ref DZS_LootEPoint> m_Points = new array<ref DZS_LootEPoint>();
 	int m_Src = -1;
 	int m_Extra;
+	string m_Ext;
 
 	DZS_LootEContainer Copy()
 	{
@@ -97,6 +101,7 @@ class DZS_LootEContainer : Managed
 		}
 		c.m_Src = m_Src;
 		c.m_Extra = m_Extra;
+		c.m_Ext = m_Ext;
 		return c;
 	}
 }
@@ -111,6 +116,8 @@ class DZS_LootEEntry : Managed
 	int m_Dispatch;
 	int m_Extra;
 	string m_ExtraSig;
+	// an own type's extensions as JSON text
+	string m_Ext;
 
 	DZS_LootEEntry Copy()
 	{
@@ -127,6 +134,7 @@ class DZS_LootEEntry : Managed
 		e.m_Dispatch = m_Dispatch;
 		e.m_Extra = m_Extra;
 		e.m_ExtraSig = m_ExtraSig;
+		e.m_Ext = m_Ext;
 		return e;
 	}
 
@@ -218,6 +226,8 @@ class DZS_LootEEntry : Managed
 		string el = Esc(m_Lootmax);
 		string ex = Esc(m_ExtraSig);
 		string s = "E|" + en + "|" + el + "|" + m_Dispatch + "|" + m_Extra + "|" + ex;
+		if (m_Ext != "")
+			s += "|" + Esc(m_Ext);
 		foreach (string v : m_Values)
 			s += ";V|" + Esc(v);
 		foreach (string u : m_Usages)
@@ -227,6 +237,8 @@ class DZS_LootEEntry : Managed
 			string cn = Esc(c.m_Name);
 			string cl = Esc(c.m_Lootmax);
 			s += ";C|" + c.m_Src + "|" + cn + "|" + cl + "|" + c.m_Extra;
+			if (c.m_Ext != "")
+				s += "|" + Esc(c.m_Ext);
 			foreach (string k : c.m_Cats)
 				s += ";K|" + Esc(k);
 			foreach (string t : c.m_Tags)
@@ -237,6 +249,8 @@ class DZS_LootEEntry : Managed
 				string ph = Opt(p.m_HasHeight, p.m_Height);
 				string pf = Esc(p.m_Flags);
 				s += ";P|" + p.m_Src + "|" + p.m_Pos + "|" + pr + "|" + ph + "|" + pf;
+				if (p.m_Ext != "")
+					s += "|" + Esc(p.m_Ext);
 			}
 		}
 		return s;
@@ -282,6 +296,8 @@ class DZS_LootEEntry : Managed
 				e.m_Dispatch = f[3].ToInt();
 				e.m_Extra = f[4].ToInt();
 				e.m_ExtraSig = Unesc(f[5]);
+				if (f.Count() >= 7)
+					e.m_Ext = Unesc(f[6]);
 			}
 			else if (k == "V" && f.Count() >= 2)
 			{
@@ -300,6 +316,8 @@ class DZS_LootEEntry : Managed
 				cur.m_Name = Unesc(f[2]);
 				cur.m_Lootmax = Unesc(f[3]);
 				cur.m_Extra = f[4].ToInt();
+				if (f.Count() >= 6)
+					cur.m_Ext = Unesc(f[5]);
 				e.m_Containers.Insert(cur);
 			}
 			else if (k == "K" && cur && f.Count() >= 2)
@@ -324,6 +342,8 @@ class DZS_LootEEntry : Managed
 				if (p.m_HasHeight)
 					p.m_Height = f[4];
 				p.m_Flags = Unesc(f[5]);
+				if (f.Count() >= 7)
+					p.m_Ext = Unesc(f[6]);
 				cur.m_Points.Insert(p);
 			}
 		}

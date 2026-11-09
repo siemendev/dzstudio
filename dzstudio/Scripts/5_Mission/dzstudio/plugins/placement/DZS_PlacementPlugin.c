@@ -4343,6 +4343,11 @@ class DZS_PlacementPlugin : DZS_Plugin
 
 	// ---- clipboard ----
 
+	// The last copy of this session: its text and its objects' extensions (not part of the spawner text), so pasting
+	// exactly that text brings them along like duplicating does.
+	protected static string s_ClipText;
+	protected static ref array<string> s_ClipExt;
+
 	protected void CopySelection(DZS_Instance inst, bool cut)
 	{
 		array<string> order = SelectionInGroupOrder(inst);
@@ -4370,6 +4375,14 @@ class DZS_PlacementPlugin : DZS_Plugin
 		DZS_WriteResult wr = fmt.Write(scratch, g);
 		string text = DZS_SpawnerFormat.Join(wr.m_Chunks);
 		GetGame().CopyToClipboard(text);
+		s_ClipText = text.Trim();
+		s_ClipExt = new array<string>();
+		foreach (string cid : order)
+		{
+			string ext = "";
+			inst.GetField(cid, DZS_EntityExts.SLOT, ext);
+			s_ClipExt.Insert(ext);
+		}
 		int total = order.Count();
 		DZS_Log.Info("placement: copied " + total + " object(s), " + text.Length() + " bytes");
 		if (!cut)
@@ -4420,6 +4433,12 @@ class DZS_PlacementPlugin : DZS_Plugin
 		}
 		if (!ActiveGroupOpen(inst))
 			return;
+		bool own = s_ClipExt && clip.Trim() == s_ClipText && s_ClipExt.Count() == rr.m_Objects.Count();
+		for (int e = 0; own && e < s_ClipExt.Count(); e++)
+		{
+			if (s_ClipExt[e] != "")
+				rr.m_Objects[e].m_Data.m_Fields.Set(DZS_EntityExts.SLOT, s_ClipExt[e]);
+		}
 		array<ref DZS_PlaceObj> objs = new array<ref DZS_PlaceObj>();
 		array<ref DZS_ElementData> datas = new array<ref DZS_ElementData>();
 		foreach (DZS_ReadObject ro : rr.m_Objects)

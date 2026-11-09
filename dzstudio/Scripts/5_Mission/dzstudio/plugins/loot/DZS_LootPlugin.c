@@ -500,7 +500,8 @@ class DZS_LootPlugin : DZS_Plugin
 	}
 
 	// The entries of the written types become elements at opening (part of the
-	// load, origin system, no step), with their content as read.
+	// load, origin system, no step), with their content as read; a type the project removed as a removed element. So
+	// every loot change of the project has its element, which keeps the change's extensions (DZS_EntityExts).
 	protected void WrittenElements(DZS_Instance inst)
 	{
 		array<string> types = WrittenTypes(inst);
@@ -511,7 +512,8 @@ class DZS_LootPlugin : DZS_Plugin
 			if (ElementOf(inst, t) != "")
 				continue;
 			DZS_LootEEntry e = OpenEntry(t);
-			if (!e)
+			string before;
+			if (!e && !StartText(t, before))
 				continue;
 			if (!b)
 				b = inst.BeginOperation("loot:edit", 1);

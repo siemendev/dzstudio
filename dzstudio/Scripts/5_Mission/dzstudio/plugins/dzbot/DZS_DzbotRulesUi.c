@@ -83,8 +83,6 @@ class DZS_RulesDialog : DZS_RulesBase
 		SettingsPart();
 		DZS_Json blocks = m_Project.Get("blocks");
 		DZS_Json changes = m_Project.Get("changes");
-		array<string> seenBlocks = new array<string>();
-		array<string> seenChanges = new array<string>();
 		Heading(DZS_Texts.Pick("Eigene Blöcke", "Own blocks"));
 		int shown = 0;
 		int more = 0;
@@ -104,7 +102,6 @@ class DZS_RulesDialog : DZS_RulesBase
 		{
 			DZS_Json b = blocks.At(i);
 			string bid = b.GetStr("id");
-			seenBlocks.Insert(bid);
 			if (bid == m_FocusBlock)
 				continue;
 			if (shown >= MAX_ROWS)
@@ -122,7 +119,6 @@ class DZS_RulesDialog : DZS_RulesBase
 		{
 			DZS_Json c = changes.At(k);
 			string cref = DZS_DzbotRules.ChangeRef(c);
-			seenChanges.Insert(cref);
 			if (shown >= MAX_ROWS)
 			{
 				more++;
@@ -135,8 +131,6 @@ class DZS_RulesDialog : DZS_RulesBase
 			Note(DZS_Texts.Pick("Keine Änderungen.", "No changes."));
 		if (more > 0)
 			Note(DZS_Texts.Pick(more.ToString() + " weitere — in dzbot bearbeiten", more.ToString() + " more — edit them in dzbot"));
-		Orphans("blocks", seenBlocks);
-		Orphans("changes", seenChanges);
 		AddFootFocus();
 	}
 
@@ -272,31 +266,6 @@ class DZS_RulesDialog : DZS_RulesBase
 		Reopen();
 	}
 
-	// Rules whose block or change the project no longer has: they are dropped when the project is saved.
-	protected void Orphans(string section, array<string> seen)
-	{
-		array<string> refs = m_Rules.Refs(section);
-		bool head = false;
-		foreach (string r : refs)
-		{
-			if (seen.Find(r) >= 0)
-				continue;
-			if (!head)
-			{
-				Heading(DZS_Texts.Pick("Regeln ohne Ziel — gehen beim Speichern verloren", "Rules without a target — dropped when saved"));
-				head = true;
-			}
-			DZS_RLine l = Line(2, 30);
-			Label(l, r, 0, "textMuted", 13);
-			int i = m_RowRef.Count();
-			Knob(l, "danger", DZS_Texts.Pick("Entfernen", "Remove"), "drop:" + i);
-			m_RowSection.Insert(section);
-			m_RowRef.Insert(r);
-			m_RowJson.Insert(null);
-			m_RowSummary.Insert(null);
-		}
-	}
-
 	protected string Summary(string section, string rid)
 	{
 		string s = DZS_DzbotRules.Summary(m_Rules.Rule(section, rid));
@@ -338,12 +307,6 @@ class DZS_RulesDialog : DZS_RulesBase
 		}
 		if (i < 0 || i >= m_RowRef.Count())
 			return;
-		if (what == "drop")
-		{
-			m_Rules.Put(m_RowSection[i], m_RowRef[i], null);
-			Reopen();
-			return;
-		}
 		DZS_Json json = m_RowJson[i];
 		if (!json)
 			return;

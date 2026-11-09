@@ -2,6 +2,9 @@
 // positions) instead of the indexes of one particular file, so the result applies to any server's files.
 class DZS_LootBlocks
 {
+	// while set: own block id -> the part of 'to' it comes from ("t", "c<i>", "c<i>p<j>"), for DZS_EntityExts
+	static ref map<string, string> s_Paths;
+
 	// Appends to 'changes' and 'blocks' (JSON arrays) what turns 'from' into 'to'. 'from' null: the type is new;
 	// 'to' null: the type goes. 'src' is the entry the points' m_Src indexes of 'to' refer to (the file the editor read
 	// them from), so a moved point stays the same point; null when unknown. Own blocks get ids prefix + "-" + n.
@@ -55,10 +58,10 @@ class DZS_LootBlocks
 				DZS_Json parent = DZS_Json.Obj();
 				DZS_Json gj = DZS_Json.Str(g);
 				parent.Set("group", gj);
-				OwnContainer(tc, parent, "", prefix, blocks, next);
+				OwnContainer(tc, "c" + c.ToString(), parent, "", prefix, blocks, next);
 				continue;
 			}
-			ContainerDiff(g, from, pair[c], tc, src, prefix, changes, blocks, next);
+			ContainerDiff(g, from, pair[c], tc, c, src, prefix, changes, blocks, next);
 		}
 	}
 
@@ -122,7 +125,7 @@ class DZS_LootBlocks
 		return k;
 	}
 
-	protected static void ContainerDiff(string g, DZS_LootEEntry from, int fi, DZS_LootEContainer tc, DZS_LootEEntry src, string prefix, DZS_Json changes, DZS_Json blocks, out int next)
+	protected static void ContainerDiff(string g, DZS_LootEEntry from, int fi, DZS_LootEContainer tc, int ti, DZS_LootEEntry src, string prefix, DZS_Json changes, DZS_Json blocks, out int next)
 	{
 		DZS_LootEContainer fc = from.m_Containers[fi];
 		if (!SameNum(fc.m_Lootmax, tc.m_Lootmax))
@@ -192,7 +195,7 @@ class DZS_LootBlocks
 			DZS_LootEPoint np = tc.m_Points[p];
 			if (match[p] < 0)
 			{
-				OwnPoint(np, parent, "", prefix, blocks, next);
+				OwnPoint(np, "c" + ti.ToString() + "p" + p.ToString(), parent, "", prefix, blocks, next);
 				continue;
 			}
 			DZS_LootEPoint op = fc.m_Points[match[p]];
@@ -337,12 +340,29 @@ class DZS_LootBlocks
 		}
 		string id = NextId(prefix, next);
 		DZS_Json b = Block(id, "lootType", null, "", d);
+		Own(b, "t", e.m_Ext);
 		blocks.Add(b);
-		foreach (DZS_LootEContainer c : e.m_Containers)
-			OwnContainer(c, null, id, prefix, blocks, next);
+		for (int i = 0; i < e.m_Containers.Count(); i++)
+		{
+			DZS_LootEContainer c = e.m_Containers[i];
+			OwnContainer(c, "c" + i.ToString(), null, id, prefix, blocks, next);
+		}
 	}
 
-	protected static void OwnContainer(DZS_LootEContainer c, DZS_Json parentKey, string parentId, string prefix, DZS_Json blocks, out int next)
+	// An own block's extensions from the part of the edited entry, and where they live.
+	protected static void Own(DZS_Json block, string path, string ext)
+	{
+		if (s_Paths)
+			s_Paths.Set(block.GetStr("id"), path);
+		if (ext == "")
+			return;
+		string err;
+		DZS_Json e = DZS_Json.ParseText(ext, err);
+		if (e && e.IsObj() && e.Count() > 0)
+			block.Set(DZS_EntityExts.MEMBER, e);
+	}
+
+	protected static void OwnContainer(DZS_LootEContainer c, string path, DZS_Json parentKey, string parentId, string prefix, DZS_Json blocks, out int next)
 	{
 		DZS_Json d = DZS_Json.Obj();
 		DZS_Json nj = DZS_Json.Str(c.m_Name);
@@ -364,12 +384,16 @@ class DZS_LootBlocks
 		}
 		string id = NextId(prefix, next);
 		DZS_Json b = Block(id, "lootContainer", parentKey, parentId, d);
+		Own(b, path, c.m_Ext);
 		blocks.Add(b);
-		foreach (DZS_LootEPoint p : c.m_Points)
-			OwnPoint(p, null, id, prefix, blocks, next);
+		for (int k = 0; k < c.m_Points.Count(); k++)
+		{
+			DZS_LootEPoint p = c.m_Points[k];
+			OwnPoint(p, path + "p" + k.ToString(), null, id, prefix, blocks, next);
+		}
 	}
 
-	protected static void OwnPoint(DZS_LootEPoint p, DZS_Json parentKey, string parentId, string prefix, DZS_Json blocks, out int next)
+	protected static void OwnPoint(DZS_LootEPoint p, string path, DZS_Json parentKey, string parentId, string prefix, DZS_Json blocks, out int next)
 	{
 		DZS_Json d = DZS_Json.Obj();
 		DZS_Json pj = DZS_Json.Str(p.m_Pos);
@@ -391,6 +415,7 @@ class DZS_LootBlocks
 		}
 		string id = NextId(prefix, next);
 		DZS_Json b = Block(id, "lootPoint", parentKey, parentId, d);
+		Own(b, path, p.m_Ext);
 		blocks.Add(b);
 	}
 

@@ -125,19 +125,19 @@ class DZS_ProjectV2
 		return root;
 	}
 
-	// noLoot: the loot of the project is left out (a copy saved with loot off).
+	// noLoot: the loot of the project is left out (a copy saved with loot off). Every entity carries the extensions its
+	// element in the model holds; where they live is recorded for the editors (DZS_EntityExts.Index).
 	static DZS_Json Build(DZS_Kernel kernel, DZS_Instance inst, string name, string mapKey, bool noLoot = false)
 	{
 		DZS_Json root = Empty(mapKey, name);
 		DZS_Json blocks = root.Get("blocks");
 		DZS_Json changes = root.Get("changes");
-		DZS_EntityExts.Resolve(inst);
+		DZS_EntityExts.BeginRecord(inst);
 		Groups(kernel, inst, blocks);
 		if (!noLoot)
 			Loot(kernel, inst, blocks, changes);
 		Sections(inst, blocks, changes);
-		// the extensions of blocks, changes and list elements as the project file had them (or they were edited)
-		DZS_EntityExts.Attach(root);
+		DZS_EntityExts.EndRecord(root, !noLoot);
 		return root;
 	}
 
@@ -147,11 +147,7 @@ class DZS_ProjectV2
 		array<ref DZS_ProjectSection> sections = DZS_ProjectSections.All();
 		foreach (DZS_ProjectSection s : sections)
 		{
-			string text = s.Text(inst);
-			if (text == "")
-				continue;
-			string err;
-			DZS_Json frag = DZS_Json.ParseText(text, err);
+			DZS_Json frag = s.Fragment(inst);
 			if (!frag || !frag.IsObj())
 				continue;
 			DZS_Json fb = frag.Get("blocks");
@@ -214,7 +210,7 @@ class DZS_ProjectV2
 				CopyMember(entry, obj, "scale");
 				CopyMember(entry, obj, "enableCEPersistency");
 				CopyMember(entry, obj, "customString");
-				DZS_EntityExts.PutOn(obj, DZS_EntityExts.OfObject(oid));
+				DZS_EntityExts.AttachElement(obj, inst, unique, "objects", objects.Count(), oid, DZS_EntityExts.SLOT);
 				objects.Add(obj);
 			}
 			DZS_Json data = DZS_Json.Obj();
@@ -222,7 +218,7 @@ class DZS_ProjectV2
 			data.Set("name", gn);
 			data.Set("objects", objects);
 			DZS_Json b = Block(unique, "spawnerGroup", data);
-			DZS_EntityExts.PutOn(b, DZS_EntityExts.OfGroup(gid));
+			DZS_EntityExts.Attach(b, inst, gid, DZS_EntityExts.SLOT);
 			blocks.Add(b);
 		}
 	}
@@ -265,7 +261,28 @@ class DZS_ProjectV2
 			if (DZS_LootBlocks.Canon(from) == DZS_LootBlocks.Canon(to))
 				continue;
 			DZS_LootEEntry src = lp.OpenEntry(type);
+			int c0 = changes.Count();
+			int b0 = blocks.Count();
+			DZS_LootBlocks.s_Paths = new map<string, string>();
 			DZS_LootBlocks.Diff(from, to, src, "l-" + IdPart(DZS_PatchText.Lower(type)), changes, blocks);
+			// the type's changes keep their extensions on its loot element by ref, own blocks on their part of the entry
+			string elem = lp.ElementOf(inst, type);
+			for (int ci = c0; ci < changes.Count(); ci++)
+			{
+				DZS_Json ch = changes.At(ci);
+				DZS_ExtOwner co = DZS_ExtOwner.Make(elem, DZS_EntityExts.SLOT, DZS_ProjectRefs.ChangeRef(ch));
+				DZS_EntityExts.Bind(ch, inst, co, true);
+			}
+			for (int bi = b0; bi < blocks.Count(); bi++)
+			{
+				DZS_Json ob = blocks.At(bi);
+				string path;
+				if (!DZS_LootBlocks.s_Paths.Find(ob.GetStr("id"), path))
+					continue;
+				DZS_ExtOwner bo = DZS_ExtOwner.Make(elem, "data", "", path);
+				DZS_EntityExts.Bind(ob, inst, bo, false);
+			}
+			DZS_LootBlocks.s_Paths = null;
 		}
 		array<string> objs = lp.ClassObjects(inst);
 		int rows = 0;
@@ -295,6 +312,7 @@ class DZS_ProjectV2
 			data.Set("a", aj);
 			rows++;
 			DZS_Json b = Block("row-" + rows, "lootRow", data);
+			DZS_EntityExts.Attach(b, inst, oid, DZS_EntityExts.SLOT + ":lootRow");
 			blocks.Add(b);
 		}
 	}

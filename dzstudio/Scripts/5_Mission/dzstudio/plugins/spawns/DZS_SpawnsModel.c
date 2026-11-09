@@ -42,9 +42,27 @@ class DZS_SpawnsModel
 		return "";
 	}
 
+	static const string CHILD_SLOT = "ext:child";
+
 	static string BlockId(string elementId)
 	{
 		return "sp-" + DZS_ProjectV2.IdPart(elementId);
+	}
+
+	// Restoring an element of a block: it keeps the element id its block id was made of ("sp-<id>"), so the block keeps
+	// its id at the next save.
+	static string CreateFor(DZS_OpBuilder b, string kind, map<string, string> fields, string blockId, string prefix)
+	{
+		string keep = "";
+		if (blockId.IndexOf(prefix) == 0 && blockId.Length() > prefix.Length())
+			keep = blockId.Substring(prefix.Length(), blockId.Length() - prefix.Length());
+		if (keep != "")
+		{
+			string made = b.Create(kind, DZS_PROJECT_ID, DZS_END, fields, false, false, null, keep);
+			if (made != "")
+				return made;
+		}
+		return b.Create(kind, DZS_PROJECT_ID, DZS_END, fields);
 	}
 
 	// ---- to building blocks ----
@@ -140,6 +158,7 @@ class DZS_SpawnsModel
 			string bid = BlockId(eid);
 			DZS_Json ed = OwnEventData(name, Field(inst, eid, "nominal"));
 			DZS_Json eb = Block(bid, "event", null, "", ed);
+			DZS_EntityExts.Attach(eb, inst, eid, DZS_EntityExts.SLOT);
 			blocks.Add(eb);
 			DZS_Json cd = DZS_Json.Obj();
 			DZS_Json cj = DZS_Json.Str(cls);
@@ -149,6 +168,7 @@ class DZS_SpawnsModel
 			Num(cd, "lootmin", "0");
 			Num(cd, "lootmax", "0");
 			DZS_Json cb = Block(bid + "-c", "eventChild", null, bid, cd);
+			DZS_EntityExts.Attach(cb, inst, eid, CHILD_SLOT);
 			blocks.Add(cb);
 		}
 		array<string> pts = Of(inst, POINT);
@@ -183,6 +203,7 @@ class DZS_SpawnsModel
 					DZS_Json now = Pos(x, z, a);
 					ch.Set("to", now);
 				}
+				DZS_EntityExts.Attach(ch, inst, pid, DZS_EntityExts.ChangeSlot(ch));
 				changes.Add(ch);
 				continue;
 			}
@@ -191,6 +212,7 @@ class DZS_SpawnsModel
 			if (own != "")
 			{
 				DZS_Json ob = Block(BlockId(pid), "spawnPosition", null, BlockId(own), pd);
+				DZS_EntityExts.Attach(ob, inst, pid, DZS_EntityExts.SLOT);
 				blocks.Add(ob);
 			}
 			else
@@ -199,6 +221,7 @@ class DZS_SpawnsModel
 				DZS_Json pe = DZS_Json.Str(ev);
 				par.Set("event", pe);
 				DZS_Json bb = Block(BlockId(pid), "spawnPosition", par, "", pd);
+				DZS_EntityExts.Attach(bb, inst, pid, DZS_EntityExts.SLOT);
 				blocks.Add(bb);
 			}
 		}
@@ -239,6 +262,7 @@ class DZS_SpawnsModel
 			if (from != "")
 				Num(sc, "from", from);
 			Num(sc, "to", Field(inst, sid, "to"));
+			DZS_EntityExts.Attach(sc, inst, sid, DZS_EntityExts.ChangeSlot(sc));
 			changes.Add(sc);
 		}
 		if (blocks.Count() == 0 && changes.Count() == 0)
@@ -260,6 +284,8 @@ class DZS_SpawnsModel
 		map<string, string> evName = new map<string, string>();
 		map<string, string> evClass = new map<string, string>();
 		map<string, string> evNominal = new map<string, string>();
+		map<string, ref DZS_Json> evBlock = new map<string, ref DZS_Json>();
+		map<string, ref DZS_Json> evChild = new map<string, ref DZS_Json>();
 		array<string> evOrder = new array<string>();
 		if (blocks && blocks.IsArr())
 		{
@@ -275,9 +301,13 @@ class DZS_SpawnsModel
 					if (nom)
 						evNominal.Set(bl.GetStr("id"), nom.m_Str);
 					evOrder.Insert(bl.GetStr("id"));
+					evBlock.Set(bl.GetStr("id"), bl);
 				}
 				else if (kind == "eventChild")
+				{
 					evClass.Set(bl.GetStr("parent"), data.GetStr("type"));
+					evChild.Set(bl.GetStr("parent"), bl);
+				}
 			}
 			foreach (string eb : evOrder)
 			{
@@ -285,7 +315,11 @@ class DZS_SpawnsModel
 				f.Set("name", evName.Get(eb));
 				f.Set("class", evClass.Get(eb));
 				f.Set("nominal", evNominal.Get(eb));
-				b.Create(EVENT, DZS_PROJECT_ID, DZS_END, f);
+				DZS_EntityExts.TakeInto(f, DZS_EntityExts.SLOT, evBlock.Get(eb));
+				DZS_Json childBlock = evChild.Get(eb);
+				if (childBlock)
+					DZS_EntityExts.TakeInto(f, CHILD_SLOT, childBlock);
+				CreateFor(b, EVENT, f, eb, "sp-");
 			}
 			for (int k = 0; k < blocks.Count(); k++)
 			{
@@ -305,7 +339,8 @@ class DZS_SpawnsModel
 				pf.Set("x", NumOf(pd, "x"));
 				pf.Set("z", NumOf(pd, "z"));
 				pf.Set("a", NumOf(pd, "a"));
-				b.Create(POINT, DZS_PROJECT_ID, DZS_END, pf);
+				DZS_EntityExts.TakeInto(pf, DZS_EntityExts.SLOT, pb);
+				CreateFor(b, POINT, pf, pb.GetStr("id"), "sp-");
 			}
 		}
 		if (!changes || !changes.IsArr())
@@ -337,6 +372,7 @@ class DZS_SpawnsModel
 					bf.Set("a", NumOf(to, "a"));
 					bf.Set("ba", NumOf(from, "a"));
 				}
+				DZS_EntityExts.TakeInto(bf, DZS_EntityExts.ChangeSlot(ch), ch);
 				b.Create(POINT, DZS_PROJECT_ID, DZS_END, bf);
 				continue;
 			}
@@ -353,6 +389,7 @@ class DZS_SpawnsModel
 			}
 			sf.Set("from", NumOf(ch, "from"));
 			sf.Set("to", NumOf(ch, "to"));
+			DZS_EntityExts.TakeInto(sf, DZS_EntityExts.ChangeSlot(ch), ch);
 			b.Create(SET, DZS_PROJECT_ID, DZS_END, sf);
 		}
 	}
@@ -373,12 +410,8 @@ class DZS_SpawnsSection : DZS_ProjectSection
 {
 	override string Name() { return DZS_SpawnsModel.PLUGIN; }
 
-	override string Text(DZS_Instance inst)
+	override DZS_Json Fragment(DZS_Instance inst)
 	{
-		DZS_Json frag = DZS_SpawnsModel.Fragment(inst);
-		if (!frag)
-			return "";
-		array<string> chunks = frag.ToChunks();
-		return DZS_SpawnerFormat.Join(chunks);
+		return DZS_SpawnsModel.Fragment(inst);
 	}
 }

@@ -159,6 +159,10 @@ class DZS_ProjectState : Managed
 	protected ref array<ref DZS_StateSlicer> m_Slicers;
 	protected ref array<ref DZS_StateFreeze> m_Freezes;
 	protected DZS_StateFreeze m_View;
+	// counts applied operations: derived data (DZS_EntityExts' index) is built again when it changed
+	protected int m_Gen;
+
+	int GetGen() { return m_Gen; }
 
 	DZS_StateFreeze BeginFreeze()
 	{
@@ -408,6 +412,7 @@ class DZS_ProjectState : Managed
 			}
 			done.Insert(c);
 		}
+		m_Gen++;
 		return true;
 	}
 

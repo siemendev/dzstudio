@@ -24,10 +24,11 @@ class DZS_DzbotSetting : Managed
 }
 
 // dzbot's rules for a project mod (extension URL, docs/extensions/dzbot.rules.md). The rules sit on the entities they
-// concern, in their own "extensions" (DZS_EntityExts): a block's {if, required, repeat, fields}, a list element's
-// {if, repeat, fields}, a change's {if, formula, required}. The project's own entry holds the mod's settings
-// ("settings": dzbot's config fields). The dialogs see a block's rule with its elements' rules under "items" by
-// "<list>[<index>]", as before. Members it does not know stay as they are.
+// concern, in their own "extensions", kept on the entities' elements in the model (DZS_EntityExts): a block's
+// {if, required, repeat, fields}, a list element's {if, repeat, fields}, a change's {if, formula, required}. Editing
+// them is a step of the history. The project's own entry holds the mod's settings ("settings": dzbot's config
+// fields). The dialogs see a block's rule with its elements' rules under "items" by "<list>[<index>]", as before.
+// Members it does not know stay as they are.
 class DZS_DzbotRules : DZS_ProjectExtension
 {
 	static const string URL = "https://developers.dzbot.de/specs/dzbot/rules/1.json";
@@ -39,6 +40,7 @@ class DZS_DzbotRules : DZS_ProjectExtension
 	// bumped on every change, for cached marks
 	int m_Gen;
 	protected int m_MarkGen = -1;
+	protected int m_MarkStateGen = -1;
 	protected int m_MarkTick;
 	protected ref map<string, string> m_Marks = new map<string, string>();
 	protected ref array<ref DZS_DzbotSetting> m_Own;
@@ -123,14 +125,15 @@ class DZS_DzbotRules : DZS_ProjectExtension
 			{
 				string cref = changes.m_Keys[k];
 				DZS_Json cr = changes.Get(cref);
-				if (DZS_EntityExts.ChangeByRef(cref, URL) || IsEmpty(cr))
+				if (DZS_EntityExts.ChangeByRef(inst, cref, URL) || IsEmpty(cr))
 					continue;
 				DZS_Json crCopy = cr.Clone();
-				DZS_EntityExts.SetChangeByRef(cref, URL, crCopy);
+				DZS_EntityExts.SetChangeByRef(inst, cref, URL, crCopy);
 				moved++;
 			}
 			m_Data.Remove("changes");
 		}
+		DZS_EntityExts.Commit(inst, "", "", true);
 		if (moved > 0)
 		{
 			m_Gen++;
@@ -322,9 +325,19 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		if (old == "" || old == nw)
 			return 0;
 		int n = 0;
-		array<ref DZS_Json> all = DZS_EntityExts.Values(URL);
-		foreach (DZS_Json v : all)
-			n += RenameIn(v, old, nw);
+		DZS_Instance inst = Inst();
+		array<ref DZS_ExtOwner> owners = DZS_EntityExts.OwnersWith(inst, URL);
+		foreach (DZS_ExtOwner o : owners)
+		{
+			DZS_Json v = DZS_EntityExts.Value(inst, o, URL);
+			int one = RenameIn(v, old, nw);
+			if (one == 0)
+				continue;
+			DZS_EntityExts.SetValue(inst, o, URL, v);
+			n += one;
+		}
+		// with the settings, which are no step of the history either
+		DZS_EntityExts.Commit(inst, "", "", true);
 		if (m_Data)
 		{
 			DZS_Json legacyBlocks = m_Data.Get("blocks");
@@ -335,7 +348,7 @@ class DZS_DzbotRules : DZS_ProjectExtension
 				n += RenameIn(legacyChanges, old, nw);
 		}
 		m_Gen++;
-		DZS_ProjectExtensions.Changed(Inst());
+		DZS_ProjectExtensions.Changed(inst);
 		return n;
 	}
 
@@ -433,7 +446,7 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		DZS_Instance inst = Inst();
 		if (section == "changes")
 		{
-			DZS_Json cv = DZS_EntityExts.ChangeByRef(rid, URL);
+			DZS_Json cv = DZS_EntityExts.ChangeByRef(inst, rid, URL);
 			if (!cv || !cv.IsObj())
 				return null;
 			return cv;
@@ -462,7 +475,7 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		return r;
 	}
 
-	// A rule replaced; an empty one (or null) removes it.
+	// A rule replaced; an empty one (or null) removes it. One step of the history.
 	void Put(string section, string rid, DZS_Json rule)
 	{
 		DZS_Instance inst = Inst();
@@ -471,12 +484,12 @@ class DZS_DzbotRules : DZS_ProjectExtension
 			DZS_Json cv = null;
 			if (!IsEmpty(rule))
 				cv = rule.Clone();
-			DZS_EntityExts.SetChangeByRef(rid, URL, cv);
+			DZS_EntityExts.SetChangeByRef(inst, rid, URL, cv);
 		}
 		else
 			PutBlock(inst, rid, rule);
+		DZS_EntityExts.Commit(inst, "dzbot-Regeln ändern", "Edit dzbot rules");
 		m_Gen++;
-		DZS_ProjectExtensions.Changed(inst);
 	}
 
 	protected void PutBlock(DZS_Instance inst, string bid, DZS_Json rule)
@@ -538,11 +551,11 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		DZS_EntityExts.SetElement(inst, bid, list, index, URL, copy);
 	}
 
-	// Blocks ("blocks") or change refs ("changes") that hold a rule, also of entities the project no longer has.
+	// Blocks ("blocks") or change refs ("changes") that hold a rule.
 	array<string> Refs(string section)
 	{
 		if (section == "changes")
-			return DZS_EntityExts.ChangeRefs(URL);
+			return DZS_EntityExts.ChangeRefs(Inst(), URL);
 		return DZS_EntityExts.BlockIds(Inst(), URL);
 	}
 
@@ -619,17 +632,17 @@ class DZS_DzbotRules : DZS_ProjectExtension
 	override string GroupMark(DZS_Instance inst, string groupId)
 	{
 		int now = TickCount(0);
-		if (m_MarkGen != m_Gen || now - m_MarkTick > 20000000 || now < m_MarkTick)
+		if (m_MarkGen != m_Gen || m_MarkStateGen != inst.GetGen() || now - m_MarkTick > 20000000 || now < m_MarkTick)
 		{
 			m_Marks.Clear();
 			m_MarkGen = m_Gen;
+			m_MarkStateGen = inst.GetGen();
 			m_MarkTick = now;
 			map<string, string> ids = DZS_ProjectV2.GroupIds(inst);
 			for (int i = 0; i < ids.Count(); i++)
 			{
 				string gid = ids.GetKey(i);
-				string bid = ids.GetElement(i);
-				if (Rule("blocks", bid))
+				if (DZS_EntityExts.GroupHas(inst, gid, URL))
 					m_Marks.Set(gid, DZS_Texts.Pick("dzbot-Regeln", "dzbot rules"));
 			}
 		}

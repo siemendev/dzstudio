@@ -1,11 +1,23 @@
 // A plugin's own part of the project file: project.plugins.<name>, written from the state at every save. The plugin
-// reads it back from the projects:plugins companion when the project opens.
+// reads it back from the projects:plugins companion when the project opens. Its blocks and changes are also the
+// project's own (DZS_ProjectV2.Build); their extensions are written only there, the part keeps none.
 class DZS_ProjectSection : Managed
 {
 	string Name() { return ""; }
 
+	// The fragment {blocks, changes} with the entities' extensions, null when the project has nothing of this plugin.
+	DZS_Json Fragment(DZS_Instance inst) { return null; }
+
 	// The section as JSON text, "" when the project has nothing of this plugin.
-	string Text(DZS_Instance inst) { return ""; }
+	string Text(DZS_Instance inst)
+	{
+		DZS_Json frag = Fragment(inst);
+		if (!frag)
+			return "";
+		DZS_Json plain = DZS_PatchProject.WithoutExtensions(frag);
+		array<string> chunks = plain.ToChunks();
+		return DZS_SpawnerFormat.Join(chunks);
+	}
 }
 
 class DZS_ProjectSections

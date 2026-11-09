@@ -505,7 +505,6 @@ class DZS_ExtFieldsDialog : DZS_LinesDialog
 	protected string m_FocusBlock;
 	protected ref DZS_Json m_Project;
 	protected ref array<ref DZS_ExtTarget> m_Targets = new array<ref DZS_ExtTarget>();
-	protected ref array<string> m_Gone = new array<string>();
 
 	void DZS_ExtFieldsDialog(DZS_ExtGeneric g, DZS_Instance inst, string groupId)
 	{
@@ -586,12 +585,10 @@ class DZS_ExtFieldsDialog : DZS_LinesDialog
 				rows++;
 			}
 		}
-		array<string> present = new array<string>();
 		bool chead = false;
 		for (int k = 0; k < changes.Count(); k++)
 		{
 			DZS_Json c = changes.At(k);
-			present.Insert(DZS_ProjectRefs.ChangeRef(c));
 			array<DZS_ExtField> cf = spec.FieldsFor("change", c.GetStr("block"));
 			if (cf.Count() == 0)
 				continue;
@@ -613,7 +610,6 @@ class DZS_ExtFieldsDialog : DZS_LinesDialog
 			Note(more.ToString() + DZS_Texts.Pick(" weitere — mit einem anderen Werkzeug bearbeiten", " more — edit them with another tool"));
 		if (m_Targets.Count() == 0)
 			Note(DZS_Texts.Pick("Die Erweiterung bietet keine Felder für das, was das Projekt enthält.", "The extension offers no fields for what the project holds."));
-		Gone(present);
 		AddFootFocus();
 	}
 
@@ -660,27 +656,6 @@ class DZS_ExtFieldsDialog : DZS_LinesDialog
 		return s;
 	}
 
-	// values on changes the project no longer has: dropped when it is saved
-	protected void Gone(array<string> present)
-	{
-		array<string> refs = DZS_EntityExts.ChangeRefs(m_G.Url());
-		bool head = false;
-		foreach (string r : refs)
-		{
-			if (present.Find(r) >= 0)
-				continue;
-			if (!head)
-			{
-				Heading(DZS_Texts.Pick("Werte ohne Ziel — gehen beim Speichern verloren", "Values without a target — dropped when saved"));
-				head = true;
-			}
-			DZS_RLine l = Line(2, 30);
-			Label(l, r, 0, "textMuted", 13);
-			Knob(l, "danger", DZS_Texts.Pick("Entfernen", "Remove"), "drop:" + m_Gone.Count());
-			m_Gone.Insert(r);
-		}
-	}
-
 	void Refresh()
 	{
 		if (m_Closed)
@@ -698,13 +673,6 @@ class DZS_ExtFieldsDialog : DZS_LinesDialog
 			return;
 		string what = tag.Substring(0, colon);
 		int i = tag.Substring(colon + 1, tag.Length() - colon - 1).ToInt();
-		if (what == "drop" && i >= 0 && i < m_Gone.Count())
-		{
-			DZS_EntityExts.DropChange(m_Gone[i], m_G.Url());
-			DZS_ProjectExtensions.Changed(m_Inst);
-			Refresh();
-			return;
-		}
 		if (what != "edit" || i < 0 || i >= m_Targets.Count())
 			return;
 		DZS_ExtTargetDialog d = new DZS_ExtTargetDialog(m_G, m_Inst, this, null, m_Targets[i], null, null);

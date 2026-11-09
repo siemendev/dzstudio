@@ -6,8 +6,9 @@ The rules [dzbot](https://dzbot.de) applies to a project mod on each server it i
 a change or a single element of a block takes part, values computed from the mod's settings, repetition. They live in
 the project file itself — a dzbot project mod is that one file, `dzstudio/project.json` — and each rule sits next to
 what it belongs to: in the `extensions` of that block, that change or that list element, under this extension's URL.
-dzStudio edits them when the open project is a dzbot project mod (Project › dzbot rules …), dzbot's web workbench and
-AI tools edit them there too; other programs keep the entries as they are. Not `required`: without the rules the
+The project's own entry holds the mod's settings. dzStudio edits rules and settings when the open project is a dzbot
+project mod (Project › dzbot rules …), dzbot's web workbench and AI tools edit them there too; other programs keep the
+entries as they are. Not `required`: without the rules the
 project means "everything, with the values as saved".
 
 ```json
@@ -32,8 +33,8 @@ project means "everything, with the values as saved".
 ]
 ```
 
-The entry under the URL is the rule itself (an object). The project's own `extensions` entry of this URL holds nothing
-for now (`{"data": {}}` or absent).
+The entry under the URL is the rule itself (an object). The project's own `extensions` entry of this URL holds the
+mod's settings (below): `{"data": {"settings": [ … ]}}`.
 
 ## A rule
 
@@ -67,6 +68,40 @@ for a yes/no setting).
 **Formulas**: numbers, names (also with parts: `source.x`), `+ - * /`, parentheses and `min`, `max`, `round`,
 `floor`, `ceil`, `abs`, `clamp`; at most 500 characters.
 
+## Settings
+
+The settings are what a server admin fills in when installing the mod — the names conditions, formulas, `fields` and
+`repeat` read. They live in the project file, in the project's own entry, in the order of dzbot's install form:
+
+```json
+"extensions": {
+  "https://developers.dzbot.de/specs/dzbot/rules/1.json": { "data": { "settings": [
+    { "identifier": "weapons", "title": "Weapons", "type": "section" },
+    { "identifier": "boost", "title": "Car boost", "type": "number", "required": true, "default": 1.5,
+      "help": "1 = vanilla", "typeConfig": { "min": 0, "max": 5 } },
+    { "identifier": "mode", "title": "Mode", "type": "generic_select", "default": "easy",
+      "typeConfig": { "options": [ { "value": "easy", "label": "Easy" }, { "value": "hard", "label": "Hard" } ] },
+      "visibleIf": { "field": "boost", "op": "gt", "value": 1 } }
+  ] } }
+}
+```
+
+| Member | Meaning |
+| --- | --- |
+| `identifier` | The name rules read: letters, digits and `_`, not starting with a digit, unique among the settings. A `section` may repeat one. |
+| `title` | What server admins see (up to 255 characters). Absent: the identifier is shown. |
+| `type` | A dzbot config field type — `number`, `boolean`, `string`, `textarea`, `coordinate`, `datetime`, `email`, `generic_select`, `object_list`, `item_class` … — or `section`, a heading over the settings below it. |
+| `help` | Optional explanation under the field (up to 255 characters). |
+| `required` | Optional, default `false`: an installation needs a value. Never on a `section`. |
+| `default` | Optional: the value a new installation starts with — a number, `true`/`false` or a position `[x, y, z]` for those types, text for every other. |
+| `visibleIf` | Optional: when the field (or a `section` with everything in it) is shown — a condition as above, on settings above it. |
+| `typeConfig` | Optional: the type's configuration — `generic_select`: `options` (`[{"value", "label"}]`) and `multiple`; `object_list`: `properties` (`[{"name", "type", "label"}]`); `number`: `min`, `max` … |
+
+Readers also take a simpler shape: `id` for a missing `identifier`, the type `select` for `generic_select`, and
+`options` (objects or plain values), `multiple` and `props` (`[{"name"}]`) beside the entry for the same members of
+`typeConfig`. dzbot writes the shape of the table; members it does not know stay in the entry. A project without
+`settings` leaves the mod's settings as they are in dzbot.
+
 ## Names in reports
 
 dzbot's reports and problems name a change `<block> <key> <field>`, trimmed: its `block` kind, its `key` as compact JSON
@@ -89,6 +124,15 @@ groups with rules are marked "dzbot rules". A rule opens in its own dialog:
 Edits count as an unsaved change of the project and are saved with it.
 
 ## In dzbot
+
+The project file is where a dzbot project mod keeps its settings. Every save of the file — from dzStudio, the
+workbench, an import or dzbot's AI tools — makes the mod's config fields match the list: new identifiers become new
+fields, changed ones are updated, missing ones removed, and the order follows the list. A setting replaced in its place
+by one new identifier of the same type counts as renamed, so installations keep their value. A list dzbot cannot take
+(two settings with one identifier, an identifier rules cannot read, a condition on a setting further down) refuses the
+whole save with the reason. The workbench's config panel writes into the same list (and only into it); renaming a
+setting there can rename it in every rule too. New project mods start with an empty list; dzStudio is sent the
+settings with the project as well.
 
 dzbot reads the rules when it applies the project at a transfer and in the preview; a later version would be another
 URL, which this dzbot does not read. dzbot also knows dzStudio's editor extension (`https://developers.dzbot.de/specs/dzstudio/editor/1.json`) and ignores it; any other

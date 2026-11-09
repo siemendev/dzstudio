@@ -3,7 +3,8 @@
 // consumer that does not know the URL must not apply the project). A plugin registers a DZS_ProjectExtension for its
 // URL; opening a project hands it its entry, saving writes back what it holds. Every other URL gets a generic handler
 // (DZS_ExtGeneric) that edits the fields its spec file offers and otherwise writes the entry back untouched. Blocks,
-// changes and list elements carry their own "extensions" (DZS_EntityExts). Contract: docs/extensions/README.md.
+// changes and list elements carry their own "extensions", kept on their elements in the model (DZS_EntityExts).
+// Contract: docs/extensions/README.md.
 class DZS_ProjectExtension : Managed
 {
 	// the URL of its spec, e.g. "https://developers.dzbot.de/specs/dzbot/rules/1.json"
@@ -16,7 +17,7 @@ class DZS_ProjectExtension : Managed
 	void Load(DZS_Json data) {}
 	// no project open any more
 	void Reset() {}
-	// the opened project's scene is shown (entities' extensions are bound to it)
+	// the opened project's model is complete (entities carry their extensions)
 	void Opened(DZS_Instance inst) {}
 	// the data to save; null leaves the entry out
 	DZS_Json Data() { return null; }
@@ -201,7 +202,7 @@ class DZS_ProjectExtensions
 		DZS_ExtGeneric g = Generic(url);
 		if (g)
 			s_Generic.RemoveItem(g);
-		DZS_EntityExts.RemoveUrl(url);
+		DZS_EntityExts.RemoveUrl(inst, url);
 		Changed(inst);
 	}
 
@@ -218,7 +219,7 @@ class DZS_ProjectExtensions
 		if (!root || !root.IsObj())
 			return;
 		DZS_EntityExts.Load(root);
-		array<string> ents = DZS_EntityExts.Urls();
+		array<string> ents = DZS_EntityExts.FileUrls();
 		foreach (string eu : ents)
 			DZS_ExtSpecs.Want(eu);
 		DZS_Json list = root.Get("extensions");
@@ -384,10 +385,10 @@ class DZS_ProjectExtensions
 		return entry;
 	}
 
-	// The opened project's scene is shown: entities take their extensions, extensions may look at the scene.
+	// The opened project's model is complete: entities take their extensions, extensions may look at the scene.
 	static void Opened(DZS_Instance inst)
 	{
-		DZS_EntityExts.Resolve(inst);
+		DZS_EntityExts.Distribute(inst);
 		array<DZS_ProjectExtension> handlers = Handlers();
 		foreach (DZS_ProjectExtension e : handlers)
 			e.Opened(inst);

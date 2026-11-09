@@ -238,6 +238,7 @@ class DZS_EffectsModel
 		{
 			DZS_Json data = PresetData(Field(inst, oid, "preset"), Field(inst, oid, "name"), Field(inst, oid, "x"), Field(inst, oid, "z"), Field(inst, oid, "r"));
 			DZS_Json b = DZS_SpawnsModel.Block("fx-" + DZS_ProjectV2.IdPart(oid), "effectArea", null, "", data);
+			DZS_EntityExts.Attach(b, inst, oid, DZS_EntityExts.SLOT);
 			blocks.Add(b);
 		}
 		array<string> chs = Of(inst, CHANGE);
@@ -251,6 +252,7 @@ class DZS_EffectsModel
 				Str(rc, "block", "effectArea");
 				DZS_Json rk = NameKey(name);
 				rc.Set("key", rk);
+				DZS_EntityExts.Attach(rc, inst, cid, DZS_EntityExts.ChangeSlot(rc));
 				changes.Add(rc);
 				continue;
 			}
@@ -267,6 +269,7 @@ class DZS_EffectsModel
 				pc.Set("from", was);
 				DZS_Json now = Vec(Field(inst, cid, "x"), by, Field(inst, cid, "z"));
 				pc.Set("to", now);
+				DZS_EntityExts.Attach(pc, inst, cid, DZS_EntityExts.ChangeSlot(pc));
 				changes.Add(pc);
 			}
 			if (Field(inst, cid, "r") != Field(inst, cid, "br"))
@@ -279,6 +282,7 @@ class DZS_EffectsModel
 				Str(qc, "field", "Data.Radius");
 				Num(qc, "from", Field(inst, cid, "br"));
 				Num(qc, "to", Field(inst, cid, "r"));
+				DZS_EntityExts.Attach(qc, inst, cid, DZS_EntityExts.ChangeSlot(qc));
 				changes.Add(qc);
 			}
 		}
@@ -319,7 +323,8 @@ class DZS_EffectsModel
 				f.Set("x", VecPart(pos, 0));
 				f.Set("z", VecPart(pos, 2));
 				f.Set("r", data.Get("Radius").m_Str);
-				b.Create(AREA, DZS_PROJECT_ID, DZS_END, f);
+				DZS_EntityExts.TakeInto(f, DZS_EntityExts.SLOT, bl);
+				DZS_SpawnsModel.CreateFor(b, AREA, f, bl.GetStr("id"), "fx-");
 			}
 		}
 		DZS_Json changes = frag.Get("changes");
@@ -339,6 +344,7 @@ class DZS_EffectsModel
 				by.Set(name, f2);
 				order.Insert(name);
 			}
+			DZS_EntityExts.TakeInto(f2, DZS_EntityExts.ChangeSlot(ch), ch);
 			if (ch.GetStr("op") == "remove")
 			{
 				f2.Set("gone", "1");
@@ -385,13 +391,9 @@ class DZS_EffectsSection : DZS_ProjectSection
 {
 	override string Name() { return DZS_EffectsModel.PLUGIN; }
 
-	override string Text(DZS_Instance inst)
+	override DZS_Json Fragment(DZS_Instance inst)
 	{
-		DZS_Json frag = DZS_EffectsModel.Fragment(inst);
-		if (!frag)
-			return "";
-		array<string> chunks = frag.ToChunks();
-		return DZS_SpawnerFormat.Join(chunks);
+		return DZS_EffectsModel.Fragment(inst);
 	}
 }
 

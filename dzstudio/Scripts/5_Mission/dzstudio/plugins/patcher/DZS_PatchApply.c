@@ -685,6 +685,14 @@ class DZS_PatchApply : Managed
 		Describe(b, name, mapKey);
 		int t0 = TickCount(0);
 		DZS_Json project = DZS_ProjectV2.Build(m_Kernel, inst, name, mapKey);
+		// the stored copy is the project as applied: its extensions too (the patcher ignores them), not the editor's view
+		DZS_Json exts = DZS_ProjectExtensions.Save();
+		if (exts)
+		{
+			exts.Remove(DZS_ProjectFile.EDITOR_EXT);
+			if (exts.Count() > 0)
+				project.Set(DZS_EntityExts.MEMBER, exts);
+		}
 		string err;
 		DZS_PatchProject pj = DZS_PatchProject.FromJson(project, err);
 		if (!pj)

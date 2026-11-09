@@ -118,16 +118,25 @@ plugin is registered for it; a plugin always takes precedence for its URL.
 RestApi). A fetched spec that parses and names the URL as `$id` replaces the copy; offline, the copy is used. Without
 spec, the extension is listed with its URL and its data stays as it is.
 
-**Keeping entity data.** dzStudio builds blocks and changes anew from the scene on every save
-(`DZS_ProjectV2.Build`), so it keeps the entities' `extensions` from opening (`DZS_EntityExts`) and puts them back
-on the rebuilt entities:
+**Entity data lives on the entity.** dzStudio builds blocks and changes anew from its model on every save
+(`DZS_ProjectV2.Build`), so an entity's `extensions` are kept on the thing in the model the entity is made from, as
+one more value of it (`DZS_EntityExts`):
 
-- spawner groups and their objects by their scene ids — an object keeps its data when it is moved, renamed, or other
-  objects of its group are added or deleted; a copied object starts without;
-- other blocks by their `id`, their list elements by list and index;
-- changes by their ref (`<block> <key as compact JSON> <field>`, see [`dzbot.rules.md`](dzbot.rules.md) "Change refs").
+- a spawner group and each of its objects carry their own; so does the loot row of an object with loot;
+- each element of a layer (an own event, a spawn point, an effect area, a territory or zone, a changed value) carries
+  those of the blocks and changes it makes;
+- loot: an own loot type, container or point carries its own; a change of a loot type sits with that type, by the
+  change's ref (`<block> <key as compact JSON> <field>`, see [`dzbot.rules.md`](dzbot.rules.md) "Change refs" — the key
+  of an entry of the base, never a position in a list).
 
-What sits on an entity that no longer exists at saving is dropped.
+So the data goes wherever the entity goes: moving, renaming or reordering keeps it, deleting an entity takes it along,
+undo and redo restore it, duplicating an object, a copy pasted in the same session and a moved object keep it, a live
+session shares it with every participant, and backups hold it. Editing it is a step of the history.
+
+Opening a project hands the file's entity data to the model once: layers take theirs while their elements are
+restored (by block id and change ref of the same file), spawner groups by block id and their objects by their place in
+the group's list, loot changes by ref and own loot blocks by their content. What finds no entity is dropped (the log
+counts it).
 
 **Project › Extensions …** lists the project's extensions: title (from the spec), URL, whether a plugin handles it, how
 many fields its spec offers, `required`, and the state of the spec (loading, offline copy, not readable).
@@ -136,15 +145,16 @@ many fields its spec offers, `required`, and the state of the spec (loading, off
   dzStudio may edit) and whether it is required. **Add** writes `"<url>": {"data": {}}` into the project, with
   `"required": true` when the spec says so. A required extension no plugin reads blocks applying the project to a
   mission folder in this dzStudio, as for a file that came with one.
-- **Remove** (after a confirmation) takes out the project's entry and the extension's data on every entity, at the next
-  save.
+- **Remove** (after a confirmation) takes out the project's entry and the extension's data on every entity (the
+  latter as one step of the history).
 - **Fields** (extensions without plugin whose spec has fields) lists what the fields apply to: the project, each block
   with block or element fields (the selected object's group first), each change with fields. **Edit** opens the
   fields of one of them; a block's dialog also lists its elements (a group's selected objects first). `studio` fields
   are edited: numbers and texts in a field (empty = default; `\n` in a `text` stands for a line break, lists comma
   separated, a position as `x, y, z` or taken from the selected object), yes/no as a switch, a choice from its
   options; the × removes a value. `tools` fields and values in the way of another member are shown read-only.
-  **Apply** stores the values; the project counts one unsaved change.
+  **Apply** stores the values: on the project, the project counts one unsaved change; on an entity, it is a step of
+  the history (undo takes it back).
 - A spawner group's context menu in the project bar offers the extension's fields of the group; groups with values are
   marked with the extension's title.
 
@@ -174,19 +184,20 @@ DZS_ProjectExtensions.Add(new MyNotes());
 | `Required()` | Writes `"required": true`. |
 | `IsActive()` | Whether its user interface applies to the open project. Inactive extensions still load and save. |
 | `Load(data)` | The project entry's `data` of the opened project (a copy). Not called when the project has no entry. |
-| `Opened(inst)` | The opened project's scene is shown; entities' extensions are bound to it. |
+| `Opened(inst)` | The opened project's model is complete; its entities carry their extensions. |
 | `Reset()` | The project was closed (or the extension removed from it); forget its data. |
 | `Data()` | What to save as the project entry's `data`; `null` leaves the entry out. |
 | `GroupMark(inst, groupId)` | A short text shown with a group in the project bar (`""` = none). |
 | `GroupMenu(inst, groupId, items)` / `GroupMenuChosen(inst, groupId, tag)` | Entries for a group's context menu. |
 
-Data on entities is read and written through `DZS_EntityExts`: `Block` / `SetBlock (inst, blockId, url, value)`,
-`Element` / `SetElement (inst, blockId, list, index, url, value)`, `Change` / `SetChange (change, url, value)` and
-`ChangeByRef` / `SetChangeByRef`; `null` removes the extension's entry from the entity. Block ids, element indexes and
-change refs are the ones `DZS_ProjectV2.Build` gives for the current scene.
+Data on entities is read and written through `DZS_EntityExts`, addressed by the block ids, element indexes and change
+refs `DZS_ProjectV2.Build` gives for the current state: `Block` / `SetBlock (inst, blockId, url, value)`, `Element` /
+`SetElement (inst, blockId, list, index, url, value)`, `Change` / `SetChange (inst, change, url, value)` and
+`ChangeByRef` / `SetChangeByRef (inst, ref, url, value)`; `null` removes the extension's entry from the entity. Setting
+collects the edits; `DZS_EntityExts.Commit(inst, nameDe, nameEn)` makes them one step of the history.
 
-After changing data outside the undo history, an extension calls `DZS_ProjectExtensions.Changed(instance)`: the
-project counts one unsaved change until it is saved. Menu entries, dialogs and panels are registered by the plugin
+After changing its project-wide data (outside the undo history), an extension calls
+`DZS_ProjectExtensions.Changed(instance)`: the project counts one unsaved change until it is saved. Menu entries, dialogs and panels are registered by the plugin
 itself, as any plugin does (`DZS_UiRegistry.RegisterAction`, `AddMenuEntry`).
 
 Specs: [`dzstudio.editor`](dzstudio.editor.md), [`dzbot.rules`](dzbot.rules.md).

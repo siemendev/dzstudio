@@ -89,8 +89,8 @@ class DZS_PatchProject : Managed
 					b.m_ParentId = par.m_Str;
 				else if (par && par.IsObj())
 					b.m_Parent = par;
-				// extensions of the block and of its list elements are not the game's: never written into a file
-				b.m_Data = DZS_EntityExts.Plain(bj.Get("data"));
+				// extensions of the block and of anything inside its data are not the game's: never written into a file
+				b.m_Data = WithoutExtensions(bj.Get("data"));
 				if (!b.m_Data)
 					b.m_Data = DZS_Json.Obj();
 				p.m_Blocks.Insert(b);
@@ -121,6 +121,65 @@ class DZS_PatchProject : Managed
 			}
 		}
 		return p;
+	}
+
+	// A value without "extensions" members at any depth: the same value when it has none, else a copy.
+	static DZS_Json WithoutExtensions(DZS_Json v)
+	{
+		if (!v || !HasExtensions(v))
+			return v;
+		DZS_Json copy = v.Clone();
+		StripExtensions(copy);
+		return copy;
+	}
+
+	protected static bool HasExtensions(DZS_Json v)
+	{
+		if (v.IsObj())
+		{
+			if (v.Has(DZS_EntityExts.MEMBER))
+				return true;
+			for (int i = 0; i < v.m_Keys.Count(); i++)
+			{
+				DZS_Json member = v.Get(v.m_Keys[i]);
+				if (member && HasExtensions(member))
+					return true;
+			}
+			return false;
+		}
+		if (v.IsArr())
+		{
+			for (int k = 0; k < v.Count(); k++)
+			{
+				DZS_Json item = v.At(k);
+				if (item && HasExtensions(item))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	protected static void StripExtensions(DZS_Json v)
+	{
+		if (v.IsObj())
+		{
+			v.Remove(DZS_EntityExts.MEMBER);
+			for (int i = 0; i < v.m_Keys.Count(); i++)
+			{
+				DZS_Json member = v.Get(v.m_Keys[i]);
+				if (member)
+					StripExtensions(member);
+			}
+			return;
+		}
+		if (!v.IsArr())
+			return;
+		for (int k = 0; k < v.Count(); k++)
+		{
+			DZS_Json item = v.At(k);
+			if (item)
+				StripExtensions(item);
+		}
 	}
 
 	DZS_Json ToJson()

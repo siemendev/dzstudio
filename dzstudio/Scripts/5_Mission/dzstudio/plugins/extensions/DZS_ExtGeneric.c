@@ -14,6 +14,8 @@ class DZS_ExtTarget : Managed
 	// the scene group of a spawner group block, "" otherwise
 	string m_GroupId;
 	bool m_Selected;
+	// where the entity keeps its extensions in the model, taken when the target is first read
+	ref DZS_ExtOwner m_Owner;
 
 	static DZS_ExtTarget Project()
 	{
@@ -71,7 +73,8 @@ class DZS_ExtTarget : Managed
 
 // The handler of an extension no plugin reads: keeps the project's entry as it was read (written back unchanged until
 // a field is edited) and edits the values of the fields its spec file offers — on the project inside "data", on blocks,
-// changes and elements inside their own "extensions" (DZS_EntityExts). Members nobody edits stay as they are.
+// changes and elements inside their own "extensions", on their elements in the model (DZS_EntityExts; an edit is a
+// step of the history). Members nobody edits stay as they are.
 class DZS_ExtGeneric : DZS_ProjectExtension
 {
 	protected string m_Url;
@@ -81,6 +84,7 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 	// bumped on every edit, for the marks in the project bar
 	protected int m_Gen;
 	protected int m_MarkGen = -1;
+	protected int m_MarkStateGen = -1;
 	protected int m_MarkTick;
 	protected ref map<string, string> m_Marks = new map<string, string>();
 
@@ -203,16 +207,26 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 
 	// ---- values of a target ----
 
+	// Where an entity target keeps its extensions (found once, by the addresses of the state it was listed from).
+	static DZS_ExtOwner OwnerOf(DZS_Instance inst, DZS_ExtTarget t)
+	{
+		if (t.m_Owner)
+			return t.m_Owner;
+		if (t.m_Attach == "block")
+			t.m_Owner = DZS_EntityExts.BlockOwner(inst, t.m_BlockId);
+		else if (t.m_Attach == "change")
+			t.m_Owner = DZS_EntityExts.ChangeOwner(inst, DZS_ProjectRefs.ChangeRef(t.m_Json));
+		else if (t.m_Attach == "element")
+			t.m_Owner = DZS_EntityExts.ElementOwner(inst, t.m_BlockId, t.m_List, t.m_Index);
+		return t.m_Owner;
+	}
+
 	// The extension's object of the target (the project: its data); null when it has none.
 	DZS_Json Holder(DZS_Instance inst, DZS_ExtTarget t)
 	{
 		if (t.m_Attach == "project")
 			return m_Data;
-		if (t.m_Attach == "block")
-			return DZS_EntityExts.Block(inst, t.m_BlockId, m_Url);
-		if (t.m_Attach == "change")
-			return DZS_EntityExts.Change(t.m_Json, m_Url);
-		return DZS_EntityExts.Element(inst, t.m_BlockId, t.m_List, t.m_Index, m_Url);
+		return DZS_EntityExts.Value(inst, OwnerOf(inst, t), m_Url);
 	}
 
 	DZS_Json Value(DZS_Instance inst, DZS_ExtTarget t, DZS_ExtField f)
@@ -231,21 +245,21 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 		{
 			m_Data = copy;
 			MarkChanged();
+			DZS_ProjectExtensions.Changed(inst);
+			return;
 		}
-		else
+		DZS_Json stored = null;
+		if (copy.Count() > 0)
+			stored = copy;
+		DZS_ExtOwner o = OwnerOf(inst, t);
+		if (!o)
 		{
-			DZS_Json stored = null;
-			if (copy.Count() > 0)
-				stored = copy;
-			if (t.m_Attach == "block")
-				DZS_EntityExts.SetBlock(inst, t.m_BlockId, m_Url, stored);
-			else if (t.m_Attach == "change")
-				DZS_EntityExts.SetChange(t.m_Json, m_Url, stored);
-			else
-				DZS_EntityExts.SetElement(inst, t.m_BlockId, t.m_List, t.m_Index, m_Url, stored);
-			m_Gen++;
+			DZS_Log.Warn("extensions: " + t.m_Label + " is not in the project any more, " + m_Url + " not stored");
+			return;
 		}
-		DZS_ProjectExtensions.Changed(inst);
+		DZS_EntityExts.SetValue(inst, o, m_Url, stored);
+		DZS_EntityExts.Commit(inst, "Erweiterung bearbeiten", "Edit extension");
+		m_Gen++;
 	}
 
 	// How many of the fields have a value on the target.
@@ -271,24 +285,17 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 		if (!s)
 			return "";
 		int now = TickCount(0);
-		if (m_MarkGen != m_Gen || now - m_MarkTick > 20000000 || now < m_MarkTick)
+		if (m_MarkGen != m_Gen || m_MarkStateGen != inst.GetGen() || now - m_MarkTick > 20000000 || now < m_MarkTick)
 		{
 			m_Marks.Clear();
 			m_MarkGen = m_Gen;
+			m_MarkStateGen = inst.GetGen();
 			m_MarkTick = now;
 			map<string, string> ids = DZS_ProjectV2.GroupIds(inst);
 			for (int i = 0; i < ids.Count(); i++)
 			{
 				string gid = ids.GetKey(i);
-				string bid = ids.GetElement(i);
-				bool has = DZS_EntityExts.Block(inst, bid, m_Url) != null;
-				array<string> objs = DZS_EntityExts.Objects(inst, gid);
-				for (int n = 0; n < objs.Count() && !has; n++)
-				{
-					DZS_Json oe = DZS_EntityExts.OfObject(objs[n]);
-					has = oe && oe.Has(m_Url);
-				}
-				if (has)
+				if (DZS_EntityExts.GroupHas(inst, gid, m_Url))
 				{
 					DZS_Json title = DZS_Json.Str(s.Title());
 					m_Marks.Set(gid, DZS_ProjectRefs.Short(title, 24));
