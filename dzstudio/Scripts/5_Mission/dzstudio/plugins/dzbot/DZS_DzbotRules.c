@@ -34,6 +34,9 @@ class DZS_DzbotRules : DZS_ProjectExtension
 	static const string URL = "https://developers.dzbot.de/specs/dzbot/rules/1.json";
 	// the member of the project's entry with the mod's settings
 	static const string SETTINGS = "settings";
+	// dzbot's type of a heading over the settings below it, and of a choice ("select" is dzStudio's older name)
+	static const string SECTION = "section";
+	static const string SELECT = "generic_select";
 
 	DZS_DzbotPlugin m_P;
 	protected ref DZS_Json m_Data;
@@ -172,7 +175,8 @@ class DZS_DzbotRules : DZS_ProjectExtension
 			{
 				DZS_Json entry = list.At(i);
 				DZS_DzbotSetting st = SettingOf(entry);
-				if (st)
+				// a section is a heading of dzbot's form, no value a rule can read
+				if (st && st.m_Type != SECTION)
 					m_Own.Insert(st);
 			}
 		}
@@ -200,12 +204,14 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		return id;
 	}
 
-	// An entry's options: "options", or "typeConfig.options"; null when there are none.
+	static bool IsSelect(string type)
+	{
+		return type == SELECT || type == "select";
+	}
+
+	// An entry's options: "typeConfig.options" (dzbot's place), else "options" beside it; null when there are none.
 	static DZS_Json OptionsOf(DZS_Json entry)
 	{
-		DZS_Json o = entry.Get("options");
-		if (o && o.IsArr())
-			return o;
 		DZS_Json tc = entry.Get("typeConfig");
 		if (tc && tc.IsObj())
 		{
@@ -213,7 +219,21 @@ class DZS_DzbotRules : DZS_ProjectExtension
 			if (to && to.IsArr())
 				return to;
 		}
+		DZS_Json o = entry.Get("options");
+		if (o && o.IsArr())
+			return o;
 		return null;
+	}
+
+	// An entry's "typeConfig", created when it has none (or one that is no object).
+	static DZS_Json TypeConfigForEdit(DZS_Json entry)
+	{
+		DZS_Json tc = entry.Get("typeConfig");
+		if (tc && tc.IsObj())
+			return tc;
+		DZS_Json made = DZS_Json.Obj();
+		entry.Set("typeConfig", made);
+		return made;
 	}
 
 	static DZS_DzbotSetting SettingOf(DZS_Json entry)
@@ -225,6 +245,8 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		st.m_Id = id;
 		st.m_Title = entry.GetStr("title");
 		st.m_Type = entry.GetStr("type");
+		if (st.m_Type == "select")
+			st.m_Type = SELECT;
 		st.m_Multiple = entry.GetBool("multiple");
 		DZS_Json tc = entry.Get("typeConfig");
 		if (tc && tc.IsObj() && tc.GetBool("multiple"))
@@ -241,7 +263,12 @@ class DZS_DzbotRules : DZS_ProjectExtension
 					st.m_Options.Insert(o.m_Str);
 			}
 		}
-		DZS_Json props = entry.Get("props");
+		// an object list's properties: dzbot's "typeConfig.properties", else "props" beside it or in typeConfig
+		DZS_Json props = null;
+		if (tc && tc.IsObj())
+			props = tc.Get("properties");
+		if (!props || !props.IsArr())
+			props = entry.Get("props");
 		if ((!props || !props.IsArr()) && tc && tc.IsObj())
 			props = tc.Get("props");
 		if (props && props.IsArr())
@@ -256,7 +283,9 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		return st;
 	}
 
-	// The project's list of settings to edit in place; the first edit copies dzbot's list into the project.
+	// The project's list of settings to edit in place; the first edit copies dzbot's list into the project, in
+	// dzbot's shape (options and multiple in "typeConfig"). An object list's properties are not copied: dzbot sends
+	// their names only, and a list of bare names would replace their types and labels there.
 	DZS_Json SettingsForEdit()
 	{
 		DZS_Json list = SettingsList();
@@ -277,34 +306,29 @@ class DZS_DzbotRules : DZS_ProjectExtension
 				entry.Set("title", tj);
 				DZS_Json ty = DZS_Json.Str(st.m_Type);
 				entry.Set("type", ty);
-				if (st.m_Multiple)
+				if (st.m_Multiple || st.m_Options.Count() > 0)
 				{
-					DZS_Json mj = DZS_Json.Boolean(true);
-					entry.Set("multiple", mj);
-				}
-				if (st.m_Options.Count() > 0)
-				{
-					DZS_Json opts = DZS_Json.Arr();
-					foreach (string ov : st.m_Options)
+					DZS_Json tc = DZS_Json.Obj();
+					if (st.m_Multiple)
 					{
-						DZS_Json oo = DZS_Json.Obj();
-						DZS_Json vj = DZS_Json.Str(ov);
-						oo.Set("value", vj);
-						opts.Add(oo);
+						DZS_Json mj = DZS_Json.Boolean(true);
+						tc.Set("multiple", mj);
 					}
-					entry.Set("options", opts);
-				}
-				if (st.m_Props.Count() > 0)
-				{
-					DZS_Json props = DZS_Json.Arr();
-					foreach (string pv : st.m_Props)
+					if (st.m_Options.Count() > 0)
 					{
-						DZS_Json po = DZS_Json.Obj();
-						DZS_Json nj = DZS_Json.Str(pv);
-						po.Set("name", nj);
-						props.Add(po);
+						DZS_Json opts = DZS_Json.Arr();
+						foreach (string ov : st.m_Options)
+						{
+							DZS_Json oo = DZS_Json.Obj();
+							DZS_Json vj = DZS_Json.Str(ov);
+							oo.Set("value", vj);
+							DZS_Json lj = DZS_Json.Str(ov);
+							oo.Set("label", lj);
+							opts.Add(oo);
+						}
+						tc.Set("options", opts);
 					}
-					entry.Set("props", props);
+					entry.Set("typeConfig", tc);
 				}
 				list.Add(entry);
 			}
