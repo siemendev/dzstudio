@@ -112,34 +112,18 @@ class DZS_DzbotProject : Managed
 	// a placement's kind in dzbot: "project" — a building-block project like a project mod's, saved as its one file
 	// dzstudio/project.json; anything else ("objects") is still on its object list and is converted in dzbot first
 	string m_PlacementKind;
+	// dzstudio/project.json, the one file dzStudio opens and saves (null until the first save creates it)
 	ref DZS_DzbotFile m_ProjectFile;
 	// a project mod's settings as dzbot sent them (the project's settings shape, every member kept), and read for the
 	// rules' pickers (DZS_DzbotRules)
 	ref DZS_Json m_SettingsList;
 	ref array<ref DZS_DzbotSetting> m_Settings = new array<ref DZS_DzbotSetting>();
-	ref array<ref DZS_DzbotFile> m_Files = new array<ref DZS_DzbotFile>();
 	int m_ManifestRev;
-	ref DZS_DzbotLootState m_Loot;
-
-	DZS_DzbotFile FileByPath(string path)
-	{
-		foreach (DZS_DzbotFile f : m_Files)
-		{
-			if (f.m_Path == path)
-				return f;
-		}
-		return null;
-	}
 
 	DZS_DzbotFile FileByKey(string key)
 	{
 		if (m_ProjectFile && m_ProjectFile.m_Key == key)
 			return m_ProjectFile;
-		foreach (DZS_DzbotFile f : m_Files)
-		{
-			if (f.m_Key == key)
-				return f;
-		}
 		return null;
 	}
 
@@ -148,11 +132,6 @@ class DZS_DzbotProject : Managed
 		int r = m_ManifestRev;
 		if (m_ProjectFile && m_ProjectFile.m_Rev > r)
 			r = m_ProjectFile.m_Rev;
-		foreach (DZS_DzbotFile f : m_Files)
-		{
-			if (f.m_Rev > r)
-				r = f.m_Rev;
-		}
 		return r;
 	}
 }
@@ -164,14 +143,10 @@ class DZS_DzbotSave : Managed
 	string m_SaveId;
 	string m_Fields;
 	ref array<ref DZS_DzbotSection> m_Parts = new array<ref DZS_DzbotSection>();
-	ref array<string> m_NewPaths = new array<string>();
-	ref array<string> m_NewKeys = new array<string>();
 	float m_Started;
 	int m_Tries;
-	// checksums: per part its entry text without the closing brace, its path for merged ("" =
-	// none) and the SHA-256 once fed
+	// checksums: per part its entry text without the closing brace and the SHA-256 once fed
 	ref array<string> m_Entries = new array<string>();
-	ref array<string> m_Targets = new array<string>();
 	ref array<string> m_Sums = new array<string>();
 	ref DZS_Sha256 m_Hash;
 	int m_HashAt;
@@ -183,21 +158,9 @@ class DZS_DzbotSave : Managed
 	int m_SumAt;
 	ref DZS_FileSum m_Sum;
 	bool m_SumsDone;
-	string m_ManifestEntry;
 	int m_HashStart;
 	// key -> path, for naming a file in checksum_mismatch
 	ref map<string, string> m_PathOf = new map<string, string>();
-	// loot: the written working states, their comparison forms, the change list and written types
-	ref map<string, ref array<string>> m_LootIn = new map<string, ref array<string>>();
-	ref array<ref DZS_XmlCanon> m_Canon = new array<ref DZS_XmlCanon>();
-	ref array<ref DZS_LootChange> m_Changes = new array<ref DZS_LootChange>();
-	ref array<string> m_Written = new array<string>();
-	ref array<string> m_Origs = new array<string>();
-	bool m_LootBuilt;
-	ref array<string> m_Merged = new array<string>();
-	ref array<string> m_Deleted = new array<string>();
-	ref array<string> m_Order = new array<string>();
-	ref array<ref DZS_DzbotLootFile> m_NewLoot = new array<ref DZS_DzbotLootFile>();
 	bool m_Blocked;
 	// key of dzstudio/project.json when this save creates it
 	string m_NewProjectKey;
@@ -248,8 +211,6 @@ class DZS_DzbotProvider : DZS_StoreProvider
 	override string RowMeta(DZS_ProjectInfo p) { return m_P.RowMeta(p.m_Folder); }
 	override bool RowOff(DZS_ProjectInfo p, out string de, out string en) { return m_P.RowOffOf(p.m_Folder, de, en); }
 	override string Address() { return m_P.m_Base; }
-	override DZS_LootOrigin LootOrigin(string folder) { return m_P.LootOriginOf(folder); }
-	override void OpenIssues(string folder, DZS_Issues into) { m_P.OpenIssuesOf(folder, into); }
 }
 
 class DZS_DzbotConnectDialog : DZS_Dialog
@@ -473,10 +434,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 	{
 		string shaArg;
 		if (GetCLIParam("dzsShaTest", shaArg))
-		{
 			DZS_Sha256.SelfTest();
-			DZS_XmlCanon.SelfTest();
-		}
 		DZS_Settings st = m_Kernel.GetSettings();
 		st.Define("dzbot.access", DZS_Json.Str(""));
 		st.Define("dzbot.refresh", DZS_Json.Str(""));
@@ -935,10 +893,6 @@ class DZS_DzbotPlugin : DZS_Plugin
 			OnSaved(r);
 		else if (tag == "reload")
 			OnReload(r);
-		else if (tag == "base")
-			OnBase(r);
-		else if (tag == "lootstate")
-			OnLootState(r);
 	}
 
 	// ---- device flow ----
@@ -1232,7 +1186,6 @@ class DZS_DzbotPlugin : DZS_Plugin
 			info.m_Folder = FolderOf(pref);
 			info.m_Name = dp.m_Name;
 			info.m_MapKey = dp.m_MapKey;
-			info.m_Groups = dp.m_Files.Count();
 			into.Insert(info);
 		}
 	}
@@ -1442,9 +1395,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		}
 		string folder = FolderOf(dp.m_Ref);
 		DZS_Files.MakeDirs(DZS_LocalStore.Dir(folder));
-		dp.m_Files.Clear();
 		dp.m_ProjectFile = null;
-		dp.m_Loot = null;
 		DZS_SrcNode files = r.m_Json.Get("files");
 		if (files && files.IsArr())
 		{
@@ -1485,280 +1436,9 @@ class DZS_DzbotPlugin : DZS_Plugin
 		pp.Fetched(folder, true, "", "");
 	}
 
-	// ---- loot: base and vanilla state ----
-
-	protected ref map<string, ref DZS_DzbotSection> m_LootSecs = new map<string, ref DZS_DzbotSection>();
-	protected ref array<string> m_BasePaths = new array<string>();
-	protected ref map<string, ref DZS_DzbotReply> m_BaseReplies = new map<string, ref DZS_DzbotReply>();
-	protected string m_BaseRef;
-
-	// After a restore (Restored): only the loot state of the mod, from its own delta files and the base; the files of
-	// the open project and the revisions of its groups stay as the backup has them.
-	protected string m_RebuildRef;
-	protected bool m_Rebuild;
-
-	protected void OnLootState(DZS_DzbotReply r)
-	{
-		DZS_DzbotProject dp = m_Projects.Get(m_RebuildRef);
-		if (!dp || !r.Ok())
-		{
-			DZS_Log.Warn("dzbot: loot state after restore not built: " + r.Error() + " " + r.m_Fail);
-			return;
-		}
-		dp.m_Loot = new DZS_DzbotLootState();
-		m_LootSecs.Clear();
-		DZS_SrcNode files = r.m_Json.Get("files");
-		if (files && files.IsArr())
-		{
-			foreach (DZS_SrcNode f : files.m_Items)
-			{
-				string role = DZS_DzbotCatalog.Text(f, "role");
-				if (role != "loot_proto" && role != "loot_pos")
-					continue;
-				string ft = DZS_DzbotCatalog.Text(f, "type");
-				string path = DZS_DzbotCatalog.Text(f, "path");
-				DZS_SrcNode mg = f.Get("managed");
-				bool managed = mg && mg.IsBool() && mg.m_Bool;
-				if (!managed || (ft != "delete" && ft != "merge_add") || dp.m_Loot.Own(path, ft))
-					continue;
-				DZS_DzbotLootFile lf = new DZS_DzbotLootFile();
-				lf.m_Key = DZS_DzbotCatalog.Text(f, "key");
-				lf.m_Path = path;
-				lf.m_Type = ft;
-				DZS_SrcNode rev = f.Get("revision");
-				if (rev)
-					lf.m_Rev = rev.m_Str.ToInt();
-				dp.m_Loot.m_Files.Insert(lf);
-				DZS_DzbotSection ls = r.Find("file", lf.m_Key);
-				if (ls)
-					m_LootSecs.Set(lf.m_Key, ls);
-			}
-		}
-		m_Rebuild = true;
-		StartBase(dp);
-	}
-
-	protected void StartBase(DZS_DzbotProject dp)
-	{
-		m_BaseRef = dp.m_Ref;
-		m_BasePaths.Clear();
-		m_BaseReplies.Clear();
-		m_BasePaths.Insert(DZS_LootFiles.PROTO);
-		m_BasePaths.Insert(DZS_LootFiles.POS);
-		m_Kernel.GetScreen().ShowMessage("dzbot", "info", DZS_W.Literal(DZS_Texts.Pick("Lädt Loot-Basis aus dzbot …", "Loading the loot base from dzbot …")), 10.0);
-		NextBase();
-	}
-
-	protected void NextBase()
-	{
-		DZS_DzbotProject dp = m_Projects.Get(m_BaseRef);
-		if (!dp)
-			return;
-		int n = m_BaseReplies.Count();
-		if (n >= m_BasePaths.Count())
-		{
-			ComposeLoot(dp);
-			return;
-		}
-		string path = m_BasePaths[n];
-		string qr = DZS_DzbotFrame.Q(dp.m_Ref);
-		string qp = DZS_DzbotFrame.Q(path);
-		string qm = DZS_DzbotFrame.Q(dp.m_MapKey);
-		string fields = "\"project\":" + qr + ",\"path\":" + qp + ",\"map\":" + qm;
-		string bk = dp.m_Loot.BaseKey(path);
-		if (bk != "")
-			fields += ",\"key\":" + DZS_DzbotFrame.Q(bk);
-		AuthPost("main", "base", "/editor/project/base", fields);
-	}
-
-	protected void OnBase(DZS_DzbotReply r)
-	{
-		DZS_DzbotProject dp = m_Projects.Get(m_BaseRef);
-		if (!dp)
-			return;
-		int n = m_BaseReplies.Count();
-		string path = m_BasePaths[n];
-		m_BaseReplies.Set(path, r);
-		string st = "";
-		if (r.Ok())
-		{
-			DZS_SrcNode b = r.m_Json.Get("base");
-			if (b)
-				st = DZS_DzbotCatalog.Text(b, "state");
-		}
-		DZS_Log.Info("dzbot: base " + path + ": " + st + " " + r.Error() + " " + r.m_Fail);
-		NextBase();
-	}
-
-	protected DZS_DzbotSection BaseSec(string path, string kind)
-	{
-		DZS_DzbotReply r = m_BaseReplies.Get(path);
-		if (!r || !r.Ok())
-			return null;
-		return r.Find(kind, path);
-	}
-
-	protected DZS_DzbotSection BaseSecOf(string path, string kind, string key)
-	{
-		DZS_DzbotReply r = m_BaseReplies.Get(path);
-		if (!r || !r.Ok())
-			return null;
-		return r.Find(kind, key);
-	}
-
-	// The files of the mod after the own delta on a path, in their order.
-	protected void TakeAfter(DZS_DzbotLootState st, string path)
-	{
-		array<ref DZS_DzbotAfter> list = new array<ref DZS_DzbotAfter>();
-		st.m_After.Set(path, list);
-		DZS_DzbotReply r = m_BaseReplies.Get(path);
-		if (!r || !r.Ok())
-			return;
-		DZS_SrcNode after = r.m_Json.Get("after");
-		if (!after || !after.IsArr())
-			return;
-		foreach (DZS_SrcNode e : after.m_Items)
-		{
-			string ak = DZS_DzbotCatalog.Text(e, "key");
-			if (st.ByKey(ak))
-				continue;
-			DZS_DzbotAfter a = new DZS_DzbotAfter();
-			a.m_Key = ak;
-			a.m_Type = DZS_DzbotCatalog.Text(e, "type");
-			DZS_SrcNode rv = e.Get("revision");
-			if (rv)
-				a.m_Rev = rv.m_Str.ToInt();
-			DZS_SrcNode tp = e.Get("template");
-			a.m_Template = tp && tp.IsBool() && tp.m_Bool;
-			DZS_DzbotSection sec = r.Find("after", a.m_Key);
-			if (sec)
-				a.m_Chunks = sec.m_Chunks;
-			else
-				a.m_Chunks = new array<string>();
-			list.Insert(a);
-		}
-		if (list.Count() > 0)
-			DZS_Log.Info("dzbot: " + path + ": " + list.Count() + " file(s) of the mod after the own delta");
-	}
-
-	protected array<string> OwnChunks(DZS_DzbotLootState st, string path, string type)
-	{
-		DZS_DzbotLootFile f = st.Own(path, type);
-		if (!f)
-			return null;
-		DZS_DzbotSection sec = m_LootSecs.Get(f.m_Key);
-		if (!sec)
-			return null;
-		return sec.m_Chunks;
-	}
-
-	protected void ComposeLoot(DZS_DzbotProject dp)
-	{
-		m_Kernel.GetScreen().HideMessage("dzbot");
-		string folder = FolderOf(dp.m_Ref);
-		DZS_DzbotLootState st = dp.m_Loot;
-		DZS_DzbotSection bp = BaseSec(DZS_LootFiles.PROTO, "base");
-		DZS_DzbotSection bq = BaseSec(DZS_LootFiles.POS, "base");
-		string why = "";
-		if (!bp || !bq)
-		{
-			DZS_DzbotReply rp = m_BaseReplies.Get(DZS_LootFiles.PROTO);
-			if (rp && rp.Ok())
-			{
-				DZS_SrcNode bn = rp.m_Json.Get("base");
-				if (bn)
-					why = DZS_DzbotCatalog.Text(bn, "state");
-			}
-			else if (rp)
-				why = rp.Error() + rp.m_Fail;
-		}
-		bool rebuild = m_Rebuild;
-		m_Rebuild = false;
-		array<string> stale = {DZS_LootFiles.PROTO, DZS_LootFiles.POS, DZS_LootFiles.LIMITS, "vanilla/" + DZS_LootFiles.PROTO, "vanilla/" + DZS_LootFiles.LIMITS};
-		if (!rebuild)
-		{
-			foreach (string sp : stale)
-				DeleteFile(DZS_LocalStore.Path(folder, sp));
-		}
-		if (why == "")
-		{
-			int t0 = TickCount(0);
-			array<string> pd = OwnChunks(st, DZS_LootFiles.PROTO, "delete");
-			array<string> pa = OwnChunks(st, DZS_LootFiles.PROTO, "merge_add");
-			array<string> qd = OwnChunks(st, DZS_LootFiles.POS, "delete");
-			array<string> qa = OwnChunks(st, DZS_LootFiles.POS, "merge_add");
-			array<string> protoOut = DZS_DzbotLoot.ComposeProto(bp.m_Chunks, pd, pa, st);
-			array<string> pos = DZS_DzbotLoot.ComposePos(bq.m_Chunks, qd, qa, st);
-			if (!protoOut || !pos)
-				why = "unreadable";
-			else if (rebuild)
-			{
-				TakeAfter(st, DZS_LootFiles.PROTO);
-				TakeAfter(st, DZS_LootFiles.POS);
-				DZS_Log.Info("dzbot: loot state after restore: " + st.m_Files.Count() + " own delta file(s), " + st.m_Origin.m_OwnTypes.Count() + " own entr(y/ies), " + st.m_RowKeys.Count() + " own row(s)");
-			}
-			else
-			{
-				WriteText(folder, DZS_LootFiles.PROTO, protoOut);
-				WriteText(folder, DZS_LootFiles.POS, pos);
-				DZS_DzbotSection bl = BaseSecOf(DZS_LootFiles.PROTO, "limits", DZS_LootFiles.LIMITS);
-				if (bl)
-				{
-					WriteText(folder, DZS_LootFiles.LIMITS, bl.m_Chunks);
-					WriteText(folder, "vanilla/" + DZS_LootFiles.LIMITS, bl.m_Chunks);
-				}
-				DZS_DzbotSection vp = BaseSec(DZS_LootFiles.PROTO, "vanilla");
-				if (vp)
-					WriteText(folder, "vanilla/" + DZS_LootFiles.PROTO, vp.m_Chunks);
-				TakeAfter(st, DZS_LootFiles.PROTO);
-				TakeAfter(st, DZS_LootFiles.POS);
-				int ms = (TickCount(0) - t0) / 10000;
-				DZS_Log.Info("dzbot: loot working state composed in " + ms + " ms: " + st.m_Origin.m_OwnTypes.Count() + " own entr(y/ies), " + st.m_RowKeys.Count() + " own row(s), " + st.m_DelKeys.Count() + " base row(s) removed, vanilla " + (vp != null));
-			}
-		}
-		if (why != "")
-		{
-			st.m_Origin.m_NoDe = "Loot lässt sich in dieser Mod nicht bearbeiten: dzbot liefert keine Basis (" + why + ")";
-			st.m_Origin.m_NoEn = "Loot cannot be edited in this mod: dzbot gives no base (" + why + ")";
-			DZS_Log.Warn("dzbot: no loot base for " + dp.m_Ref + ": " + why);
-		}
-		m_BaseReplies.Clear();
-		m_LootSecs.Clear();
-		if (rebuild)
-			return;
-		Projects().Fetched(folder, true, "", "");
-	}
-
-	// A hint per loot path with files of the mod after the own delta.
-	void OpenIssuesOf(string folder, DZS_Issues into)
-	{
-		DZS_DzbotProject dp = m_Projects.Get(RefOf(folder));
-		if (!dp || !dp.m_Loot)
-			return;
-		array<string> paths = {DZS_LootFiles.PROTO, DZS_LootFiles.POS};
-		foreach (string path : paths)
-		{
-			array<ref DZS_DzbotAfter> list = dp.m_Loot.m_After.Get(path);
-			if (!list || list.Count() == 0)
-				continue;
-			int n = list.Count();
-			string de = path + ": " + n + DZS_Issues.Plural(n, " weitere Datei der Mod gilt", " weitere Dateien der Mod gelten") + " beim Übertragen nach dem, was dzStudio schreibt";
-			string en = path + ": " + n + DZS_Issues.Plural(n, " more file of the mod applies", " more files of the mod apply") + " after what dzStudio writes when transferring";
-			into.Add(DZS_Issue.HINT, de, en);
-		}
-	}
-
 	DZS_DzbotProject ProjectOf(string folder)
 	{
 		return m_Projects.Get(RefOf(folder));
-	}
-
-	DZS_LootOrigin LootOriginOf(string folder)
-	{
-		DZS_DzbotProject dp = m_Projects.Get(RefOf(folder));
-		if (!dp || !dp.m_Loot)
-			return null;
-		return dp.m_Loot.m_Origin;
 	}
 
 	// mirror folder whose project part got the map choice (opens with 1 unsaved change so the choice can be saved)
@@ -1875,15 +1555,6 @@ class DZS_DzbotPlugin : DZS_Plugin
 		return "";
 	}
 
-	protected void WriteText(string folder, string rel, array<string> chunks)
-	{
-		string path = DZS_LocalStore.Path(folder, rel);
-		int slash = rel.LastIndexOf("/");
-		if (slash > 0)
-			DZS_Files.MakeDirs(DZS_LocalStore.Path(folder, rel.Substring(0, slash)));
-		DZS_Files.Write(path, chunks);
-	}
-
 	protected void RemoveStale(string folder, array<string> keep)
 	{
 		array<string> names;
@@ -1916,17 +1587,6 @@ class DZS_DzbotPlugin : DZS_Plugin
 		st.Set("name", DZS_Json.Str(dp.m_Name));
 		st.Set("map", DZS_Json.Str(dp.m_MapKey));
 		st.Set("manifest", DZS_Json.Int(dp.m_ManifestRev));
-		DZS_Json files = DZS_Json.Arr();
-		foreach (DZS_DzbotFile f : dp.m_Files)
-		{
-			DZS_Json fj = DZS_Json.Obj();
-			fj.Set("key", DZS_Json.Str(f.m_Key));
-			fj.Set("path", DZS_Json.Str(f.m_Path));
-			fj.Set("rev", DZS_Json.Int(f.m_Rev));
-			fj.Set("role", DZS_Json.Str(f.m_Role));
-			files.Add(fj);
-		}
-		st.Set("files", files);
 		DZS_DzbotFile pf = dp.m_ProjectFile;
 		if (pf)
 		{
@@ -1957,20 +1617,6 @@ class DZS_DzbotPlugin : DZS_Plugin
 		dp.m_Name = st.GetStr("name");
 		dp.m_MapKey = st.GetStr("map");
 		dp.m_ManifestRev = st.GetInt("manifest");
-		DZS_Json files = st.Get("files");
-		if (files)
-		{
-			for (int i = 0; i < files.Count(); i++)
-			{
-				DZS_Json fj = files.At(i);
-				DZS_DzbotFile f = new DZS_DzbotFile();
-				f.m_Key = fj.GetStr("key");
-				f.m_Path = fj.GetStr("path");
-				f.m_Rev = fj.GetInt("rev");
-				f.m_Role = fj.GetStr("role");
-				dp.m_Files.Insert(f);
-			}
-		}
 		DZS_Json pj = st.Get("project");
 		if (pj)
 		{
@@ -1987,30 +1633,10 @@ class DZS_DzbotPlugin : DZS_Plugin
 			DZS_Json stsCopy = sts.Clone();
 			KeepSettings(stsCopy, dp);
 		}
-		dp.m_Loot = new DZS_DzbotLootState();
-		if (dp.m_Kind != "mod")
-		{
-			dp.m_Loot.m_Origin.m_NoDe = "Loot gibt es nur in dzbot-Mods, nicht in Platzierungen";
-			dp.m_Loot.m_Origin.m_NoEn = "Loot exists only in dzbot mods, not in placements";
-		}
 		m_Projects.Set(pref, dp);
-		DZS_Log.Info("dzbot: restored " + pref + " at revision " + dp.Revision() + ", " + dp.m_Files.Count() + " file(s)");
-		if (HoldsProject(dp))
-		{
-			dp.m_Loot = null;
-			return;
-		}
-		if (dp.m_Kind == "mod" && !IsConnected())
-		{
-			dp.m_Loot.m_Origin.m_NoDe = "Loot dieses wiederhergestellten Mods erst nach dem Verbinden mit dzbot und erneutem Öffnen";
-			dp.m_Loot.m_Origin.m_NoEn = "Loot of this restored mod only after connecting with dzbot and opening it again";
-		}
-		else if (dp.m_Kind == "mod")
-		{
-			// the loot working files came with the backup; the state a save needs (own deltas, rows) is built again
-			m_RebuildRef = pref;
-			AuthPost("main", "lootstate", "/editor/project/load", "\"project\":" + DZS_DzbotFrame.Q(pref), null, null);
-		}
+		// a backup of a file mod or of a placement on its object list (from before) stays readable; saving it to dzbot
+		// is refused (Save), Save as … keeps it locally
+		DZS_Log.Info("dzbot: restored " + pref + " at revision " + dp.Revision() + ", project " + HoldsProject(dp));
 	}
 
 	void Opened(string folder)
@@ -2065,14 +1691,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		DZS_DzbotProject dp = m_Projects.Get(RefOf(m_OpenFolder));
 		if (!dp)
 			return;
-		string held = "";
-		foreach (DZS_DzbotFile f : dp.m_Files)
-		{
-			if (held != "")
-				held += ",";
-			held += "{\"key\":" + DZS_DzbotFrame.Q(f.m_Key) + ",\"revision\":" + f.m_Rev + "}";
-		}
-		string fields = "\"project\":" + DZS_DzbotFrame.Q(dp.m_Ref) + ",\"files\":[" + held + "],\"manifest\":" + dp.m_ManifestRev;
+		string fields = "\"project\":" + DZS_DzbotFrame.Q(dp.m_Ref) + ",\"files\":[],\"manifest\":" + dp.m_ManifestRev;
 		m_Polling = true;
 		AuthPost("poll", "poll", "/editor/project/revisions", fields);
 	}
@@ -2154,33 +1773,24 @@ class DZS_DzbotPlugin : DZS_Plugin
 			return;
 		}
 		DZS_DzbotProject dp = m_Projects.Get(RefOf(m_OpenFolder));
-		DZS_ProjectsPlugin pp = Projects();
+		if (!dp)
+			return;
 		DZS_SrcNode files = r.m_Json.Get("files");
-		int n = 0;
 		if (files && files.IsArr())
 		{
 			foreach (DZS_SrcNode f : files.m_Items)
 			{
-				string key = DZS_DzbotCatalog.Text(f, "key");
-				DZS_DzbotFile df = dp.FileByKey(key);
-				DZS_DzbotSection sec = r.Find("file", key);
-				if (!df || !sec)
-					continue;
+				DZS_DzbotFile df = dp.FileByKey(DZS_DzbotCatalog.Text(f, "key"));
 				DZS_SrcNode rn = f.Get("revision");
-				if (rn)
+				if (df && rn)
 					df.m_Rev = rn.m_Str.ToInt();
-				if (df.m_Role == "project")
-					continue;
-				WriteText(m_OpenFolder, df.m_Path, sec.m_Chunks);
-				pp.ReloadGroup(df.m_Path, sec.m_Chunks);
-				n++;
 			}
 		}
 		DZS_Instance inst = m_Kernel.GetShown();
 		if (inst)
 			inst.MarkSavedNow();
 		PlateFor(m_OpenFolder);
-		DZS_Log.Info("dzbot: reloaded " + n + " file(s) from dzbot");
+		DZS_Log.Info("dzbot: reloaded the revisions from dzbot");
 		Msg("info", "Aus dzbot neu geladen", "Reloaded from dzbot");
 	}
 
@@ -2200,8 +1810,14 @@ class DZS_DzbotPlugin : DZS_Plugin
 			pp.ProviderSaved("Nicht mit dzbot verbunden — lokal speichern mit Speichern unter …", "Not connected with dzbot — save locally with Save as …");
 			return;
 		}
-		// a placement still on its object list (a backup from before) is saved after dzbot converted it
-		if (dp.m_Kind == "placement" && !HoldsProject(dp))
+		// only a project mod or a placement built as a project is saved here; a file mod or a placement still on its
+		// object list (a backup from before) is not
+		if (IsFilesMod(dp))
+		{
+			pp.ProviderSaved(FILES_MOD_DE + " — lokal speichern mit Speichern unter …", FILES_MOD_EN + " — save locally with Save as …");
+			return;
+		}
+		if (!HoldsProject(dp))
 		{
 			pp.ProviderSaved(OBJECTS_PLACEMENT_DE + " — lokal speichern mit Speichern unter …", OBJECTS_PLACEMENT_EN + " — save locally with Save as …");
 			return;
@@ -2210,85 +1826,9 @@ class DZS_DzbotPlugin : DZS_Plugin
 		sv.m_Folder = folder;
 		sv.m_Files = files;
 		sv.m_SaveId = DZS_Random.Code(24);
-		bool asProject = HoldsProject(dp);
-		foreach (DZS_SaveFile f : files)
-		{
-			if (f.m_Delete || (asProject && f.m_Rel != DZS_ProjectFile.NAME))
-				continue;
-			if (f.m_Rel == DZS_ProjectFile.NAME)
-			{
-				string part = ProjectPartOf(f.m_Chunks);
-				if (part == "")
-					continue;
-				string mr = dp.m_ManifestRev.ToString();
-				DZS_DzbotSection ms = DZS_DzbotSection.Make("manifest", "manifest", mr, part);
-				sv.m_Parts.Insert(ms);
-				sv.m_Entries.Insert("{\"revision\":" + dp.m_ManifestRev);
-				sv.m_Targets.Insert("");
-				sv.m_PathOf.Set("manifest", "Manifest");
-				continue;
-			}
-			if (f.m_Rel == DZS_LootFiles.PROTO || f.m_Rel == DZS_LootFiles.POS)
-			{
-				if (dp.m_Kind == "mod" && dp.m_Loot && dp.m_Loot.m_Origin.m_NoDe == "")
-					sv.m_LootIn.Set(f.m_Rel, f.m_Chunks);
-				continue;
-			}
-			DZS_DzbotFile df = dp.FileByPath(f.m_Rel);
-			string entry;
-			if (df)
-			{
-				entry = "{\"key\":" + DZS_DzbotFrame.Q(df.m_Key) + ",\"revision\":" + df.m_Rev;
-				string rv = df.m_Rev.ToString();
-				DZS_DzbotSection fs = DZS_DzbotSection.FromChunks("file", df.m_Key, rv, f.m_Chunks);
-				sv.m_Parts.Insert(fs);
-				sv.m_PathOf.Set(df.m_Key, f.m_Rel);
-			}
-			else
-			{
-				string low = f.m_Rel;
-				low.ToLower();
-				if (low.IndexOf(".json") < 0 || dp.m_Kind == "placement")
-					continue;
-				string key = NewKey();
-				entry = "{\"key\":" + DZS_DzbotFrame.Q(key) + ",\"path\":" + DZS_DzbotFrame.Q(f.m_Rel) + ",\"type\":\"replace\",\"create\":true";
-				DZS_DzbotSection ns = DZS_DzbotSection.FromChunks("file", key, "0", f.m_Chunks);
-				sv.m_Parts.Insert(ns);
-				sv.m_NewPaths.Insert(f.m_Rel);
-				sv.m_NewKeys.Insert(key);
-				sv.m_PathOf.Set(key, f.m_Rel);
-			}
-			sv.m_Entries.Insert(entry);
-			sv.m_Targets.Insert(f.m_Rel);
-		}
-		if (asProject)
-			ProjectPart(dp, sv, files);
-		else
-			RemovedGroups(dp, files, sv);
-		if (sv.m_LootIn.Count() > 0)
-		{
-			DZS_LootPlugin lp = DZS_LootPlugin.Cast(m_Kernel.GetPlugin("loot"));
-			if (lp)
-			{
-				foreach (DZS_LootChange lc : lp.m_Changes)
-					sv.m_Changes.Insert(lc);
-				lp.SaveWritten(sv.m_Written, sv.m_Origs);
-			}
-			for (int li = 0; li < sv.m_LootIn.Count(); li++)
-			{
-				string lpth = sv.m_LootIn.GetKey(li);
-				array<string> lch = sv.m_LootIn.GetElement(li);
-				DZS_XmlCanon job = new DZS_XmlCanon(lpth, lch);
-				array<ref DZS_DzbotAfter> afterList = dp.m_Loot.m_After.Get(lpth);
-				if (afterList)
-				{
-					foreach (DZS_DzbotAfter af : afterList)
-						job.AddAfter(af);
-				}
-				DZS_Log.Info("dzbot: " + lpth + " parsed for the comparison form in " + job.m_Ms + " ms");
-				sv.m_Canon.Insert(job);
-			}
-		}
+		// the project file (format 2) is the one part; it holds no manifest part of its own (a "project" member was
+		// format 1), so no manifest is sent and the file is not parsed for one
+		ProjectPart(dp, sv, files);
 		sv.m_Started = m_Now;
 		sv.m_HashStart = TickCount(0);
 		m_Save = sv;
@@ -2310,18 +1850,6 @@ class DZS_DzbotPlugin : DZS_Plugin
 		{
 			sv.m_Blocked = true;
 			m_Kernel.GetScreen().ShowMessage("dzbot.saving", "info", DZS_W.Literal(DZS_Texts.Pick("Speichern … (Prüfsummen für dzbot)", "Saving … (checksums for dzbot)")), 60.0);
-		}
-		if (!sv.m_LootBuilt)
-		{
-			foreach (DZS_XmlCanon cj : sv.m_Canon)
-			{
-				if (!cj.Step(HASH_MS))
-					return;
-			}
-			if (!BuildLoot(sv))
-				return;
-			sv.m_LootBuilt = true;
-			return;
 		}
 		while (sv.m_HashAt < sv.m_Parts.Count())
 		{
@@ -2360,12 +1888,9 @@ class DZS_DzbotPlugin : DZS_Plugin
 		{
 			// developer check of checksum_mismatch: the first file's checksum as if one byte had changed on the way
 			s_BadSumDone = true;
-			string badKind = "file";
-			if (bad == "manifest")
-				badKind = "manifest";
 			for (int b = 0; b < sv.m_Parts.Count(); b++)
 			{
-				if (sv.m_Parts[b].m_Kind != badKind)
+				if (sv.m_Parts[b].m_Kind != "file")
 					continue;
 				string was = sv.m_Sums[b];
 				string first = was.Substring(0, 1);
@@ -2378,66 +1903,21 @@ class DZS_DzbotPlugin : DZS_Plugin
 			}
 		}
 		string list = "";
-		string merged = "";
-		bool manifest = false;
 		for (int i = 0; i < sv.m_Parts.Count(); i++)
 		{
 			string qs = DZS_DzbotFrame.Q(sv.m_Sums[i]);
 			string withSum = sv.m_Entries[i] + ",\"checksum\":" + qs + "}";
-			DZS_DzbotSection p = sv.m_Parts[i];
-			if (p.m_Kind == "manifest")
-			{
-				sv.m_ManifestEntry = withSum;
-				manifest = true;
-				continue;
-			}
 			if (list != "")
 				list += ",";
 			list += withSum;
-			string target = sv.m_Targets[i];
-			if (target == "")
-				continue;
-			if (merged != "")
-				merged += ",";
-			string qt = DZS_DzbotFrame.Q(target);
-			merged += "{\"target\":" + qt + ",\"checksum\":" + qs + "}";
-		}
-		foreach (string me : sv.m_Merged)
-		{
-			if (merged != "")
-				merged += ",";
-			merged += me;
 		}
 		DZS_DzbotProject dp = m_Projects.Get(RefOf(sv.m_Folder));
 		string qp = DZS_DzbotFrame.Q(dp.m_Ref);
 		string qi = DZS_DzbotFrame.Q(sv.m_SaveId);
-		sv.m_Fields = "\"project\":" + qp + ",\"saveId\":" + qi + ",\"files\":[" + list + "],\"merged\":[" + merged + "]";
-		if (sv.m_Deleted.Count() > 0)
-		{
-			string dl = "";
-			foreach (string de : sv.m_Deleted)
-			{
-				if (dl != "")
-					dl += ",";
-				dl += de;
-			}
-			sv.m_Fields += ",\"deleted\":[" + dl + "]";
-		}
-		if (sv.m_Order.Count() > 0)
-		{
-			string ol = "";
-			foreach (string ok : sv.m_Order)
-			{
-				if (ol != "")
-					ol += ",";
-				ol += DZS_DzbotFrame.Q(ok);
-			}
-			sv.m_Fields += ",\"order\":[" + ol + "]";
-		}
+		// the project file is no merged target: "merged" stays empty
+		sv.m_Fields = "\"project\":" + qp + ",\"saveId\":" + qi + ",\"files\":[" + list + "],\"merged\":[]";
 		if (dp.m_MapKey != "")
 			sv.m_Fields += ",\"map\":" + DZS_DzbotFrame.Q(dp.m_MapKey);
-		if (manifest)
-			sv.m_Fields += ",\"manifest\":" + sv.m_ManifestEntry;
 		int ms = (TickCount(0) - sv.m_HashStart) / 10000;
 		DZS_Log.Info("dzbot: checksums of " + sv.m_Parts.Count() + " part(s) in " + ms + " ms");
 		array<string> pieces = DZS_DzbotFrame.TailPieces(sv.m_Parts);
@@ -2488,7 +1968,6 @@ class DZS_DzbotPlugin : DZS_Plugin
 			DZS_DzbotSection cs = DZS_DzbotSection.FromChunks("file", key, "0", chunks);
 			sv.m_Parts.Insert(cs);
 			sv.m_Entries.Insert("{\"key\":" + DZS_DzbotFrame.Q(key) + ",\"path\":" + DZS_DzbotFrame.Q(PROJECT_PATH) + ",\"type\":\"replace\",\"create\":true");
-			sv.m_Targets.Insert("");
 			sv.m_PathOf.Set(key, PROJECT_PATH);
 			sv.m_NewProjectKey = key;
 			DZS_Log.Info("dzbot: save creates " + PROJECT_PATH + ", " + DZS_Files.Length(chunks) + " bytes");
@@ -2498,153 +1977,8 @@ class DZS_DzbotPlugin : DZS_Plugin
 		DZS_DzbotSection ps = DZS_DzbotSection.FromChunks("file", pf.m_Key, rv, chunks);
 		sv.m_Parts.Insert(ps);
 		sv.m_Entries.Insert("{\"key\":" + DZS_DzbotFrame.Q(pf.m_Key) + ",\"revision\":" + pf.m_Rev);
-		sv.m_Targets.Insert("");
 		sv.m_PathOf.Set(pf.m_Key, pf.m_Path);
 		DZS_Log.Info("dzbot: save sends the project file, " + DZS_Files.Length(chunks) + " bytes");
-	}
-
-	// Groups taken out of the project: their files go in the same save.
-	protected void RemovedGroups(DZS_DzbotProject dp, array<ref DZS_SaveFile> files, DZS_DzbotSave sv)
-	{
-		DZS_Instance inst = m_Kernel.GetShown();
-		if (!inst || dp.m_Kind != "mod")
-			return;
-		map<string, bool> live = new map<string, bool>();
-		array<string> groups = inst.GetChildren(DZS_PROJECT_ID);
-		foreach (string gid : groups)
-		{
-			if (inst.GetKind(gid) != DZS_KIND_GROUP)
-				continue;
-			string file;
-			inst.GetField(gid, DZS_Obj.GROUP_FILE, file);
-			live.Set(file, true);
-		}
-		foreach (DZS_DzbotFile f : dp.m_Files)
-		{
-			if (live.Contains(f.m_Path))
-				continue;
-			string q = DZS_DzbotFrame.Q(f.m_Key);
-			sv.m_Deleted.Insert("{\"key\":" + q + ",\"revision\":" + f.m_Rev + "}");
-			sv.m_PathOf.Set(f.m_Key, f.m_Path);
-			DZS_Log.Info("dzbot: save deletes " + f.m_Path + " (group taken out)");
-		}
-	}
-
-	// Deltas of the loot paths in this save: at most one delete and one merge_add per path,
-	// emptied own deltas deleted, the expected comparison form per path in merged.
-	protected bool BuildLoot(DZS_DzbotSave sv)
-	{
-		DZS_DzbotProject dp = m_Projects.Get(RefOf(sv.m_Folder));
-		if (!dp || !dp.m_Loot)
-			return true;
-		DZS_DzbotLootState st = dp.m_Loot;
-		foreach (DZS_XmlCanon cj : sv.m_Canon)
-		{
-			if (cj.m_Error != "")
-			{
-				DZS_Log.Warn("dzbot: " + cj.m_Name + " not readable for the comparison form: " + cj.m_Error);
-				continue;
-			}
-			string qt = DZS_DzbotFrame.Q(cj.m_Name);
-			string qs = DZS_DzbotFrame.Q(cj.m_Sum);
-			string noMerged;
-			if (GetCLIParam("dzsDzbotNoMerged", noMerged))
-				DZS_Log.Warn("dzbot: -dzsDzbotNoMerged: no expectation for " + cj.m_Name);
-			else if (cj.m_NoExpect != "")
-				DZS_Log.Info("dzbot: no expectation for " + cj.m_Name + " (" + cj.m_NoExpect + ")");
-			else
-				sv.m_Merged.Insert("{\"target\":" + qt + ",\"checksum\":" + qs + "}");
-			DZS_Log.Info("dzbot: comparison form of " + cj.m_Name + " " + cj.m_Sum);
-			array<string> del;
-			array<string> add;
-			if (cj.m_Name == DZS_LootFiles.PROTO)
-			{
-				DZS_DzbotLoot.ProtoDelta(cj.m_Doc, sv.m_Written, sv.m_Origs, del, add);
-				st.m_NextTypes = new array<string>();
-				st.m_NextOrigs = new array<string>();
-				for (int w = 0; w < sv.m_Written.Count(); w++)
-				{
-					string wn = sv.m_Written[w];
-					string wo = sv.m_Origs[w];
-					st.m_NextTypes.Insert(wn);
-					st.m_NextOrigs.Insert(wo);
-				}
-			}
-			else
-				DZS_DzbotLoot.PosDelta(st, sv.m_Changes, del, add);
-			cj.m_Doc = null;
-			LootPart(sv, st, cj.m_Name, "delete", del);
-			LootPart(sv, st, cj.m_Name, "merge_add", add);
-			string dk = KeyOfPart(sv, st, cj.m_Name, "delete", del);
-			string ak = KeyOfPart(sv, st, cj.m_Name, "merge_add", add);
-			if (dk != "" && ak != "")
-			{
-				sv.m_Order.Insert(dk);
-				sv.m_Order.Insert(ak);
-			}
-		}
-		return true;
-	}
-
-	protected string KeyOfPart(DZS_DzbotSave sv, DZS_DzbotLootState st, string path, string type, array<string> chunks)
-	{
-		if (!chunks)
-			return "";
-		DZS_DzbotLootFile f = st.Own(path, type);
-		if (f)
-			return f.m_Key;
-		foreach (DZS_DzbotLootFile n : sv.m_NewLoot)
-		{
-			if (n.m_Path == path && n.m_Type == type)
-				return n.m_Key;
-		}
-		return "";
-	}
-
-	protected void LootPart(DZS_DzbotSave sv, DZS_DzbotLootState st, string path, string type, array<string> chunks)
-	{
-		DZS_DzbotLootFile own = st.Own(path, type);
-		if (!chunks)
-		{
-			if (own)
-			{
-				string qd = DZS_DzbotFrame.Q(own.m_Key);
-				sv.m_Deleted.Insert("{\"key\":" + qd + ",\"revision\":" + own.m_Rev + "}");
-				sv.m_PathOf.Set(own.m_Key, path);
-				DZS_Log.Info("dzbot: save deletes the emptied " + type + " delta of " + path);
-			}
-			return;
-		}
-		string entry;
-		string key;
-		if (own)
-		{
-			key = own.m_Key;
-			entry = "{\"key\":" + DZS_DzbotFrame.Q(key) + ",\"revision\":" + own.m_Rev;
-			string rv = own.m_Rev.ToString();
-			DZS_DzbotSection fs = DZS_DzbotSection.FromChunks("file", key, rv, chunks);
-			sv.m_Parts.Insert(fs);
-		}
-		else
-		{
-			key = NewKey();
-			string qk = DZS_DzbotFrame.Q(key);
-			string qp = DZS_DzbotFrame.Q(path);
-			string qt = DZS_DzbotFrame.Q(type);
-			entry = "{\"key\":" + qk + ",\"path\":" + qp + ",\"type\":" + qt + ",\"managed\":true";
-			DZS_DzbotSection ns = DZS_DzbotSection.FromChunks("file", key, "-", chunks);
-			sv.m_Parts.Insert(ns);
-			DZS_DzbotLootFile nf = new DZS_DzbotLootFile();
-			nf.m_Key = key;
-			nf.m_Path = path;
-			nf.m_Type = type;
-			sv.m_NewLoot.Insert(nf);
-		}
-		sv.m_Entries.Insert(entry);
-		sv.m_Targets.Insert("");
-		sv.m_PathOf.Set(key, path + " (" + type + ")");
-		int bytes = DZS_Files.Length(chunks);
-		DZS_Log.Info("dzbot: save " + type + " delta of " + path + ", " + bytes + " bytes");
 	}
 
 	static string NewKey()
@@ -2848,61 +2182,6 @@ class DZS_DzbotPlugin : DZS_Plugin
 			npf.m_Role = "project";
 			dp.m_ProjectFile = npf;
 		}
-		for (int i = 0; i < sv.m_NewKeys.Count(); i++)
-		{
-			DZS_DzbotFile nf = new DZS_DzbotFile();
-			nf.m_Key = sv.m_NewKeys[i];
-			nf.m_Path = sv.m_NewPaths[i];
-			nf.m_Role = "spawner";
-			dp.m_Files.Insert(nf);
-		}
-		DZS_DzbotLootState lst = dp.m_Loot;
-		if (lst)
-		{
-			foreach (DZS_DzbotLootFile nl : sv.m_NewLoot)
-				lst.m_Files.Insert(nl);
-			if (lst.m_NextRowKeys)
-			{
-				lst.m_RowKeys = lst.m_NextRowKeys;
-				lst.m_RowText = lst.m_NextRowText;
-				lst.m_DelKeys = lst.m_NextDelKeys;
-				lst.m_Origin.m_OwnRows.Clear();
-				foreach (string rk : lst.m_RowKeys)
-					lst.m_Origin.m_OwnRows.Set(rk, true);
-			}
-			if (lst.m_NextTypes)
-			{
-				lst.m_Origin.m_OwnTypes = lst.m_NextTypes;
-				lst.m_Origin.m_Origs = lst.m_NextOrigs;
-			}
-			lst.m_NextRowKeys = null;
-			lst.m_NextTypes = null;
-		}
-		DZS_SrcNode dels = r.m_Json.Get("deleted");
-		string deletedText = "";
-		if (dels && dels.IsArr())
-		{
-			foreach (DZS_SrcNode dn : dels.m_Items)
-			{
-				string dk = dn.m_Str;
-				deletedText += " " + dk;
-				for (int di = dp.m_Files.Count() - 1; di >= 0; di--)
-				{
-					DZS_DzbotFile dfi = dp.m_Files[di];
-					if (dfi.m_Key == dk)
-						dp.m_Files.Remove(di);
-				}
-				if (lst)
-				{
-					for (int dj = lst.m_Files.Count() - 1; dj >= 0; dj--)
-					{
-						DZS_DzbotLootFile lfj = lst.m_Files[dj];
-						if (lfj.m_Key == dk)
-							lst.m_Files.Remove(dj);
-					}
-				}
-			}
-		}
 		DZS_SrcNode revs = r.m_Json.Get("revisions");
 		if (revs && revs.IsArr())
 		{
@@ -2920,12 +2199,6 @@ class DZS_DzbotPlugin : DZS_Plugin
 					DZS_DzbotFile f = dp.FileByKey(key);
 					if (f)
 						f.m_Rev = rev;
-					if (lst)
-					{
-						DZS_DzbotLootFile lf = lst.ByKey(key);
-						if (lf)
-							lf.m_Rev = rev;
-					}
 				}
 			}
 		}
@@ -2933,7 +2206,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		DZS_SrcNode wl = r.m_Json.Get("written");
 		if (wl && wl.IsArr())
 			written = wl.Count().ToString();
-		DZS_Log.Info("dzbot: saved " + sv.m_SaveId + " after " + sv.m_Tries + " try/tries, written " + written + ", deleted" + deletedText + ", replayed " + r.Str("replayed") + ", revision " + dp.Revision());
+		DZS_Log.Info("dzbot: saved " + sv.m_SaveId + " after " + sv.m_Tries + " try/tries, written " + written + ", replayed " + r.Str("replayed") + ", revision " + dp.Revision());
 		EndSave();
 		PlateFor(sv.m_Folder);
 		pp.ProviderSaved("", "");

@@ -35,15 +35,6 @@ class DZS_RulesDialog : DZS_RulesBase
 	{
 		m_Rules = rules;
 		m_Inst = inst;
-		string name = "";
-		string mapKey = "";
-		DZS_ProjectsPlugin pp = DZS_ProjectsPlugin.Cast(DZS_Kernel.Get().GetPlugin("projects"));
-		if (pp && pp.m_Open)
-		{
-			name = pp.m_Open.m_Name;
-			mapKey = pp.m_Open.m_MapKey;
-		}
-		m_Project = DZS_ProjectV2.Build(DZS_Kernel.Get(), inst, name, mapKey);
 		map<string, string> ids = DZS_ProjectV2.GroupIds(inst);
 		for (int i = 0; i < ids.Count(); i++)
 			m_GroupOf.Set(ids.GetElement(i), ids.GetKey(i));
@@ -95,6 +86,18 @@ class DZS_RulesDialog : DZS_RulesBase
 	{
 		m_Parent = inner;
 		Note(DZS_Texts.Pick("Wann und wie dzbot die Blöcke und Änderungen auf einem Server anwendet, nach den Einstellungen des Mods. Gespeichert wird mit dem Projekt.", "When and how dzbot applies the blocks and changes on a server, by the mod's settings. Saved with the project."));
+		// the project as it is now, from the index built over several frames (never the whole project in one frame)
+		if (!IndexOrShell(m_Inst))
+			return;
+		DZS_ExtIndex idx = DZS_EntityExts.IndexReady(m_Inst);
+		if (idx)
+			m_Project = idx.m_Root;
+		if (!m_Project)
+		{
+			Note(DZS_Texts.Pick("Kein offenes Projekt.", "No open project."), "warning");
+			AddFootFocus();
+			return;
+		}
 		SettingsPart();
 		DZS_Json blocks = m_Project.Get("blocks");
 		DZS_Json changes = m_Project.Get("changes");
@@ -265,6 +268,11 @@ class DZS_RulesDialog : DZS_RulesBase
 		DZS_LinesDialog.GoneNotice("Die Einstellung wurde gelöscht", "This setting was deleted");
 	}
 
+	override void Again()
+	{
+		Reopen();
+	}
+
 	void Reopen()
 	{
 		if (m_Closed)
@@ -356,11 +364,16 @@ class DZS_RulesDialog : DZS_RulesBase
 		return s;
 	}
 
-	// After a rule changed: the summaries anew.
+	// After a rule changed: the summaries anew (once the index of the state as it is now is there).
 	void Refresh()
 	{
-		if (m_Closed)
+		if (m_Closed || m_IndexShell)
 			return;
+		if (!IndexNow())
+		{
+			Defer("call", "refresh");
+			return;
+		}
 		for (int i = 0; i < m_RowSummary.Count(); i++)
 		{
 			TextWidget t = m_RowSummary[i];
@@ -368,6 +381,12 @@ class DZS_RulesDialog : DZS_RulesBase
 				t.SetText(DZS_W.Literal(Summary(m_RowOwner[i])));
 		}
 		Layout();
+	}
+
+	override void Resume(string tag)
+	{
+		if (tag == "refresh")
+			Refresh();
 	}
 
 	override void Knobbed(DZS_Button b, string tag)
@@ -556,9 +575,17 @@ class DZS_RuleDialog : DZS_RulesBase
 		return false;
 	}
 
+	override void Again()
+	{
+		Reopen(false);
+	}
+
 	override void BuildContent(Widget inner)
 	{
 		m_Parent = inner;
+		// the elements and the data as they are now come from the index, built over several frames
+		if (!IndexOrShell(m_Inst))
+			return;
 		BuildCondition();
 		if (m_Kind == "change" && DZS_DzbotRules.CanFormula(m_Target))
 			BuildFormula();
@@ -1618,6 +1645,8 @@ class DZS_SettingDialog : DZS_RulesBase
 		DZS_Button go = AddFootButton("apply", DZS_Texts.Pick("Übernehmen", "Apply"), "main");
 		go.m_Hit.m_Primary = true;
 		Watch(inst);
+		// a new name is renamed in every rule of the project (DZS_EntityExts.OwnersWith): Apply waits for the index
+		UseIndex(inst);
 	}
 
 	// Where the setting is in the list now, -1 when it is gone (a new one: always "there").

@@ -221,8 +221,9 @@ class DZS_ProjectExtensions
 	}
 
 	// The URLs the open project uses, in file order: its own entries, then those only entities hold, then plugins
-	// holding data outside the list.
-	static array<string> Urls()
+	// holding data outside the list. entities false: of the entities only the opened file's not taken yet (no index,
+	// so nothing is built: whether an extension may still be added).
+	static array<string> Urls(bool entities = true)
 	{
 		array<string> r = new array<string>();
 		DZS_Instance inst = Shown();
@@ -232,7 +233,11 @@ class DZS_ProjectExtensions
 			if (lu != DZS_ProjectFile.EDITOR_EXT)
 				r.Insert(lu);
 		}
-		array<string> ents = DZS_EntityExts.Urls();
+		array<string> ents;
+		if (entities)
+			ents = DZS_EntityExts.Urls();
+		else
+			ents = DZS_EntityExts.FileUrls();
 		foreach (string eu : ents)
 		{
 			if (r.Find(eu) < 0 && eu != DZS_ProjectFile.EDITOR_EXT)

@@ -180,6 +180,9 @@ class DZS_ExtListDialog : DZS_LinesDialog
 	{
 		m_Parent = inner;
 		Note(DZS_Texts.Pick("Daten anderer Programme und Plugins im Projekt. Felder, die die Spezifikation einer Erweiterung anbietet, bearbeitest du hier.", "Data of other programs and plugins in the project. Fields an extension's spec offers are edited here."));
+		// the extensions the project's entities hold come from the index, built over several frames
+		if (!IndexOrShell(m_Inst))
+			return;
 		array<string> urls = DZS_ProjectExtensions.Urls();
 		m_Urls.Copy(urls);
 		if (m_Urls.Count() == 0)
@@ -224,9 +227,15 @@ class DZS_ExtListDialog : DZS_LinesDialog
 		return a + " · " + b;
 	}
 
+	override void Again()
+	{
+		Reopen();
+	}
+
 	// a spec arrived or failed: shown anew (when no other dialog is on top)
 	override void UpdateContent(float dt)
 	{
+		super.UpdateContent(dt);
 		if (m_Closed || DZS_ExtSpecs.Gen() == m_SeenGen)
 			return;
 		if (DZS_Kernel.Get().GetScreen().TopDialog() != this)
@@ -283,12 +292,27 @@ class DZS_ExtListDialog : DZS_LinesDialog
 	void OnRemoveAnswer(DZS_Dialog d, string result)
 	{
 		string url = m_AskUrl;
-		m_AskUrl = "";
 		if (result != "remove" || url == "")
+		{
+			m_AskUrl = "";
 			return;
+		}
+		// removing goes over every entity's values: once the index of the state as it is now is there
+		if (!IndexNow())
+		{
+			Defer("call", "remove");
+			return;
+		}
+		m_AskUrl = "";
 		DZS_ProjectExtensions.RemoveUrl(m_Inst, url);
 		DZS_Log.Info("extensions: removed " + url);
 		Reopen();
+	}
+
+	override void Resume(string tag)
+	{
+		if (tag == "remove")
+			OnRemoveAnswer(null, "remove");
 	}
 
 	override void OnFoot(string tag)
@@ -343,7 +367,7 @@ class DZS_ExtAddDialog : DZS_LinesDialog
 			why = DZS_Texts.Pick("Erst die Spezifikation laden", "Load the spec first");
 			return false;
 		}
-		if (DZS_ProjectExtensions.Urls().Find(m_Url) >= 0)
+		if (DZS_ProjectExtensions.Urls(false).Find(m_Url) >= 0)
 		{
 			why = DZS_Texts.Pick("Das Projekt hat diese Erweiterung schon", "The project has this extension already");
 			return false;
@@ -511,15 +535,6 @@ class DZS_ExtFieldsDialog : DZS_LinesDialog
 		m_G = g;
 		m_Inst = inst;
 		m_GroupId = groupId;
-		string name = "";
-		string mapKey = "";
-		DZS_ProjectsPlugin pp = DZS_ProjectsPlugin.Cast(DZS_Kernel.Get().GetPlugin("projects"));
-		if (pp && pp.m_Open)
-		{
-			name = pp.m_Open.m_Name;
-			mapKey = pp.m_Open.m_MapKey;
-		}
-		m_Project = DZS_ProjectV2.Build(DZS_Kernel.Get(), inst, name, mapKey);
 		string gid = groupId;
 		if (gid == "")
 			gid = DZS_RulesDialog.SelectedGroup(inst);
@@ -537,6 +552,11 @@ class DZS_ExtFieldsDialog : DZS_LinesDialog
 		m_Scroll = s;
 	}
 
+	override void Again()
+	{
+		Refresh();
+	}
+
 	override void BuildContent(Widget inner)
 	{
 		m_Parent = inner;
@@ -544,6 +564,18 @@ class DZS_ExtFieldsDialog : DZS_LinesDialog
 		if (!spec)
 		{
 			Note(DZS_ExtSpecs.StatusText(m_G.Url()), "warning");
+			AddFootFocus();
+			return;
+		}
+		// the project as it is now, from the index built over several frames (never the whole project in one frame)
+		if (!IndexOrShell(m_Inst))
+			return;
+		DZS_ExtIndex idx = DZS_EntityExts.IndexReady(m_Inst);
+		if (idx)
+			m_Project = idx.m_Root;
+		if (!m_Project)
+		{
+			Note(DZS_Texts.Pick("Kein offenes Projekt.", "No open project."), "warning");
 			AddFootFocus();
 			return;
 		}
@@ -770,6 +802,9 @@ class DZS_ExtTargetDialog : DZS_LinesDialog
 			AddFootFocus();
 			return;
 		}
+		// an entity's target reads the index (its elements, whether it is still there), built over several frames
+		if (m_T.m_Attach != "project" && !IndexOrShell(m_Inst))
+			return;
 		foreach (string e : m_Errors)
 			Note(e, "danger");
 		array<DZS_ExtField> fields = spec.FieldsFor(m_T.m_Attach, m_T.m_Kind, m_T.m_List);
@@ -967,6 +1002,13 @@ class DZS_ExtTargetDialog : DZS_LinesDialog
 			DZS_ExtGeneric.SetAt(m_Work, f.m_Path, v);
 		}
 		return errors;
+	}
+
+	override void Again()
+	{
+		array<string> errors = new array<string>();
+		errors.Copy(m_Errors);
+		Rebuild(errors);
 	}
 
 	void Rebuild(array<string> errors)

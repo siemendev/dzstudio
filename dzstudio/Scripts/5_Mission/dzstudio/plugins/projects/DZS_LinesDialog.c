@@ -6,6 +6,7 @@ class DZS_RCell : Managed
 	DZS_TextField m_Field;
 	DZS_Button m_Button;
 	DZS_Toggle m_Toggle;
+	DZS_ProgressBar m_Bar;
 	float m_W;
 }
 
@@ -65,7 +66,14 @@ class DZS_LinesDialog : DZS_Dialog
 
 	override void UpdateContent(float dt)
 	{
-		if (!m_WatchInst || m_Closed)
+		if (m_Closed)
+			return;
+		if (m_IndexPending)
+		{
+			IndexWait(dt);
+			return;
+		}
+		if (!m_WatchInst)
 			return;
 		m_WatchWait -= dt;
 		if (m_WatchWait > 0)
@@ -80,8 +88,187 @@ class DZS_LinesDialog : DZS_Dialog
 		int g = m_WatchInst.GetGen();
 		if (g == m_WatchGen)
 			return;
+		// a dialog that reads the extension index asks once it is built for the new state
+		if (!IndexNow())
+			return;
 		m_WatchGen = g;
 		StateChanged();
+	}
+
+	// ---- the extension index (DZS_EntityExts.IndexReady) ----
+	// A dialog that reads the index (UseIndex) never builds the whole project in one frame: the index is built over the
+	// next frames. A dialog opened meanwhile shows "Building …" with the shared progress bar instead of its content and
+	// is built again (Again) once it is there; an open one says so in its foot and carries out what was asked meanwhile
+	// (a knob, a foot knob, a choice) afterwards, after StateChanged has checked its target.
+
+	protected DZS_Instance m_IndexInst;
+	// the content is the "Building …" placeholder
+	protected bool m_IndexShell;
+	protected bool m_IndexPending;
+	// how long it has been waited for the index; the foot says "Building …" only after a moment (no flicker)
+	protected float m_IndexWaited;
+	protected bool m_IndexNote;
+	protected ref DZS_ProgressBar m_IndexBar;
+	protected ref array<string> m_DeferKinds = new array<string>();
+	protected ref array<string> m_DeferTags = new array<string>();
+	protected ref array<string> m_DeferWhats = new array<string>();
+	protected ref array<DZS_Button> m_DeferKnobs = new array<DZS_Button>();
+
+	protected void UseIndex(DZS_Instance inst)
+	{
+		m_IndexInst = inst;
+	}
+
+	static string BuildingText()
+	{
+		return DZS_Texts.Pick("Wird aufgebaut …", "Building …");
+	}
+
+	// Whether the index of the state as it is now is there; else it is being built (the foot says so after a moment)
+	// and false.
+	protected bool IndexNow()
+	{
+		if (!m_IndexInst)
+			return true;
+		if (DZS_EntityExts.IndexReady(m_IndexInst))
+			return true;
+		if (!m_IndexPending)
+		{
+			m_IndexPending = true;
+			m_IndexWaited = 0;
+		}
+		return false;
+	}
+
+	// At the start of BuildContent of a dialog that reads the index: true when it is there; else the content is
+	// "Building …" with the progress bar, false, and the dialog is built again (Again) once the index is there.
+	protected bool IndexOrShell(DZS_Instance inst)
+	{
+		m_IndexInst = inst;
+		if (!inst || DZS_EntityExts.IndexReady(inst))
+			return true;
+		m_IndexShell = true;
+		m_IndexPending = true;
+		Note(BuildingText(), "textMuted");
+		DZS_RLine l = Line(6, 22);
+		DZS_RCell c = new DZS_RCell();
+		DZS_ProgressBar bar = new DZS_ProgressBar(m_Parent);
+		m_IndexBar = bar;
+		bar.SetShare(DZS_EntityExts.IndexShare());
+		c.m_Bar = bar;
+		c.m_W = -1;
+		l.m_Cells.Insert(c);
+		AddFootFocus();
+		return false;
+	}
+
+	// The dialog built anew, as it is now (a dialog that shows "Building …" once the index is there).
+	void Again() {}
+
+	// Something that came while the index was built, carried out once it is there ("call": Resume(tag)).
+	protected void Defer(string kind, string tag, string what = "", DZS_Button knob = null)
+	{
+		for (int i = 0; i < m_DeferKinds.Count(); i++)
+		{
+			if (kind == "call" && m_DeferKinds[i] == kind && m_DeferTags[i] == tag)
+				return;
+		}
+		m_DeferKinds.Insert(kind);
+		m_DeferTags.Insert(tag);
+		m_DeferWhats.Insert(what);
+		m_DeferKnobs.Insert(knob);
+	}
+
+	void Resume(string tag) {}
+
+	protected void IndexWait(float dt)
+	{
+		DZS_Kernel k = DZS_Kernel.Get();
+		if (!m_IndexInst || (k && k.GetShown() != m_IndexInst))
+		{
+			Close();
+			return;
+		}
+		if (!DZS_EntityExts.IndexReady(m_IndexInst))
+		{
+			m_IndexWaited += dt;
+			if (m_IndexBar)
+				m_IndexBar.SetShare(DZS_EntityExts.IndexShare());
+			else if (!m_IndexNote && m_IndexWaited >= DZS_Jobs.SHOW_AFTER)
+			{
+				m_IndexNote = true;
+				SetFootNote(BuildingText());
+				Layout();
+			}
+			return;
+		}
+		m_IndexPending = false;
+		if (m_IndexShell)
+		{
+			// the target checked again on the state the index was built for: it may have gone meanwhile
+			if (TargetAlive())
+				Again();
+			else
+				Gone();
+			return;
+		}
+		if (m_IndexNote)
+		{
+			m_IndexNote = false;
+			SetFootNote("");
+			Layout();
+		}
+		if (m_WatchInst && m_WatchInst.GetGen() != m_WatchGen)
+		{
+			m_WatchGen = m_WatchInst.GetGen();
+			StateChanged();
+		}
+		if (m_Closed || m_IndexPending)
+			return;
+		array<string> kinds = new array<string>();
+		kinds.Copy(m_DeferKinds);
+		array<string> tags = new array<string>();
+		tags.Copy(m_DeferTags);
+		array<string> whats = new array<string>();
+		whats.Copy(m_DeferWhats);
+		array<DZS_Button> knobs = new array<DZS_Button>();
+		knobs.Copy(m_DeferKnobs);
+		m_DeferKinds.Clear();
+		m_DeferTags.Clear();
+		m_DeferWhats.Clear();
+		m_DeferKnobs.Clear();
+		for (int i = 0; i < kinds.Count(); i++)
+		{
+			if (m_Closed)
+				return;
+			string kind = kinds[i];
+			// the state changed again meanwhile: the rest waits for the next index
+			if (m_IndexPending)
+			{
+				Defer(kind, tags[i], whats[i], knobs[i]);
+				continue;
+			}
+			if (kind == "knob")
+				Knobbed(knobs[i], tags[i]);
+			else if (kind == "foot")
+				OnFoot(tags[i]);
+			else if (kind == "pick")
+				Picked(whats[i], tags[i]);
+			else if (kind == "call")
+				Resume(tags[i]);
+		}
+	}
+
+	// Foot knobs other than closing wait for the index; while the content is "Building …" they do nothing.
+	override void OnFootClick(DZS_Button b)
+	{
+		if (b.m_Tag == "close" || b.m_Tag == "cancel" || IndexNow())
+		{
+			super.OnFootClick(b);
+			return;
+		}
+		if (!m_IndexShell)
+			Defer("foot", b.m_Tag);
 	}
 
 	protected DZS_RLine Line(float before = 0, float height = 28)
@@ -169,6 +356,8 @@ class DZS_LinesDialog : DZS_Dialog
 			return c.m_Button.GetWidth();
 		if (c.m_Toggle)
 			return DZS_Toggle.Width() + DZS_Scale.Px(4);
+		if (c.m_Bar)
+			return DZS_ProgressBar.Width();
 		return DZS_Scale.Px(120);
 	}
 
@@ -217,6 +406,8 @@ class DZS_LinesDialog : DZS_Dialog
 					pc.m_Button.Place(x, y + (h - pc.m_Button.GetHeight()) / 2);
 				else if (pc.m_Toggle)
 					pc.m_Toggle.Place(x + DZS_Scale.Px(2), y + (h - DZS_Toggle.Height()) / 2);
+				else if (pc.m_Bar)
+					pc.m_Bar.Place(x, y + (h - DZS_ProgressBar.Height()) / 2);
 				x += cw + gap;
 			}
 			y += h;
@@ -226,6 +417,12 @@ class DZS_LinesDialog : DZS_Dialog
 
 	void OnKnob(DZS_Button b)
 	{
+		if (!IndexNow())
+		{
+			if (!m_IndexShell)
+				Defer("knob", b.m_Tag, "", b);
+			return;
+		}
 		Knobbed(b, b.m_Tag);
 	}
 
@@ -257,6 +454,12 @@ class DZS_LinesDialog : DZS_Dialog
 		DZS_Kernel.Get().GetScreen().CloseMenu();
 		if (!it.m_Enabled)
 			return;
+		if (!IndexNow())
+		{
+			if (!m_IndexShell)
+				Defer("pick", it.m_Tag, m_PickWhat);
+			return;
+		}
 		Picked(m_PickWhat, it.m_Tag);
 	}
 

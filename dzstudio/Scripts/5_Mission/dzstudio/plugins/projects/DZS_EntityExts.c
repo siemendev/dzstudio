@@ -478,6 +478,14 @@ class DZS_EntityExts
 		return s_Pending && DZS_Jobs.Running(s_Pending);
 	}
 
+	// How far IndexReady's build is (0..1), 0 when none runs.
+	static float IndexShare()
+	{
+		if (s_Pending && DZS_Jobs.Running(s_Pending))
+			return s_Pending.m_Share;
+		return 0;
+	}
+
 	// Build: the entity's extensions from where they live, and that place remembered.
 	static void Attach(DZS_Json entity, DZS_Instance inst, string elem, string slot)
 	{
