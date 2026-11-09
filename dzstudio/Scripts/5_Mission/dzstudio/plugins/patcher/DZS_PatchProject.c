@@ -89,7 +89,8 @@ class DZS_PatchProject : Managed
 					b.m_ParentId = par.m_Str;
 				else if (par && par.IsObj())
 					b.m_Parent = par;
-				b.m_Data = bj.Get("data");
+				// extensions of the block and of its list elements are not the game's: never written into a file
+				b.m_Data = DZS_EntityExts.Plain(bj.Get("data"));
 				if (!b.m_Data)
 					b.m_Data = DZS_Json.Obj();
 				p.m_Blocks.Insert(b);

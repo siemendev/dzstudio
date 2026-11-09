@@ -43,7 +43,8 @@ block becomes a group named after the block, loot off, the camera at the map's d
   - `plugins` — per-project data of plugins by plugin name.
 - `view` — `camera`: `pos` `[x, y, z]`, `heading` and `pitch` in degrees.
 
-dzStudio writes the whole entry anew on every save; members not listed here do not survive it.
+dzStudio writes the whole entry anew on every save; members not listed here do not survive it. The extension lives
+only in the project's `extensions`; dzStudio puts nothing of it on blocks, changes or elements.
 
 ## Reading
 

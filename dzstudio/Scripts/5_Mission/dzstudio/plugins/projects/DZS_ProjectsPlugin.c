@@ -1872,6 +1872,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		m_Kernel.AddLoaded(inst);
 		tk = TickCount(0);
 		m_Kernel.ShowInstance(inst);
+		DZS_ProjectExtensions.Opened(inst);
 		int tShow = TickCount(0) - tk;
 		DZS_Log.Info("open timing: read " + DZS_Num.Fixed(j.m_TRead / 10000.0, 0) + " ms, checksum " + DZS_Num.Fixed(j.m_TSum / 10000.0, 0) + " ms, parse " + DZS_Num.Fixed(j.m_TParse / 10000.0, 0) + " ms, build " + DZS_Num.Fixed(j.m_TBuild / 10000.0, 0) + " ms, load " + DZS_Num.Fixed(tLoad / 10000.0, 0) + " ms, show " + DZS_Num.Fixed(tShow / 10000.0, 0) + " ms, total " + DZS_Num.Fixed((TickCount(0) - j.m_T0) / 10000.0, 0) + " ms");
 		if ((skip & 2) == 0)

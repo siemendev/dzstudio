@@ -40,7 +40,7 @@ dzStudio and [dzbot](https://dzbot.de) implement the patcher and are checked aga
 | `slug` | string | Lower-case name used for the project's own files: `dzstudio/<slug>/<block id>.json`. |
 | `blocks` | array | Own blocks, in order (below). |
 | `changes` | array | Changes to existing entries, applied in order (below). |
-| `extensions` | object | Data of other programs and plugins (below). The patcher ignores it. |
+| `extensions` | object | Data of other programs and plugins for the whole project (below). The patcher ignores it. |
 
 Members a program does not know stay in the file when it rewrites it.
 
@@ -57,7 +57,9 @@ Members a program does not know stay in the file when it rewrites it.
   (`{"event": "VehicleCivilianSedan"}`: an own spawn position in a vanilla event) or the `id` of an own block (a string:
   a child of an own event). Absent or `null` for top-level kinds.
 - `data` — the block's fields, named as in the mission file (XML attributes and elements, JSON members). Own blocks
-  are written complete: every field the game needs is required, nothing is left to engine defaults.
+  are written complete: every field the game needs is required, nothing is left to engine defaults. An element of a
+  list in `data` (`objects[i]`, `children[i]` …) may carry `extensions` of its own; the patcher leaves it out.
+- `extensions` — optional, data of other programs and plugins for this block (below).
 
 An own block whose key already exists in the base (an own event named like an existing one) is not written
 (`collision`).
@@ -77,6 +79,7 @@ An own block whose key already exists in the base (an own event named like an ex
 | `field` | For `set`: the field, as a path inside the entry (`nominal`, `flags@deletable`, `pos`; a gameplay setting has its path in the key and no field). |
 | `from` | Optional: the value when the change was made. A list records the whole list or `sha256:` of its members. |
 | `to` | For `set`: the new value. `null` removes an optional attribute where the kind allows it (`lootmax`). |
+| `extensions` | Optional: data of other programs and plugins for this change (below). |
 
 Adding something to an existing entry is an own block with that entry as `parent`, never a change.
 
@@ -175,44 +178,58 @@ An entry may carry a `detail` code (`case-mismatch`, `bad-value`, `unknown-field
 ## Extensions
 
 `extensions` holds data of other programs and plugins. An extension **is the URL of its spec file**: the project file
-references the spec, it does not define the extension.
+references the spec, it does not define the extension. The project, every block, every change and every element of a
+list in a block's `data` may have `extensions`:
 
 ```json
 "extensions": {
   "https://developers.dzbot.de/specs/dzstudio/editor/1.json": { "data": { … } },
-  "https://developers.dzbot.de/specs/dzbot/rules/1.json": { "data": { "blocks": { … }, "changes": { … } } },
   "https://example.com/specs/weather/2.json": { "required": true, "data": { … } }
 }
 ```
 
+```json
+{ "id": "g-arena", "kind": "spawnerGroup", "data": { "objects": [ { "name": "…", "pos": [ … ], "extensions": { "<url>": { … } } } ] },
+  "extensions": { "https://developers.dzbot.de/specs/dzbot/rules/1.json": { "if": { … } } } }
+```
+
 - The key is the URL of the extension's spec file. The version is part of the URL; an incompatible new version is a new
   URL (`…/rules/2.json`), so a program knows exactly what it reads.
-- The entry is `{"data": …}`, `data` in the shape the spec defines, and optionally `"required": true`.
+- On the project the entry is `{"data": …}`, `data` in the shape the spec defines, and optionally `"required": true`.
+  On a block, change or element the entry is the extension's object for that entity itself, without `data` and
+  without `required`.
 - `"required": true` — a program that does not know the URL **must not apply** the project: the extension changes what
   the project means. It stays in the project file so that a program that cannot fetch or does not know the spec still
   knows. Leave it out when the project means the same without the extension.
 - Programs match extensions by URL and never need to fetch the spec to work. Whoever rewrites the file keeps entries
-  it does not know as they are, and keeps members of a known entry it does not use.
-- The patcher ignores `extensions`.
+  it does not know as they are, and keeps members of a known entry it does not use. An entity that is removed takes its
+  extensions with it.
+- The patcher ignores `extensions` everywhere and never writes an `extensions` member into a mission file.
 
 ### Spec files
 
-A spec file is JSON served at its own URL:
+A spec file is JSON served at its own URL (https), checked by the JSON Schema
+`https://developers.dzbot.de/specs/extension.schema.json`:
 
 ```json
 {
-  "$id": "https://developers.dzbot.de/specs/dzbot/rules/1.json",
+  "$id": "https://developers.dzbot.de/specs/examples/server-info/1.json",
   "kind": "dzstudio-project-extension",
-  "title": { "en": "dzbot rules", "de": "dzbot-Regeln" },
+  "title": { "en": "Server info (example)", "de": "Server-Info (Beispiel)" },
   "description": { "en": "…", "de": "…" },
   "owner": "dzbot",
-  "spec": "https://github.com/siemendev/dzstudio/blob/main/docs/extensions/dzbot.rules.md"
+  "spec": "https://github.com/siemendev/dzstudio/blob/main/docs/extensions/README.md#spec-files",
+  "fields": [
+    { "id": "welcome", "attach": "project", "type": "text", "label": { "en": "Welcome text", "de": "Willkommenstext" }, "edit": "studio" },
+    { "id": "lootWeight", "attach": "block:spawnerGroup", "type": "number", "min": 0, "max": 10, "default": 1, "label": { "en": "Loot weight", "de": "Loot-Gewicht" }, "edit": "studio" }
+  ]
 }
 ```
 
-`$id` is its own URL, `title` and `description` name it for people, `spec` links the human-readable spec. Planned: a
-`fields` list describing the data, so dzStudio can show and edit an extension it has no plugin for — each field marked
-as editable in the studio or only by tools and plugins. Until then a program needs to know an extension to use it.
+`$id` is its own URL, `title` and `description` name it for people, `spec` links the human-readable spec, `required`
+is the default when a program adds the extension. `fields` describe values on the project, blocks, changes or list
+elements, so a program without a plugin for the extension can show them and — where a field says `"edit": "studio"` —
+edit them; the field language is in [`extensions/README.md`](extensions/README.md#fields).
 
 Extensions specified here:
 

@@ -131,10 +131,13 @@ class DZS_ProjectV2
 		DZS_Json root = Empty(mapKey, name);
 		DZS_Json blocks = root.Get("blocks");
 		DZS_Json changes = root.Get("changes");
+		DZS_EntityExts.Resolve(inst);
 		Groups(kernel, inst, blocks);
 		if (!noLoot)
 			Loot(kernel, inst, blocks, changes);
 		Sections(inst, blocks, changes);
+		// the extensions of blocks, changes and list elements as the project file had them (or they were edited)
+		DZS_EntityExts.Attach(root);
 		return root;
 	}
 
@@ -211,6 +214,7 @@ class DZS_ProjectV2
 				CopyMember(entry, obj, "scale");
 				CopyMember(entry, obj, "enableCEPersistency");
 				CopyMember(entry, obj, "customString");
+				DZS_EntityExts.PutOn(obj, DZS_EntityExts.OfObject(oid));
 				objects.Add(obj);
 			}
 			DZS_Json data = DZS_Json.Obj();
@@ -218,6 +222,7 @@ class DZS_ProjectV2
 			data.Set("name", gn);
 			data.Set("objects", objects);
 			DZS_Json b = Block(unique, "spawnerGroup", data);
+			DZS_EntityExts.PutOn(b, DZS_EntityExts.OfGroup(gid));
 			blocks.Add(b);
 		}
 	}

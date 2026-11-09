@@ -23,13 +23,16 @@ class DZS_DzbotSetting : Managed
 	}
 }
 
-// dzbot's rules for a project mod (extension URL, docs/extensions/dzbot.rules.md): per own block (by its id)
-// and per change (by its ref) a condition on the mod's settings, a formula, "target required", and for blocks
-// repetition, values from settings and rules for single list elements. dzStudio edits them; dzbot applies them.
-// Members it does not know stay as they are.
+// dzbot's rules for a project mod (extension URL, docs/extensions/dzbot.rules.md). The rules sit on the entities they
+// concern, in their own "extensions" (DZS_EntityExts): a block's {if, required, repeat, fields}, a list element's
+// {if, repeat, fields}, a change's {if, formula, required}. The project's own entry holds the mod's settings
+// ("settings": dzbot's config fields). The dialogs see a block's rule with its elements' rules under "items" by
+// "<list>[<index>]", as before. Members it does not know stay as they are.
 class DZS_DzbotRules : DZS_ProjectExtension
 {
 	static const string URL = "https://developers.dzbot.de/specs/dzbot/rules/1.json";
+	// the member of the project's entry with the mod's settings
+	static const string SETTINGS = "settings";
 
 	DZS_DzbotPlugin m_P;
 	protected ref DZS_Json m_Data;
@@ -38,6 +41,8 @@ class DZS_DzbotRules : DZS_ProjectExtension
 	protected int m_MarkGen = -1;
 	protected int m_MarkTick;
 	protected ref map<string, string> m_Marks = new map<string, string>();
+	protected ref array<ref DZS_DzbotSetting> m_Own;
+	protected int m_OwnGen = -1;
 
 	override string Url() { return URL; }
 
@@ -60,6 +65,11 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		m_Gen++;
 	}
 
+	override void Opened(DZS_Instance inst)
+	{
+		Migrate(inst);
+	}
+
 	override DZS_Json Data()
 	{
 		if (!m_Data)
@@ -78,11 +88,92 @@ class DZS_DzbotRules : DZS_ProjectExtension
 			data.Remove(section);
 	}
 
-	array<ref DZS_DzbotSetting> Settings()
+	protected DZS_Instance Inst()
 	{
 		if (!m_P)
-			return new array<ref DZS_DzbotSetting>();
-		return m_P.OpenSettings();
+			return null;
+		return m_P.Kernel().GetShown();
+	}
+
+	// Files written before the rules moved onto the entities held them in the project's entry, "blocks" by id and
+	// "changes" by ref: they move onto the entities (an entity that has a rule of its own keeps it).
+	protected void Migrate(DZS_Instance inst)
+	{
+		if (!m_Data || !inst)
+			return;
+		int moved = 0;
+		DZS_Json blocks = m_Data.Get("blocks");
+		if (blocks && blocks.IsObj())
+		{
+			for (int i = 0; i < blocks.m_Keys.Count(); i++)
+			{
+				string bid = blocks.m_Keys[i];
+				if (Rule("blocks", bid))
+					continue;
+				DZS_Json br = blocks.Get(bid);
+				PutBlock(inst, bid, br);
+				moved++;
+			}
+			m_Data.Remove("blocks");
+		}
+		DZS_Json changes = m_Data.Get("changes");
+		if (changes && changes.IsObj())
+		{
+			for (int k = 0; k < changes.m_Keys.Count(); k++)
+			{
+				string cref = changes.m_Keys[k];
+				DZS_Json cr = changes.Get(cref);
+				if (DZS_EntityExts.ChangeByRef(cref, URL) || IsEmpty(cr))
+					continue;
+				DZS_Json crCopy = cr.Clone();
+				DZS_EntityExts.SetChangeByRef(cref, URL, crCopy);
+				moved++;
+			}
+			m_Data.Remove("changes");
+		}
+		if (moved > 0)
+		{
+			m_Gen++;
+			DZS_Log.Info("dzbot: " + moved + " rule(s) moved from the project entry onto their blocks and changes");
+		}
+	}
+
+	// ---- settings (config fields of the mod) ----
+
+	// The project's own list of settings, null when it has none.
+	DZS_Json SettingsList()
+	{
+		if (!m_Data)
+			return null;
+		DZS_Json list = m_Data.Get(SETTINGS);
+		if (!list || !list.IsArr())
+			return null;
+		return list;
+	}
+
+	// The settings for the pickers: the project's own, else the ones dzbot sent with the mod.
+	array<ref DZS_DzbotSetting> Settings()
+	{
+		DZS_Json list = SettingsList();
+		if (!list)
+		{
+			if (!m_P)
+				return new array<ref DZS_DzbotSetting>();
+			return m_P.OpenSettings();
+		}
+		if (!m_Own || m_OwnGen != m_Gen)
+		{
+			m_Own = new array<ref DZS_DzbotSetting>();
+			m_OwnGen = m_Gen;
+			for (int i = 0; i < list.Count(); i++)
+			{
+				DZS_Json entry = list.At(i);
+				DZS_DzbotSetting st = SettingOf(entry);
+				if (st)
+					m_Own.Insert(st);
+			}
+		}
+		return m_Own;
 	}
 
 	DZS_DzbotSetting Setting(string id)
@@ -95,64 +186,364 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		return null;
 	}
 
-	// ---- rules ----
-
-	protected DZS_Json Section(string section, bool create)
+	// The identifier of an entry ("identifier", or "id" of the provider's shape).
+	static string SettingId(DZS_Json entry)
 	{
-		if (!m_Data)
-		{
-			if (!create)
-				return null;
-			m_Data = DZS_Json.Obj();
-		}
-		DZS_Json s = m_Data.Get(section);
-		if ((!s || !s.IsObj()) && create)
-		{
-			s = DZS_Json.Obj();
-			m_Data.Set(section, s);
-		}
-		if (s && !s.IsObj())
-			return null;
-		return s;
+		if (!entry || !entry.IsObj())
+			return "";
+		string id = entry.GetStr("identifier");
+		if (id == "")
+			id = entry.GetStr("id");
+		return id;
 	}
 
-	// section "blocks" or "changes"; null when there is no rule
+	// An entry's options: "options", or "typeConfig.options"; null when there are none.
+	static DZS_Json OptionsOf(DZS_Json entry)
+	{
+		DZS_Json o = entry.Get("options");
+		if (o && o.IsArr())
+			return o;
+		DZS_Json tc = entry.Get("typeConfig");
+		if (tc && tc.IsObj())
+		{
+			DZS_Json to = tc.Get("options");
+			if (to && to.IsArr())
+				return to;
+		}
+		return null;
+	}
+
+	static DZS_DzbotSetting SettingOf(DZS_Json entry)
+	{
+		string id = SettingId(entry);
+		if (id == "")
+			return null;
+		DZS_DzbotSetting st = new DZS_DzbotSetting();
+		st.m_Id = id;
+		st.m_Title = entry.GetStr("title");
+		st.m_Type = entry.GetStr("type");
+		st.m_Multiple = entry.GetBool("multiple");
+		DZS_Json tc = entry.Get("typeConfig");
+		if (tc && tc.IsObj() && tc.GetBool("multiple"))
+			st.m_Multiple = true;
+		DZS_Json opts = OptionsOf(entry);
+		if (opts)
+		{
+			for (int i = 0; i < opts.Count(); i++)
+			{
+				DZS_Json o = opts.At(i);
+				if (o.IsObj())
+					st.m_Options.Insert(o.GetStr("value"));
+				else if (o.IsStr() || o.IsNum())
+					st.m_Options.Insert(o.m_Str);
+			}
+		}
+		DZS_Json props = entry.Get("props");
+		if ((!props || !props.IsArr()) && tc && tc.IsObj())
+			props = tc.Get("props");
+		if (props && props.IsArr())
+		{
+			for (int k = 0; k < props.Count(); k++)
+			{
+				DZS_Json pr = props.At(k);
+				if (pr.IsObj())
+					st.m_Props.Insert(pr.GetStr("name"));
+			}
+		}
+		return st;
+	}
+
+	// The project's list of settings to edit in place; the first edit copies dzbot's list into the project.
+	DZS_Json SettingsForEdit()
+	{
+		DZS_Json list = SettingsList();
+		if (list)
+			return list;
+		if (!m_Data)
+			m_Data = DZS_Json.Obj();
+		list = DZS_Json.Arr();
+		if (m_P)
+		{
+			array<ref DZS_DzbotSetting> sent = m_P.OpenSettings();
+			foreach (DZS_DzbotSetting st : sent)
+			{
+				DZS_Json entry = DZS_Json.Obj();
+				DZS_Json idj = DZS_Json.Str(st.m_Id);
+				entry.Set("identifier", idj);
+				DZS_Json tj = DZS_Json.Str(st.m_Title);
+				entry.Set("title", tj);
+				DZS_Json ty = DZS_Json.Str(st.m_Type);
+				entry.Set("type", ty);
+				if (st.m_Multiple)
+				{
+					DZS_Json mj = DZS_Json.Boolean(true);
+					entry.Set("multiple", mj);
+				}
+				if (st.m_Options.Count() > 0)
+				{
+					DZS_Json opts = DZS_Json.Arr();
+					foreach (string ov : st.m_Options)
+					{
+						DZS_Json oo = DZS_Json.Obj();
+						DZS_Json vj = DZS_Json.Str(ov);
+						oo.Set("value", vj);
+						opts.Add(oo);
+					}
+					entry.Set("options", opts);
+				}
+				if (st.m_Props.Count() > 0)
+				{
+					DZS_Json props = DZS_Json.Arr();
+					foreach (string pv : st.m_Props)
+					{
+						DZS_Json po = DZS_Json.Obj();
+						DZS_Json nj = DZS_Json.Str(pv);
+						po.Set("name", nj);
+						props.Add(po);
+					}
+					entry.Set("props", props);
+				}
+				list.Add(entry);
+			}
+		}
+		m_Data.Set(SETTINGS, list);
+		return list;
+	}
+
+	void SettingsChanged()
+	{
+		m_Gen++;
+		DZS_ProjectExtensions.Changed(Inst());
+	}
+
+	// A setting renamed: its name in every condition, formula, value and repetition of the project's rules.
+	int RenameSetting(string old, string nw)
+	{
+		if (old == "" || old == nw)
+			return 0;
+		int n = 0;
+		array<ref DZS_Json> all = DZS_EntityExts.Values(URL);
+		foreach (DZS_Json v : all)
+			n += RenameIn(v, old, nw);
+		if (m_Data)
+		{
+			DZS_Json legacyBlocks = m_Data.Get("blocks");
+			if (legacyBlocks)
+				n += RenameIn(legacyBlocks, old, nw);
+			DZS_Json legacyChanges = m_Data.Get("changes");
+			if (legacyChanges)
+				n += RenameIn(legacyChanges, old, nw);
+		}
+		m_Gen++;
+		DZS_ProjectExtensions.Changed(Inst());
+		return n;
+	}
+
+	// Names in a rule tree: "field" of a comparison, "setting" of a value, "over" of a repetition, names in
+	// "formula" and "count".
+	static int RenameIn(DZS_Json node, string old, string nw)
+	{
+		if (!node)
+			return 0;
+		int n = 0;
+		if (node.IsArr())
+		{
+			for (int i = 0; i < node.Count(); i++)
+			{
+				DZS_Json item = node.At(i);
+				n += RenameIn(item, old, nw);
+			}
+			return n;
+		}
+		if (!node.IsObj())
+			return 0;
+		for (int k = 0; k < node.m_Keys.Count(); k++)
+		{
+			string key = node.m_Keys[k];
+			DZS_Json v = node.Get(key);
+			if (!v)
+				continue;
+			if (v.IsStr())
+			{
+				bool nameKey = key == "setting" || key == "over" || (key == "field" && node.Has("op"));
+				if (nameKey && v.m_Str == old)
+				{
+					v.m_Str = nw;
+					n++;
+				}
+				else if (key == "formula" || key == "count")
+				{
+					string renamed = RenameInFormula(v.m_Str, old, nw);
+					if (renamed != v.m_Str)
+					{
+						v.m_Str = renamed;
+						n++;
+					}
+				}
+				continue;
+			}
+			n += RenameIn(v, old, nw);
+		}
+		return n;
+	}
+
+	protected static bool NameChar(string c, bool first)
+	{
+		string letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
+		if (letters.IndexOf(c) >= 0)
+			return true;
+		string digits = "0123456789";
+		return !first && digits.IndexOf(c) >= 0;
+	}
+
+	// Whole names (not the part after a dot: "source.x" renames "source", never "x").
+	static string RenameInFormula(string f, string old, string nw)
+	{
+		string r = "";
+		int i = 0;
+		int len = f.Length();
+		while (i < len)
+		{
+			string c = f.Get(i);
+			if (!NameChar(c, true))
+			{
+				r += c;
+				i++;
+				continue;
+			}
+			int j = i;
+			while (j < len && NameChar(f.Get(j), false))
+				j++;
+			string word = f.Substring(i, j - i);
+			bool afterDot = i > 0 && f.Get(i - 1) == ".";
+			if (word == old && !afterDot)
+				r += nw;
+			else
+				r += word;
+			i = j;
+		}
+		return r;
+	}
+
+	// ---- rules on the entities ----
+
+	// section "blocks" (by block id; elements' rules under "items") or "changes" (by ref); null when there is none
 	DZS_Json Rule(string section, string rid)
 	{
-		DZS_Json s = Section(section, false);
-		if (!s)
+		DZS_Instance inst = Inst();
+		if (section == "changes")
+		{
+			DZS_Json cv = DZS_EntityExts.ChangeByRef(rid, URL);
+			if (!cv || !cv.IsObj())
+				return null;
+			return cv;
+		}
+		DZS_Json bv = DZS_EntityExts.Block(inst, rid, URL);
+		map<string, ref DZS_Json> els = DZS_EntityExts.ElementsOf(inst, rid, URL);
+		bool own = bv && bv.IsObj();
+		if (!own && els.Count() == 0)
 			return null;
-		DZS_Json r = s.Get(rid);
-		if (!r || !r.IsObj())
-			return null;
+		DZS_Json r;
+		if (own)
+			r = bv.Clone();
+		else
+			r = DZS_Json.Obj();
+		if (els.Count() > 0)
+		{
+			DZS_Json items = DZS_Json.Obj();
+			for (int i = 0; i < els.Count(); i++)
+			{
+				DZS_Json el = els.GetElement(i);
+				DZS_Json elCopy = el.Clone();
+				items.Set(els.GetKey(i), elCopy);
+			}
+			r.Set("items", items);
+		}
 		return r;
 	}
 
 	// A rule replaced; an empty one (or null) removes it.
 	void Put(string section, string rid, DZS_Json rule)
 	{
-		if (IsEmpty(rule))
+		DZS_Instance inst = Inst();
+		if (section == "changes")
 		{
-			DZS_Json s = Section(section, false);
-			if (s)
-				s.Remove(rid);
+			DZS_Json cv = null;
+			if (!IsEmpty(rule))
+				cv = rule.Clone();
+			DZS_EntityExts.SetChangeByRef(rid, URL, cv);
 		}
 		else
-		{
-			DZS_Json into = Section(section, true);
-			into.Set(rid, rule);
-		}
+			PutBlock(inst, rid, rule);
 		m_Gen++;
-		DZS_ProjectExtensions.Changed(m_P.Kernel().GetShown());
+		DZS_ProjectExtensions.Changed(inst);
 	}
 
+	protected void PutBlock(DZS_Instance inst, string bid, DZS_Json rule)
+	{
+		DZS_Json own = null;
+		DZS_Json items = null;
+		if (rule && rule.IsObj())
+		{
+			own = rule.Clone();
+			items = own.Get("items");
+			own.Remove("items");
+			if (IsEmpty(own))
+				own = null;
+		}
+		DZS_EntityExts.SetBlock(inst, bid, URL, own);
+		map<string, ref DZS_Json> was = DZS_EntityExts.ElementsOf(inst, bid, URL);
+		for (int i = 0; i < was.Count(); i++)
+		{
+			string old = was.GetKey(i);
+			if (!items || !items.IsObj() || !items.Has(old))
+				SetItem(inst, bid, old, null);
+		}
+		if (!items || !items.IsObj())
+			return;
+		for (int k = 0; k < items.m_Keys.Count(); k++)
+		{
+			string path = items.m_Keys[k];
+			DZS_Json one = items.Get(path);
+			SetItem(inst, bid, path, one);
+		}
+	}
+
+	// "objects[3]" -> "objects", 3
+	static bool ItemPath(string path, out string list, out int index)
+	{
+		list = "";
+		index = -1;
+		int open = path.IndexOf("[");
+		int close = path.IndexOf("]");
+		if (open <= 0 || close != path.Length() - 1 || close < open + 2)
+			return false;
+		list = path.Substring(0, open);
+		string num = path.Substring(open + 1, close - open - 1);
+		if (!DZS_Json.IsNumberText(num) || num.IndexOf(".") >= 0 || num.IndexOf("-") >= 0)
+			return false;
+		index = num.ToInt();
+		return true;
+	}
+
+	protected void SetItem(DZS_Instance inst, string bid, string path, DZS_Json rule)
+	{
+		string list;
+		int index;
+		if (!ItemPath(path, list, index))
+			return;
+		DZS_Json copy = null;
+		if (!IsEmpty(rule))
+			copy = rule.Clone();
+		DZS_EntityExts.SetElement(inst, bid, list, index, URL, copy);
+	}
+
+	// Blocks ("blocks") or change refs ("changes") that hold a rule, also of entities the project no longer has.
 	array<string> Refs(string section)
 	{
-		array<string> r = new array<string>();
-		DZS_Json s = Section(section, false);
-		if (s)
-			r.Copy(s.m_Keys);
-		return r;
+		if (section == "changes")
+			return DZS_EntityExts.ChangeRefs(URL);
+		return DZS_EntityExts.BlockIds(Inst(), URL);
 	}
 
 	// no member, or only empty "fields" / "items"
@@ -201,256 +592,14 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		return a + " · " + b;
 	}
 
-	// ---- addressing, exactly as dzbot does (ProjectRules::ref) ----
+	// ---- addressing and labels (DZS_ProjectRefs) ----
 
-	// block, the key as compact JSON (numbers as PHP writes them after reading), field; trimmed
-	static string ChangeRef(DZS_Json change)
-	{
-		DZS_TextWriter w = new DZS_TextWriter();
-		w.Append(change.GetStr("block"));
-		w.Append(" ");
-		DZS_Json key = change.Get("key");
-		if (!key || key.m_Type == DZS_Json.NUL)
-			w.Append("{}");
-		else
-			Canon(w, key);
-		w.Append(" ");
-		w.Append(change.GetStr("field"));
-		array<string> parts = w.Finish();
-		string r = "";
-		foreach (string p : parts)
-			r += p;
-		r.TrimInPlace();
-		return r;
-	}
-
-	static void Canon(DZS_TextWriter w, DZS_Json v)
-	{
-		if (v.m_Type == DZS_Json.NUM)
-		{
-			w.Append(PhpNumber(v.m_Str));
-			return;
-		}
-		if (v.m_Type == DZS_Json.ARR)
-		{
-			w.Append("[");
-			for (int i = 0; i < v.m_Items.Count(); i++)
-			{
-				if (i > 0)
-					w.Append(",");
-				DZS_Json item = v.m_Items[i];
-				Canon(w, item);
-			}
-			w.Append("]");
-			return;
-		}
-		if (v.m_Type == DZS_Json.OBJ)
-		{
-			w.Append("{");
-			for (int k = 0; k < v.m_Keys.Count(); k++)
-			{
-				if (k > 0)
-					w.Append(",");
-				string name = v.m_Keys[k];
-				DZS_Json.WriteString(w, name);
-				w.Append(":");
-				DZS_Json member = v.m_Map.Get(name);
-				Canon(w, member);
-			}
-			w.Append("}");
-			return;
-		}
-		v.Write(w, false, 0);
-	}
-
-	// A JSON number as PHP's json_encode writes it after json_decode: 5.0 → 5, 1.50 → 1.5, 1e2 → 100, 0.00001 → 1.0e-5,
-	// 1e17 → 1.0e+17. More than 17 significant digits are not rounded.
-	static string PhpNumber(string raw)
-	{
-		string s = raw;
-		bool neg = false;
-		if (s.Length() > 0 && s.Get(0) == "-")
-		{
-			neg = true;
-			s = s.Substring(1, s.Length() - 1);
-		}
-		int exp = 0;
-		string low = s;
-		low.ToLower();
-		int e = low.IndexOf("e");
-		string mant = s;
-		if (e >= 0)
-		{
-			string es = s.Substring(e + 1, s.Length() - e - 1);
-			bool eneg = false;
-			if (es.Length() > 0 && (es.Get(0) == "+" || es.Get(0) == "-"))
-			{
-				eneg = es.Get(0) == "-";
-				es = es.Substring(1, es.Length() - 1);
-			}
-			exp = es.ToInt();
-			if (eneg)
-				exp = -exp;
-			mant = s.Substring(0, e);
-		}
-		int dot = mant.IndexOf(".");
-		string ip = mant;
-		string fp = "";
-		if (dot >= 0)
-		{
-			ip = mant.Substring(0, dot);
-			fp = mant.Substring(dot + 1, mant.Length() - dot - 1);
-		}
-		string digits = ip + fp;
-		int decpt = ip.Length() + exp;
-		while (digits.Length() > 0 && digits.Get(0) == "0")
-		{
-			digits = digits.Substring(1, digits.Length() - 1);
-			decpt--;
-		}
-		if (e < 0 && dot < 0)
-		{
-			if (digits == "")
-				return "0";
-			if (neg)
-				return "-" + digits;
-			return digits;
-		}
-		while (digits.Length() > 0 && digits.Get(digits.Length() - 1) == "0")
-			digits = digits.Substring(0, digits.Length() - 1);
-		if (digits == "")
-			return "0";
-		string sign = "";
-		if (neg)
-			sign = "-";
-		int n = digits.Length();
-		if (decpt >= n && decpt <= 17)
-		{
-			string whole = digits;
-			for (int z = n; z < decpt; z++)
-				whole += "0";
-			return sign + whole;
-		}
-		if (decpt < -3 || decpt > 17)
-		{
-			string rest = "0";
-			if (n > 1)
-				rest = digits.Substring(1, n - 1);
-			int pexp = decpt - 1;
-			string esign = "+";
-			if (pexp < 0)
-			{
-				esign = "-";
-				pexp = -pexp;
-			}
-			return sign + digits.Get(0) + "." + rest + "e" + esign + pexp.ToString();
-		}
-		if (decpt <= 0)
-		{
-			string lead = "0.";
-			for (int q = 0; q < -decpt; q++)
-				lead += "0";
-			return sign + lead + digits;
-		}
-		return sign + digits.Substring(0, decpt) + "." + digits.Substring(decpt, n - decpt);
-	}
-
-	// ---- what the project holds (DZS_ProjectV2.Build) ----
-
-	static string KindLabel(string kind)
-	{
-		if (kind == "spawnerGroup")
-			return DZS_Texts.Pick("Objektgruppe", "Object group");
-		if (kind == "lootRow")
-			return DZS_Texts.Pick("Loot-Objekt", "Loot object");
-		if (kind == "lootType" || kind == "itemType")
-			return DZS_Texts.Pick("Item", "Item");
-		if (kind == "lootContainer")
-			return DZS_Texts.Pick("Loot-Behälter", "Loot container");
-		if (kind == "lootPoint")
-			return DZS_Texts.Pick("Loot-Punkt", "Loot point");
-		if (kind == "event")
-			return "Event";
-		if (kind == "eventChild")
-			return DZS_Texts.Pick("Event-Fahrzeug/-Tier", "Event child");
-		if (kind == "spawnPosition")
-			return DZS_Texts.Pick("Spawnpunkt", "Spawn position");
-		if (kind == "effectArea")
-			return DZS_Texts.Pick("Effektbereich", "Effect area");
-		if (kind == "territory" || kind == "territoryZone")
-			return DZS_Texts.Pick("Territorium", "Territory");
-		if (kind == "weather")
-			return DZS_Texts.Pick("Wetter", "Weather");
-		if (kind == "gameplay")
-			return "cfggameplay.json";
-		return kind;
-	}
-
-	static string BlockLabel(DZS_Json block)
-	{
-		string label = KindLabel(block.GetStr("kind"));
-		DZS_Json data = block.Get("data");
-		string name = "";
-		if (data && data.IsObj())
-		{
-			name = data.GetStr("name");
-			if (name == "")
-				name = data.GetStr("type");
-		}
-		if (name != "")
-			label += " · " + name;
-		return label + " · " + block.GetStr("id");
-	}
-
-	static string ChangeLabel(DZS_Json change)
-	{
-		string label = KindLabel(change.GetStr("block"));
-		DZS_Json key = change.Get("key");
-		if (key && key.IsObj())
-		{
-			for (int i = 0; i < key.m_Keys.Count(); i++)
-			{
-				string kn = key.m_Keys[i];
-				DZS_Json kv = key.Get(kn);
-				label += " · " + Short(kv, 40);
-			}
-		}
-		string field = change.GetStr("field");
-		if (field != "")
-			label += " · " + field;
-		if (change.GetStr("op") == "remove")
-			label += DZS_Texts.Pick(" · entfernen", " · remove");
-		else
-		{
-			DZS_Json to = change.Get("to");
-			if (to)
-				label += " → " + Short(to, 30);
-		}
-		return label;
-	}
-
-	static string Short(DZS_Json v, int max)
-	{
-		string t;
-		if (v.IsStr())
-			t = v.m_Str;
-		else if (v.IsNum())
-			t = v.m_Str;
-		else
-		{
-			array<string> chunks = v.ToChunks(false);
-			t = "";
-			foreach (string c : chunks)
-			{
-				t += c;
-				if (t.Length() > max)
-					break;
-			}
-		}
-		if (t.Length() > max)
-			t = DZS_Utf8.Part(t, 0, max - 1) + "…";
-		return t;
-	}
+	static string ChangeRef(DZS_Json change) { return DZS_ProjectRefs.ChangeRef(change); }
+	static string PhpNumber(string raw) { return DZS_ProjectRefs.PhpNumber(raw); }
+	static string KindLabel(string kind) { return DZS_ProjectRefs.KindLabel(kind); }
+	static string BlockLabel(DZS_Json block) { return DZS_ProjectRefs.BlockLabel(block); }
+	static string ChangeLabel(DZS_Json change) { return DZS_ProjectRefs.ChangeLabel(change); }
+	static string Short(DZS_Json v, int max) { return DZS_ProjectRefs.Short(v, max); }
 
 	// A change can carry a formula when it sets a value.
 	static bool CanFormula(DZS_Json change)
