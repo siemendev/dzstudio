@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<randompresets>
+		<cargo chance="0.25" name="foodHermit">
+				<item name="TunaCan" chance="0.2" />
+				<item name="Apple" chance="0.05" />
+		</cargo>
+		<attachments chance="0.4" name="optics">
+				<item name="ACOGOptic" chance="0.10" />
+		</attachments>
+		<cargo chance="0.5" name="myLoot">
+				<item name="Apple" chance="0.5" />
+		</cargo>
+		<attachments chance="1" name="foodHermit" />
+</randompresets>

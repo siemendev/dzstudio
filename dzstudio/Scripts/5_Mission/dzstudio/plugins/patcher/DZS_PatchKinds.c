@@ -1,6 +1,7 @@
 // Block kinds as declarations: where a block lives, how its identity key is read and which fields it has. A field's
 // path addresses it inside the block's element: "nominal" (element text), "flags@deletable" (attribute of a child),
-// "@x" (attribute of the block's own element), "fog/limits@max" (nested), "usage[]" (list value of <usage name=…/>).
+// "@x" (attribute of the block's own element), "fog/limits@max" (nested), "usage[]" (list value of <usage name=…/>,
+// members with a chance as {"name", "chance"}), "hoarder" as FLAG (an empty element that is there or not).
 // Its public name is the path with "/" and "@" read as "." ("flags.deletable", "x", "usage").
 class DZS_PField : Managed
 {
@@ -13,6 +14,7 @@ class DZS_PField : Managed
 	static const int ENUMS = 6;
 	static const int BOOL = 7;
 	static const int VEC3 = 8;
+	static const int FLAG = 9;
 
 	string m_Name;
 	string m_Path;
@@ -101,6 +103,15 @@ class DZS_PKind : Managed
 	bool m_FileInKey;
 	// a key without its parent part searches the members of every parent element (a zone anywhere in its file)
 	bool m_AnyParent;
+	// the key attribute is the text of a child element of that name (a message by its <text>)
+	bool m_KeyChild;
+	// the key names the element itself: key member m_ElemKey holds one of m_ElemNames (<fresh>, <dynamic>)
+	string m_ElemKey;
+	ref array<string> m_ElemNames = new array<string>();
+	// a fixed set of elements: changes only, no own blocks, no remove
+	bool m_Fixed;
+	// text of an empty file an own block may create when the base has none
+	string m_Skeleton;
 	int m_Dups = SINGLE;
 	string m_SelfClose = "/>";
 	bool m_Singleton;
@@ -164,6 +175,12 @@ class DZS_PKind : Managed
 		return low;
 	}
 
+	// A global's value against its type: 0 is an integer, 1 any number.
+	static bool GlobalValueOk(string type, string value)
+	{
+		return !DZS_PatchNum.Same(type, "0") || DZS_PatchNum.IsInt(value);
+	}
+
 	// Extra rules for an own block of this kind; "" when it may be written. 'values' are its fields by name.
 	string CheckOwn(map<string, ref DZS_Json> values)
 	{
@@ -210,6 +227,41 @@ class DZS_PKindSpawnPos : DZS_PKind
 			DZS_Json zero = DZS_Json.Num("0");
 			values.Set("a", zero);
 		}
+	}
+}
+
+class DZS_PKindGlobal : DZS_PKind
+{
+	override string CheckOwn(map<string, ref DZS_Json> values)
+	{
+		DZS_Json type = values.Get("type");
+		if (!type || (!DZS_PatchNum.Same(type.m_Str, "0") && !DZS_PatchNum.Same(type.m_Str, "1")))
+			return "bad-value";
+		string value = "";
+		DZS_Json v = values.Get("value");
+		if (v)
+			value = v.m_Str;
+		if (GlobalValueOk(type.m_Str, value))
+			return "";
+		return "bad-value";
+	}
+}
+
+class DZS_PKindSpawnGroup : DZS_PKind
+{
+	override string CheckOwn(map<string, ref DZS_Json> values)
+	{
+		DZS_Json pv = values.Get("preset");
+		DZS_Json cv = values.Get("chance");
+		DZS_Json iv = values.Get("item");
+		bool preset = pv && pv.m_Type != DZS_Json.NUL;
+		bool chance = cv && cv.m_Type != DZS_Json.NUL;
+		bool items = iv && iv.m_Type != DZS_Json.NUL;
+		if (preset && (chance || items))
+			return "bad-value";
+		if (!preset && !chance)
+			return "incomplete";
+		return "";
 	}
 }
 
@@ -526,5 +578,205 @@ class DZS_PKinds
 		we.F("storm@timeout", DZS_PField.INT, true);
 		we.m_Order = {"overcast", "fog", "rain", "windMagnitude", "windDirection", "snowfall", "storm", "current", "limits", "timelimits", "changelimits", "thresholds"};
 		Add(we);
+
+		DZS_PKind gl = new DZS_PKindGlobal();
+		gl.m_Name = "global";
+		gl.m_File = "db/globals.xml";
+		gl.m_Root = "variables";
+		gl.m_Elem = "var";
+		gl.m_KeyAttr = "name";
+		gl.F("@name", DZS_PField.STR, true);
+		gl.F("@type", DZS_PField.INT, true);
+		gl.F("@value", DZS_PField.NUM, true);
+		Add(gl);
+
+		DZS_PKind ms = new DZS_PKind();
+		ms.m_Name = "message";
+		ms.m_File = "db/messages.xml";
+		ms.m_Root = "messages";
+		ms.m_Elem = "message";
+		ms.m_KeyAttr = "text";
+		ms.m_KeyChild = true;
+		ms.m_RemoveAll = true;
+		ms.m_Skeleton = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<messages>\n</messages>\n";
+		ms.F("deadline", DZS_PField.INT, false);
+		ms.F("shutdown", DZS_PField.BOOL01, false);
+		ms.F("delay", DZS_PField.INT, false);
+		ms.F("repeat", DZS_PField.INT, false);
+		ms.F("onconnect", DZS_PField.BOOL01, false);
+		ms.F("text", DZS_PField.STR, true);
+		ms.m_Order = {"deadline", "shutdown", "delay", "repeat", "onconnect", "text"};
+		Add(ms);
+
+		DZS_PKind st = new DZS_PKind();
+		st.m_Name = "spawnable";
+		st.m_File = "cfgspawnabletypes.xml";
+		st.m_Root = "spawnabletypes";
+		st.m_Elem = "type";
+		st.m_KeyAttr = "name";
+		st.m_KeyCi = true;
+		st.m_Dups = DZS_PKind.LAST;
+		st.m_SelfClose = " />";
+		st.F("@name", DZS_PField.STR, true);
+		st.F("hoarder", DZS_PField.FLAG, false);
+		st.F("damage@min", DZS_PField.NUM, false);
+		st.F("damage@max", DZS_PField.NUM, false);
+		st.F("tag[]", DZS_PField.LIST, false);
+		st.m_Order = {"hoarder", "damage", "tag", "attachments", "cargo"};
+		Add(st);
+		SpawnGroup("spawnableAttachments", "attachments");
+		SpawnGroup("spawnableCargo", "cargo");
+		RandomPreset("cargoPreset", "cargo");
+		RandomPreset("attachmentsPreset", "attachments");
+
+		DZS_PKind ps = new DZS_PKind();
+		ps.m_Name = "playerSpawnSection";
+		ps.m_File = "cfgplayerspawnpoints.xml";
+		ps.m_Root = "playerspawnpoints";
+		ps.m_ElemKey = "section";
+		ps.m_ElemNames = {"fresh", "hop", "travel"};
+		ps.m_Fixed = true;
+		array<string> dists = {"infected", "player", "static", "trigger"};
+		foreach (string dist : dists)
+		{
+			ps.F("spawn_params/min_dist_" + dist, DZS_PField.NUM, false);
+			ps.F("spawn_params/max_dist_" + dist, DZS_PField.NUM, false);
+		}
+		ps.F("generator_params/grid_density", DZS_PField.INT, false);
+		ps.F("generator_params/grid_width", DZS_PField.NUM, false);
+		ps.F("generator_params/grid_height", DZS_PField.NUM, false);
+		ps.F("generator_params/min_dist_static", DZS_PField.NUM, false);
+		ps.F("generator_params/max_dist_static", DZS_PField.NUM, false);
+		ps.F("generator_params/min_steepness", DZS_PField.NUM, false);
+		ps.F("generator_params/max_steepness", DZS_PField.NUM, false);
+		ps.E("generator_params/allow_in_water", tf, false);
+		ps.E("group_params/enablegroups", tf, false);
+		ps.E("group_params/groups_as_regular", tf, false);
+		ps.F("group_params/lifetime", DZS_PField.INT, false);
+		ps.F("group_params/counter", DZS_PField.INT, false);
+		ps.m_Order = {"spawn_params", "generator_params", "group_params", "generator_posbubbles", "grid_density", "grid_width", "grid_height", "min_dist_infected", "max_dist_infected", "min_dist_player", "max_dist_player", "min_dist_static", "max_dist_static", "min_dist_trigger", "max_dist_trigger", "min_steepness", "max_steepness", "allow_in_water", "enablegroups", "groups_as_regular", "lifetime", "counter"};
+		Add(ps);
+
+		DZS_PKind pg = new DZS_PKind();
+		pg.m_Name = "playerSpawnGroup";
+		pg.m_File = "cfgplayerspawnpoints.xml";
+		pg.m_Elem = "group";
+		pg.m_ParentKind = "playerSpawnSection";
+		pg.m_ParentKey = "section";
+		pg.m_ParentMap = {"section=section"};
+		pg.m_Container = "generator_posbubbles";
+		pg.m_KeyAttr = "name";
+		pg.F("@name", DZS_PField.STR, true);
+		pg.F("@lifetime", DZS_PField.INT, false);
+		pg.F("@counter", DZS_PField.INT, false);
+		pg.m_Order = {"pos"};
+		Add(pg);
+
+		DZS_PKind pp = new DZS_PKind();
+		pp.m_Name = "playerSpawnPosition";
+		pp.m_File = "cfgplayerspawnpoints.xml";
+		pp.m_Elem = "pos";
+		pp.m_ParentKind = "playerSpawnGroup";
+		pp.m_ParentKey = "section";
+		pp.m_ParentMap = {"section=section", "group=name"};
+		pp.m_Tol = 500000;
+		pp.m_SelfClose = " />";
+		pp.F("@x", DZS_PField.FIX6, true);
+		pp.F("@z", DZS_PField.FIX6, true);
+		Add(pp);
+
+		DZS_PKind ec = new DZS_PKind();
+		ec.m_Name = "economy";
+		ec.m_File = "db/economy.xml";
+		ec.m_Root = "economy";
+		ec.m_ElemKey = "name";
+		ec.m_ElemNames = {"dynamic", "animals", "zombies", "vehicles", "randoms", "custom", "building", "player"};
+		ec.m_Fixed = true;
+		ec.F("@init", DZS_PField.BOOL01, true);
+		ec.F("@load", DZS_PField.BOOL01, true);
+		ec.F("@respawn", DZS_PField.BOOL01, true);
+		ec.F("@save", DZS_PField.BOOL01, true);
+		Add(ec);
+
+		DZS_PKind co = new DZS_PKind();
+		co.m_Name = "economyCore";
+		co.m_File = "cfgeconomycore.xml";
+		co.m_Root = "economycore";
+		co.m_Elem = "economycore";
+		co.m_Singleton = true;
+		co.m_Order = {"classes", "defaults", "ce"};
+		Add(co);
+
+		DZS_PKind cd = new DZS_PKind();
+		cd.m_Name = "ceDefault";
+		cd.m_File = "cfgeconomycore.xml";
+		cd.m_Elem = "default";
+		cd.m_ParentKind = "economyCore";
+		cd.m_Container = "defaults";
+		cd.m_KeyAttr = "name";
+		cd.m_SelfClose = " />";
+		cd.F("@name", DZS_PField.STR, true);
+		cd.F("@value", DZS_PField.STR, true);
+		Add(cd);
+
+		DZS_PKind cr = new DZS_PKind();
+		cr.m_Name = "ceRootClass";
+		cr.m_File = "cfgeconomycore.xml";
+		cr.m_Elem = "rootclass";
+		cr.m_ParentKind = "economyCore";
+		cr.m_Container = "classes";
+		cr.m_KeyAttr = "name";
+		cr.m_SelfClose = " />";
+		cr.F("@name", DZS_PField.STR, true);
+		array<string> acts = {"character", "car"};
+		cr.E("@act", acts, false);
+		array<string> lods = {"yes", "no"};
+		cr.E("@reportMemoryLOD", lods, false);
+		Add(cr);
+
+		DZS_PKind ig = new DZS_PKind();
+		ig.m_Name = "ignoredType";
+		ig.m_File = "cfgignorelist.xml";
+		ig.m_Root = "ignore";
+		ig.m_Elem = "type";
+		ig.m_KeyAttr = "name";
+		ig.m_KeyCi = true;
+		ig.m_RemoveAll = true;
+		ig.m_SelfClose = "></type>";
+		ig.F("@name", DZS_PField.STR, true);
+		Add(ig);
+	}
+
+	protected static void SpawnGroup(string name, string elem)
+	{
+		DZS_PKind sg = new DZS_PKindSpawnGroup();
+		sg.m_Name = name;
+		sg.m_File = "cfgspawnabletypes.xml";
+		sg.m_Elem = elem;
+		sg.m_ParentKind = "spawnable";
+		sg.m_ParentKey = "type";
+		sg.m_Repeats = true;
+		sg.m_SelfClose = " />";
+		sg.F("@chance", DZS_PField.NUM, false);
+		sg.F("@preset", DZS_PField.STR, false);
+		sg.F("item[]", DZS_PField.LIST, false);
+		sg.m_Order = {"item"};
+		Add(sg);
+	}
+
+	protected static void RandomPreset(string name, string elem)
+	{
+		DZS_PKind rp = new DZS_PKind();
+		rp.m_Name = name;
+		rp.m_File = "cfgrandompresets.xml";
+		rp.m_Root = "randompresets";
+		rp.m_Elem = elem;
+		rp.m_KeyAttr = "name";
+		rp.m_SelfClose = " />";
+		rp.F("@chance", DZS_PField.NUM, true);
+		rp.F("@name", DZS_PField.STR, true);
+		rp.F("item[]", DZS_PField.LIST, false);
+		rp.m_Order = {"item"};
+		Add(rp);
 	}
 }

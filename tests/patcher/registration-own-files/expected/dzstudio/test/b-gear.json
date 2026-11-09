@@ -1,0 +1,83 @@
+{
+    "spawnWeight": 2,
+    "name": "Hunter",
+    "characterTypes": ["SurvivorM_Mirek", "SurvivorF_Eva"],
+    "attachmentSlotItemSets": [
+        {
+            "slotName": "Body",
+            "discreteItemSets": [
+                {
+                    "itemType": "HuntingJacket_Brown",
+                    "spawnWeight": 1,
+                    "attributes": {
+                        "healthMin": 0.7,
+                        "healthMax": 1,
+                        "quantityMin": 0,
+                        "quantityMax": 0
+                    },
+                    "quickBarSlot": -1,
+                    "complexChildrenTypes": [
+                        {
+                            "itemType": "Mag_CZ527_5rnd",
+                            "attributes": {
+                                "healthMin": 0.7,
+                                "healthMax": 1,
+                                "quantityMin": 0,
+                                "quantityMax": 0
+                            },
+                            "quickBarSlot": 2,
+                            "complexChildrenTypes": [
+                                {
+                                    "itemType": "Ammo_762x39",
+                                    "attributes": {
+                                        "healthMin": 0.7,
+                                        "healthMax": 1,
+                                        "quantityMin": 0,
+                                        "quantityMax": 0
+                                    },
+                                    "quickBarSlot": -1,
+                                    "complexChildrenTypes": [],
+                                    "simpleChildrenTypes": [],
+                                    "simpleChildrenUseDefaultAttributes": false
+                                }
+                            ],
+                            "simpleChildrenTypes": [],
+                            "simpleChildrenUseDefaultAttributes": false
+                        }
+                    ],
+                    "simpleChildrenTypes": ["Rag"],
+                    "simpleChildrenUseDefaultAttributes": false
+                },
+                {
+                    "itemType": "",
+                    "spawnWeight": 1,
+                    "attributes": {
+                        "healthMin": 0.7,
+                        "healthMax": 1,
+                        "quantityMin": 0,
+                        "quantityMax": 0
+                    },
+                    "quickBarSlot": -1,
+                    "complexChildrenTypes": [],
+                    "simpleChildrenTypes": [],
+                    "simpleChildrenUseDefaultAttributes": false
+                }
+            ]
+        }
+    ],
+    "discreteUnsortedItemSets": [
+        {
+            "name": "food",
+            "spawnWeight": 1,
+            "attributes": {
+                "healthMin": 0.7,
+                "healthMax": 1,
+                "quantityMin": 0,
+                "quantityMax": 0
+            },
+            "complexChildrenTypes": [],
+            "simpleChildrenTypes": ["Apple"],
+            "simpleChildrenUseDefaultAttributes": true
+        }
+    ]
+}

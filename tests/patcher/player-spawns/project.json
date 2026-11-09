@@ -1,0 +1,189 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-g",
+            "kind": "playerSpawnGroup",
+            "parent": {
+                "section": "fresh"
+            },
+            "data": {
+                "name": "NWAF",
+                "counter": 3
+            }
+        },
+        {
+            "id": "b-g-1",
+            "kind": "playerSpawnPosition",
+            "parent": "b-g",
+            "data": {
+                "x": 4500,
+                "z": 10000
+            }
+        },
+        {
+            "id": "b-g-2",
+            "kind": "playerSpawnPosition",
+            "parent": "b-g",
+            "data": {
+                "x": 4600.25,
+                "z": 10100
+            }
+        },
+        {
+            "id": "b-p",
+            "kind": "playerSpawnPosition",
+            "parent": {
+                "section": "hop",
+                "group": "Balota"
+            },
+            "data": {
+                "x": 4400.5,
+                "z": 2400
+            }
+        },
+        {
+            "id": "b-near",
+            "kind": "playerSpawnPosition",
+            "parent": {
+                "section": "hop",
+                "group": "Balota"
+            },
+            "data": {
+                "x": 4320.9,
+                "z": 2399.3
+            }
+        },
+        {
+            "id": "b-dup",
+            "kind": "playerSpawnGroup",
+            "parent": {
+                "section": "fresh"
+            },
+            "data": {
+                "name": "WestCherno"
+            }
+        },
+        {
+            "id": "b-s",
+            "kind": "playerSpawnSection",
+            "parent": null,
+            "data": {}
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "playerSpawnSection",
+            "key": {
+                "section": "fresh"
+            },
+            "field": "spawn_params.min_dist_player",
+            "from": 65,
+            "to": 80
+        },
+        {
+            "op": "set",
+            "block": "playerSpawnSection",
+            "key": {
+                "section": "hop"
+            },
+            "field": "group_params.enablegroups",
+            "from": "false",
+            "to": "true"
+        },
+        {
+            "op": "set",
+            "block": "playerSpawnSection",
+            "key": {
+                "section": "fresh"
+            },
+            "field": "spawn_params.min_dist_trigger",
+            "to": 50
+        },
+        {
+            "op": "set",
+            "block": "playerSpawnSection",
+            "key": {
+                "section": "nope"
+            },
+            "field": "spawn_params.min_dist_player",
+            "to": 1
+        },
+        {
+            "op": "remove",
+            "block": "playerSpawnSection",
+            "key": {
+                "section": "hop"
+            }
+        },
+        {
+            "op": "set",
+            "block": "playerSpawnGroup",
+            "key": {
+                "section": "fresh",
+                "name": "WestCherno"
+            },
+            "field": "lifetime",
+            "to": 300
+        },
+        {
+            "op": "set",
+            "block": "playerSpawnPosition",
+            "key": {
+                "section": "fresh",
+                "group": "WestCherno",
+                "x": 6063.0185,
+                "z": 1931.9072
+            },
+            "field": "pos",
+            "from": {
+                "x": 6063.018555,
+                "z": 1931.907227
+            },
+            "to": {
+                "x": 6070,
+                "z": 1935
+            }
+        },
+        {
+            "op": "remove",
+            "block": "playerSpawnPosition",
+            "key": {
+                "section": "fresh",
+                "group": "WestCherno",
+                "x": 5933.964844,
+                "z": 2171.072998
+            }
+        },
+        {
+            "op": "remove",
+            "block": "playerSpawnPosition",
+            "key": {
+                "section": "hop",
+                "group": "WestCherno",
+                "x": 5933.964844,
+                "z": 2171.072998
+            }
+        },
+        {
+            "op": "remove",
+            "block": "playerSpawnGroup",
+            "key": {
+                "section": "fresh",
+                "name": "EastCherno"
+            }
+        },
+        {
+            "op": "set",
+            "block": "playerSpawnSection",
+            "key": {
+                "section": "hop"
+            },
+            "field": "generator_params.allow_in_water",
+            "to": "maybe"
+        }
+    ]
+}

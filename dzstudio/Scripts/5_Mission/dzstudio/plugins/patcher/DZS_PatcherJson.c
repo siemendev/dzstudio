@@ -1,10 +1,17 @@
 // The JSON block kinds: effect areas and safe positions (cfgeffectarea.json), gameplay settings (cfggameplay.json),
-// own object spawner groups and their registration. Every JSON file written is checked with the engine's rules.
+// own object spawner groups, spawn gear presets and restricted areas and their registration. Every JSON file written is checked with the engine's rules.
 class DZS_PatcherJson : DZS_PatcherXml
 {
 	static const string AREA_FILE = "cfgeffectarea.json";
 	static const string GAMEPLAY_FILE = "cfggameplay.json";
 	static const string SPAWNERS = "WorldsData.objectSpawnersArr";
+	static const string GEAR = "PlayerData.spawnGearPresetFiles";
+	static const string PRA = "WorldsData.playerRestrictedAreaFiles";
+	// Sakhal's own restricted area: the map default a list made new must keep
+	static const string SAKHAL_PRA = "pra/warheadstorage.json";
+	static const int GEAR_SET = 0;
+	static const int GEAR_CHILD = 1;
+	static const int GEAR_CARGO = 2;
 
 	protected static ref array<ref DZS_PField> s_AreaFields;
 
@@ -629,7 +636,7 @@ class DZS_PatcherJson : DZS_PatcherXml
 
 	static bool IsRegistrationList(string path)
 	{
-		return path == SPAWNERS || path == "PlayerData.spawnGearPresetFiles" || path == "WorldsData.playerRestrictedAreaFiles";
+		return path == SPAWNERS || path == GEAR || path == PRA;
 	}
 
 	void ChangeGameplay(DZS_PatchEntry e, DZS_PatchChange c)
@@ -834,6 +841,381 @@ class DZS_PatcherJson : DZS_PatcherXml
 		root.Set("Objects", list);
 		string text = DZS_PatchText.JsonText(root, "", "    ", "\n") + "\n";
 		return DZS_Files.Chunk(text);
+	}
+
+	// ---- own spawn gear presets ----
+
+	// The file text of an own spawn gear preset, written complete (a missing quickBarSlot would bind the item to slot
+	// 0, missing attributes drop the variant), or null with 'err' set.
+	static array<string> GearText(DZS_PatchBlock b, out string err)
+	{
+		err = "";
+		DZS_Json d = b.m_Data;
+		array<string> top = {"spawnWeight", "name", "characterTypes", "attachmentSlotItemSets", "discreteUnsortedItemSets"};
+		if (!OnlyKeys(d, top, err))
+			return null;
+		DZS_Json res = DZS_Json.Obj();
+		if (!GearInt(d, "spawnWeight", "", res, err))
+			return null;
+		if (!GearStr(d, "name", true, false, res, err))
+			return null;
+		// without character types the player's own choice is kept; an empty list is left out for the same reason
+		DZS_Json chars = DZS_Json.Obj();
+		if (!GearNames(d, "characterTypes", chars, err))
+			return null;
+		DZS_Json types = chars.Get("characterTypes");
+		if (types && types.Count() > 0)
+			res.Set("characterTypes", types);
+		DZS_Json slots = DZS_Json.Arr();
+		DZS_Json slotsIn = d.Get("attachmentSlotItemSets");
+		if (slotsIn)
+		{
+			if (!slotsIn.IsArr())
+			{
+				err = "bad-value";
+				return null;
+			}
+			array<string> slotKeys = {"slotName", "discreteItemSets"};
+			for (int i = 0; i < slotsIn.Count(); i++)
+			{
+				DZS_Json slotIn = slotsIn.At(i);
+				if (!OnlyKeys(slotIn, slotKeys, err))
+					return null;
+				DZS_Json slot = DZS_Json.Obj();
+				if (!GearStr(slotIn, "slotName", false, true, slot, err))
+					return null;
+				DZS_Json sets = GearItems(slotIn, "discreteItemSets", GEAR_SET, err);
+				if (!sets)
+					return null;
+				if (sets.Count() == 0)
+				{
+					err = "incomplete";
+					return null;
+				}
+				slot.Set("discreteItemSets", sets);
+				slots.Add(slot);
+			}
+		}
+		res.Set("attachmentSlotItemSets", slots);
+		DZS_Json cargo = GearItems(d, "discreteUnsortedItemSets", GEAR_CARGO, err);
+		if (!cargo)
+			return null;
+		res.Set("discreteUnsortedItemSets", cargo);
+		string text = DZS_PatchText.JsonText(res, "", "    ", "\n") + "\n";
+		return DZS_Files.Chunk(text);
+	}
+
+	static bool OnlyKeys(DZS_Json o, array<string> allowed, out string err)
+	{
+		if (!o || !o.IsObj())
+		{
+			err = "bad-value";
+			return false;
+		}
+		foreach (string key : o.m_Keys)
+		{
+			if (allowed.Find(key) < 0)
+			{
+				err = "unknown-field";
+				return false;
+			}
+		}
+		return true;
+	}
+
+	// An integer ≥ 1, or the default when absent ("" = required).
+	static bool GearInt(DZS_Json o, string name, string def, DZS_Json res, out string err)
+	{
+		DZS_Json v = o.Get(name);
+		if (!v)
+		{
+			if (def == "")
+			{
+				err = "incomplete";
+				return false;
+			}
+			DZS_Json dv = DZS_Json.Num(def);
+			res.Set(name, dv);
+			return true;
+		}
+		if (!v.IsNum() || !DZS_PatchNum.IsInt(v.m_Str) || (def == "" && v.m_Str.ToInt() < 1))
+		{
+			err = "bad-value";
+			return false;
+		}
+		DZS_Json nv = DZS_Json.Num(v.m_Str);
+		res.Set(name, nv);
+		return true;
+	}
+
+	static bool GearStr(DZS_Json o, string name, bool opt, bool nonEmpty, DZS_Json res, out string err)
+	{
+		DZS_Json v = o.Get(name);
+		if (!v)
+		{
+			if (!opt)
+			{
+				err = "incomplete";
+				return false;
+			}
+			DZS_Json none = DZS_Json.Str("");
+			res.Set(name, none);
+			return true;
+		}
+		if (!v.IsStr() || (nonEmpty && v.m_Str == ""))
+		{
+			err = "bad-value";
+			return false;
+		}
+		DZS_Json sv = DZS_Json.Str(v.m_Str);
+		res.Set(name, sv);
+		return true;
+	}
+
+	// A list of class names, [] when absent.
+	static bool GearNames(DZS_Json o, string name, DZS_Json res, out string err)
+	{
+		DZS_Json names = DZS_Json.Arr();
+		DZS_Json v = o.Get(name);
+		if (v)
+		{
+			if (!v.IsArr())
+			{
+				err = "bad-value";
+				return false;
+			}
+			for (int i = 0; i < v.Count(); i++)
+			{
+				DZS_Json it = v.At(i);
+				if (!it.IsStr() || it.m_Str == "")
+				{
+					err = "bad-value";
+					return false;
+				}
+				DZS_Json nj = DZS_Json.Str(it.m_Str);
+				names.Add(nj);
+			}
+		}
+		res.Set(name, names);
+		return true;
+	}
+
+	// Item sets of one kind (slot alternatives, complex children, cargo sets), [] when absent. Parameters are read into
+	// locals first: Enforce can lose a caller's parameters across a recursive call.
+	static DZS_Json GearItems(DZS_Json o, string name, int kind, out string err)
+	{
+		DZS_Json src = o;
+		int kd = kind;
+		DZS_Json list = DZS_Json.Arr();
+		DZS_Json v = src.Get(name);
+		if (!v)
+			return list;
+		if (!v.IsArr())
+		{
+			err = "bad-value";
+			return null;
+		}
+		for (int i = 0; i < v.Count(); i++)
+		{
+			DZS_Json it = v.At(i);
+			DZS_Json item = GearItem(it, kd, err);
+			if (!item)
+				return null;
+			list.Add(item);
+		}
+		return list;
+	}
+
+	static DZS_Json GearItem(DZS_Json o, int kind, out string err)
+	{
+		DZS_Json src = o;
+		int kd = kind;
+		array<string> allowed = {"attributes", "complexChildrenTypes", "simpleChildrenTypes", "simpleChildrenUseDefaultAttributes"};
+		if (kd == GEAR_CARGO)
+			allowed.Insert("name");
+		else
+		{
+			allowed.Insert("itemType");
+			allowed.Insert("quickBarSlot");
+		}
+		if (kd != GEAR_CHILD)
+			allowed.Insert("spawnWeight");
+		if (!OnlyKeys(src, allowed, err))
+			return null;
+		DZS_Json res = DZS_Json.Obj();
+		if (kd == GEAR_CARGO)
+		{
+			if (!GearStr(src, "name", true, false, res, err))
+				return null;
+		}
+		else if (!GearStr(src, "itemType", false, kd == GEAR_CHILD, res, err))
+			return null;
+		if (kd != GEAR_CHILD && !GearInt(src, "spawnWeight", "", res, err))
+			return null;
+		DZS_Json attrs = src.Get("attributes");
+		if (!attrs)
+		{
+			err = "incomplete";
+			return null;
+		}
+		array<string> attrNames = {"healthMin", "healthMax", "quantityMin", "quantityMax"};
+		if (!OnlyKeys(attrs, attrNames, err))
+			return null;
+		DZS_Json a = DZS_Json.Obj();
+		foreach (string an : attrNames)
+		{
+			DZS_Json av = attrs.Get(an);
+			if (!av)
+			{
+				err = "incomplete";
+				return null;
+			}
+			if (!av.IsNum() || !DZS_PatchNum.IsNumber(av.m_Str))
+			{
+				err = "bad-value";
+				return null;
+			}
+			DZS_Json anum = DZS_Json.Num(DZS_PatchNum.Canon(av.m_Str));
+			a.Set(an, anum);
+		}
+		res.Set("attributes", a);
+		if (kd != GEAR_CARGO && !GearInt(src, "quickBarSlot", "-1", res, err))
+			return null;
+		DZS_Json kids = GearItems(src, "complexChildrenTypes", GEAR_CHILD, err);
+		if (!kids)
+			return null;
+		res.Set("complexChildrenTypes", kids);
+		if (!GearNames(src, "simpleChildrenTypes", res, err))
+			return null;
+		DZS_Json useIn = src.Get("simpleChildrenUseDefaultAttributes");
+		bool useDef = false;
+		if (useIn)
+		{
+			int db = BoolOf(useIn);
+			if (db < 0)
+			{
+				err = "bad-value";
+				return null;
+			}
+			useDef = db == 1;
+		}
+		DZS_Json useOut = DZS_Json.Boolean(useDef);
+		res.Set("simpleChildrenUseDefaultAttributes", useOut);
+		return res;
+	}
+
+	// ---- own restricted areas ----
+
+	// The file text of an own restricted area: a name, at least one box or polygon and at least one safe position
+	// (an area without one sends a player nowhere), or null with 'err' set.
+	static array<string> PraText(DZS_PatchBlock b, out string err)
+	{
+		err = "";
+		DZS_Json d = b.m_Data;
+		array<string> keys = {"areaName", "PRABoxes", "PRAPolygons", "safePositions3D", "safePositions2D"};
+		if (!OnlyKeys(d, keys, err))
+			return null;
+		DZS_Json res = DZS_Json.Obj();
+		if (!GearStr(d, "areaName", true, false, res, err))
+			return null;
+		int shapes = 0;
+		int safe = 0;
+		array<string> names = {"PRABoxes", "PRAPolygons", "safePositions2D", "safePositions3D"};
+		for (int i = 0; i < names.Count(); i++)
+		{
+			DZS_Json list = PraList(d, names[i], i, err);
+			if (!list)
+				return null;
+			if (i < 2)
+				shapes += list.Count();
+			else
+				safe += list.Count();
+			if (list.Count() > 0)
+				res.Set(names[i], list);
+		}
+		if (shapes == 0 || safe == 0)
+		{
+			err = "incomplete";
+			return null;
+		}
+		string text = DZS_PatchText.JsonText(res, "", "    ", "\n") + "\n";
+		return DZS_Files.Chunk(text);
+	}
+
+	// One list of a restricted area: shape 0 boxes ([size], [yaw, pitch, roll], [centre]), 1 polygons (≥ 3 [x, z]),
+	// 2 points [x, z], 3 points [x, y, z]. Positions are written Fixed6, sizes and angles shortest. [] when absent.
+	static DZS_Json PraList(DZS_Json o, string name, int shape, out string err)
+	{
+		DZS_Json list = DZS_Json.Arr();
+		DZS_Json v = o.Get(name);
+		if (!v)
+			return list;
+		if (!v.IsArr())
+		{
+			err = "bad-value";
+			return null;
+		}
+		for (int i = 0; i < v.Count(); i++)
+		{
+			DZS_Json it = v.At(i);
+			DZS_Json item = null;
+			if (shape == 0 && it.IsArr() && it.Count() == 3)
+			{
+				DZS_Json sz = NumArr(it.At(0), 3, false);
+				DZS_Json rot = NumArr(it.At(1), 3, false);
+				DZS_Json centre = NumArr(it.At(2), 3, true);
+				if (sz && rot && centre)
+				{
+					item = DZS_Json.Arr();
+					item.Add(sz);
+					item.Add(rot);
+					item.Add(centre);
+				}
+			}
+			else if (shape == 1 && it.IsArr() && it.Count() >= 3)
+			{
+				item = DZS_Json.Arr();
+				for (int k = 0; k < it.Count(); k++)
+				{
+					DZS_Json pt = NumArr(it.At(k), 2, true);
+					if (!pt)
+					{
+						item = null;
+						break;
+					}
+					item.Add(pt);
+				}
+			}
+			else if (shape == 2 || shape == 3)
+				item = NumArr(it, shape, true);
+			if (!item)
+			{
+				err = "bad-value";
+				return null;
+			}
+			list.Add(item);
+		}
+		return list;
+	}
+
+	// An array of exactly n numbers, Fixed6 or shortest; null when it is none.
+	static DZS_Json NumArr(DZS_Json v, int n, bool fix6)
+	{
+		if (!v.IsArr() || v.Count() != n)
+			return null;
+		DZS_Json r = DZS_Json.Arr();
+		for (int i = 0; i < n; i++)
+		{
+			DZS_Json c = v.At(i);
+			if (!c.IsNum() || !DZS_PatchNum.IsNumber(c.m_Str))
+				return null;
+			string t = DZS_PatchNum.Canon(c.m_Str);
+			if (fix6)
+				t = DZS_PatchNum.Fixed6(c.m_Str);
+			DZS_Json cj = DZS_Json.Num(t);
+			r.Add(cj);
+		}
+		return r;
 	}
 
 	// ---- files ----

@@ -1,0 +1,38 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "sakhal",
+    "blocks": [
+        {
+            "id": "b-r",
+            "kind": "message",
+            "parent": null,
+            "data": {
+                "deadline": 175,
+                "shutdown": true,
+                "text": "Restart in #tmin minutes"
+            }
+        },
+        {
+            "id": "b-h",
+            "kind": "message",
+            "parent": null,
+            "data": {
+                "text": "Hello",
+                "onconnect": 1,
+                "delay": 1
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "message",
+            "key": {
+                "text": "Welcome to my server #name"
+            },
+            "field": "delay",
+            "to": 5
+        }
+    ]
+}

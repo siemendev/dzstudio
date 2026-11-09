@@ -1,0 +1,211 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "playerSpawnSection",
+            "key": {
+                "section": "fresh"
+            },
+            "field": "spawn_params.min_dist_player",
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "playerSpawnSection",
+            "key": {
+                "section": "hop"
+            },
+            "field": "group_params.enablegroups",
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "playerSpawnSection",
+            "key": {
+                "section": "fresh"
+            },
+            "field": "spawn_params.min_dist_trigger",
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "playerSpawnSection",
+            "key": {
+                "section": "nope"
+            },
+            "field": "spawn_params.min_dist_player",
+            "status": "invalid",
+            "file": "cfgplayerspawnpoints.xml",
+            "detail": "bad-key"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "remove",
+            "kind": "playerSpawnSection",
+            "key": {
+                "section": "hop"
+            },
+            "status": "invalid",
+            "file": "cfgplayerspawnpoints.xml",
+            "detail": "bad-op"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "set",
+            "kind": "playerSpawnGroup",
+            "key": {
+                "section": "fresh",
+                "name": "WestCherno"
+            },
+            "field": "lifetime",
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "playerSpawnPosition",
+            "key": {
+                "section": "fresh",
+                "group": "WestCherno",
+                "x": 6063.0185,
+                "z": 1931.9072
+            },
+            "field": "pos",
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "remove",
+            "kind": "playerSpawnPosition",
+            "key": {
+                "section": "fresh",
+                "group": "WestCherno",
+                "x": 5933.964844,
+                "z": 2171.072998
+            },
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "change",
+            "index": 8,
+            "op": "remove",
+            "kind": "playerSpawnPosition",
+            "key": {
+                "section": "hop",
+                "group": "WestCherno",
+                "x": 5933.964844,
+                "z": 2171.072998
+            },
+            "status": "gone",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "change",
+            "index": 9,
+            "op": "remove",
+            "kind": "playerSpawnGroup",
+            "key": {
+                "section": "fresh",
+                "name": "EastCherno"
+            },
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "change",
+            "index": 10,
+            "op": "set",
+            "kind": "playerSpawnSection",
+            "key": {
+                "section": "hop"
+            },
+            "field": "generator_params.allow_in_water",
+            "status": "invalid",
+            "file": "cfgplayerspawnpoints.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "playerSpawnGroup",
+            "id": "b-g",
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "playerSpawnPosition",
+            "id": "b-g-1",
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "playerSpawnPosition",
+            "id": "b-g-2",
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "playerSpawnPosition",
+            "id": "b-p",
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "block",
+            "index": 4,
+            "kind": "playerSpawnPosition",
+            "id": "b-near",
+            "status": "collision",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "block",
+            "index": 5,
+            "kind": "playerSpawnGroup",
+            "id": "b-dup",
+            "status": "collision",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "block",
+            "index": 6,
+            "kind": "playerSpawnSection",
+            "id": "b-s",
+            "status": "invalid",
+            "detail": "unknown-kind"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgplayerspawnpoints.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

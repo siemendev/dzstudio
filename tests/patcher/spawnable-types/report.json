@@ -1,0 +1,224 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "spawnable",
+            "key": {
+                "name": "barrel_blue"
+            },
+            "field": "hoarder",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "spawnable",
+            "key": {
+                "name": "NVGoggles"
+            },
+            "field": "hoarder",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "spawnable",
+            "key": {
+                "name": "NVGoggles"
+            },
+            "field": "damage.max",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "spawnableAttachments",
+            "key": {
+                "type": "M4A1"
+            },
+            "field": "chance",
+            "status": "ambiguous",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "spawnableAttachments",
+            "key": {
+                "type": "M4A1",
+                "ordinal": 2
+            },
+            "field": "item",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "set",
+            "kind": "spawnableCargo",
+            "key": {
+                "type": "M4A1"
+            },
+            "field": "preset",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "spawnableCargo",
+            "key": {
+                "type": "ZmbM_Mummy"
+            },
+            "field": "chance",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "remove",
+            "kind": "spawnableAttachments",
+            "key": {
+                "type": "M4A1",
+                "ordinal": 1
+            },
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 8,
+            "op": "remove",
+            "kind": "spawnable",
+            "key": {
+                "name": "Nope"
+            },
+            "status": "gone",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 9,
+            "op": "remove",
+            "kind": "spawnable",
+            "key": {
+                "name": "giftwrappaper"
+            },
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 10,
+            "op": "set",
+            "kind": "spawnable",
+            "key": {
+                "name": "Commented"
+            },
+            "field": "hoarder",
+            "status": "orphaned",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 11,
+            "op": "set",
+            "kind": "spawnableAttachments",
+            "key": {
+                "type": "M4A1",
+                "ordinal": 2
+            },
+            "field": "item",
+            "status": "invalid",
+            "file": "cfgspawnabletypes.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "spawnable",
+            "id": "b-r",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "spawnableAttachments",
+            "id": "b-r-a",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "spawnableCargo",
+            "id": "b-r-c",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "spawnableAttachments",
+            "id": "b-nv",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "block",
+            "index": 4,
+            "kind": "spawnableCargo",
+            "id": "b-both",
+            "status": "invalid",
+            "file": "cfgspawnabletypes.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "block",
+            "index": 5,
+            "kind": "spawnableAttachments",
+            "id": "b-none",
+            "status": "invalid",
+            "file": "cfgspawnabletypes.xml",
+            "detail": "incomplete"
+        },
+        {
+            "what": "block",
+            "index": 6,
+            "kind": "spawnable",
+            "id": "b-dup",
+            "status": "collision",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "block",
+            "index": 7,
+            "kind": "spawnable",
+            "id": "b-h",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgspawnabletypes.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

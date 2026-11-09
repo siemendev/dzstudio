@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+
+<spawnabletypes>
+	<type name="Barrel_Blue">
+		<hoarder />
+	</type>
+	<type name="NVGoggles">
+		<damage min="0.0" max="0.32" />
+	</type>
+	<type name="GiftWrapPaper">
+		<damage min="0.0" max="0.32" />
+	</type>
+	<type name="M4A1">
+		<damage min="0.45" max="0.85" />
+		<attachments chance="1.00">
+			<item name="M4_OEBttstck" chance="1.00" />
+		</attachments>
+		<attachments chance="1.00">
+			<item name="BUISOptic" chance="0.50" />
+			<item name="M4_CarryHandleOptic" chance="1.00" />
+		</attachments>
+		<cargo preset="mixArmy" />
+	</type>
+	<!--<type name="Commented"><hoarder /></type>-->
+	<type name="ZmbM_Mummy">
+		<cargo preset="ContaminatedCargo" />
+	</type>
+	<type name="ZmbM_Mummy">
+		<cargo chance="0.20">
+			<item name="BandageDressing" chance="0.2" />
+		</cargo>
+	</type>
+</spawnabletypes>

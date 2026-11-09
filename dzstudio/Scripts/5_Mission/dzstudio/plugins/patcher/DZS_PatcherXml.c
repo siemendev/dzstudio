@@ -46,7 +46,21 @@ class DZS_PatcherXml : DZS_PatcherBase
 		{
 			if (root.m_Name != k.m_Root)
 				return t;
-			if (k.m_KeyAttr != "")
+			if (k.m_ElemKey != "")
+			{
+				string en = KeyStr(key, k.m_ElemKey);
+				if (k.m_ElemNames.Find(en) < 0)
+				{
+					t.m_BadKey = true;
+					return t;
+				}
+				foreach (DZS_XmlNode ec : root.m_Children)
+				{
+					if (ec.m_Name == en)
+						pool.Insert(ec);
+				}
+			}
+			else if (k.m_KeyAttr != "" && !k.m_KeyChild)
 			{
 				string top = KeyStr(key, k.m_KeyAttr);
 				if (top == "")
@@ -157,6 +171,11 @@ class DZS_PatcherXml : DZS_PatcherBase
 	{
 		first = "";
 		DZS_Json pkey = DZS_Json.Obj();
+		if (pk.m_Singleton)
+		{
+			first = pk.m_Elem;
+			return pkey;
+		}
 		array<string> pairs = new array<string>();
 		pairs.Copy(k.m_ParentMap);
 		if (pairs.Count() == 0)
@@ -242,7 +261,7 @@ class DZS_PatcherXml : DZS_PatcherBase
 		{
 			if (useName)
 			{
-				string v = n.Get(k.m_KeyAttr);
+				string v = KeyOf(f, k, n);
 				if (k.m_KeyCi)
 				{
 					if (DZS_PatchText.Lower(v) != low)
@@ -272,6 +291,19 @@ class DZS_PatcherXml : DZS_PatcherBase
 		}
 		if (t.m_Nodes.Count() == 0 && caseOnly)
 			t.m_Case = true;
+	}
+
+	// The name a key compares: the key attribute, or the base text of the key's child element.
+	protected string KeyOf(DZS_PatchFile f, DZS_PKind k, DZS_XmlNode n)
+	{
+		if (!k.m_KeyChild)
+			return n.Get(k.m_KeyAttr);
+		foreach (DZS_XmlNode c : n.m_Children)
+		{
+			if (c.m_Name == k.m_KeyAttr)
+				return f.BaseText(c);
+		}
+		return "";
 	}
 
 	// ---- fields ----
@@ -305,6 +337,11 @@ class DZS_PatcherXml : DZS_PatcherBase
 		DZS_XmlNode at = Walk(f, n, fld, fld.m_Elems.Count());
 		if (!at)
 			return "";
+		if (fld.m_Fmt == DZS_PField.FLAG)
+		{
+			has = true;
+			return "1";
+		}
 		if (fld.m_Attr != "")
 			return f.Attr(at, fld.m_Attr, has);
 		has = true;
@@ -328,10 +365,18 @@ class DZS_PatcherXml : DZS_PatcherBase
 		{
 			if (c.m_Name != elem || f.IsRemoved(c))
 				continue;
+			string tok = "name=" + c.Get("name");
 			if (c.Has("user"))
-				tokens.Insert("user=" + c.Get("user"));
-			else
-				tokens.Insert("name=" + c.Get("name"));
+				tok = "user=" + c.Get("user");
+			if (c.Has("chance"))
+			{
+				string ch = c.Get("chance");
+				ch.TrimInPlace();
+				if (DZS_PatchNum.IsNumber(ch))
+					ch = DZS_PatchNum.Canon(ch);
+				tok += "\tchance=" + ch;
+			}
+			tokens.Insert(tok);
 		}
 	}
 
@@ -382,6 +427,8 @@ class DZS_PatcherXml : DZS_PatcherBase
 			return "bad-value";
 		if (fld.m_List)
 			return SetList(f, k, n, fld, v);
+		if (fld.m_Fmt == DZS_PField.FLAG)
+			return SetFlag(f, k, n, fld, v);
 		string text = "";
 		if (!remove)
 		{
@@ -447,6 +494,30 @@ class DZS_PatcherXml : DZS_PatcherBase
 			f.RemoveNode(cur);
 		else
 			f.SetText(cur, text);
+		return "";
+	}
+
+	// Adds or removes an empty element that means yes by being there.
+	string SetFlag(DZS_PatchFile f, DZS_PKind k, DZS_XmlNode n, DZS_PField fld, DZS_Json v)
+	{
+		int on = 0;
+		if (v && v.m_Type != DZS_Json.NUL)
+			on = BoolOf(v);
+		if (on < 0)
+			return "bad-value";
+		DZS_XmlNode parent = Walk(f, n, fld, fld.m_Elems.Count() - 1);
+		if (!parent)
+		{
+			if (on == 1)
+				return "bad-value";
+			return "";
+		}
+		string elem = fld.m_Elems[fld.m_Elems.Count() - 1];
+		DZS_XmlNode at = Walk(f, n, fld, fld.m_Elems.Count());
+		if (on == 1 && !at)
+			InsertOrdered(f, k, parent, elem, "<" + elem + k.m_SelfClose);
+		else if (on == 0 && at)
+			f.RemoveNode(at);
 		return "";
 	}
 
@@ -565,10 +636,17 @@ class DZS_PatcherXml : DZS_PatcherBase
 
 	static string ListItem(string elem, string token, string selfClose)
 	{
-		int eq = token.IndexOf("=");
-		string attr = token.Substring(0, eq);
-		string val = token.Substring(eq + 1, token.Length() - eq - 1);
-		return "<" + elem + " " + attr + "=\"" + DZS_Xml.Escape(val) + "\"" + selfClose;
+		array<string> parts = new array<string>();
+		token.Split("\t", parts);
+		string r = "<" + elem;
+		foreach (string part : parts)
+		{
+			int eq = part.IndexOf("=");
+			string attr = part.Substring(0, eq);
+			string val = part.Substring(eq + 1, part.Length() - eq - 1);
+			r += " " + attr + "=\"" + DZS_Xml.Escape(val) + "\"";
+		}
+		return r + selfClose;
 	}
 
 	// ---- writing own blocks ----
@@ -643,7 +721,12 @@ class DZS_PatcherXml : DZS_PatcherBase
 					continue;
 				if (ElemsAre(g, sub))
 				{
-					if (g.m_List)
+					if (g.m_Fmt == DZS_PField.FLAG)
+					{
+						if (BoolOf(gv) == 1)
+							kids.Insert("<" + cn + k.m_SelfClose);
+					}
+					else if (g.m_List)
 					{
 						array<string> tokens = new array<string>();
 						ListTokens(gv, tokens);

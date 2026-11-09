@@ -1,0 +1,63 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "remove",
+            "kind": "ignoredType",
+            "key": {
+                "name": "spear"
+            },
+            "status": "applied",
+            "file": "cfgIgnoreList.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "remove",
+            "kind": "ignoredType",
+            "key": {
+                "name": "Nope"
+            },
+            "status": "gone",
+            "file": "cfgIgnoreList.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "ignoredType",
+            "key": {
+                "name": "Bandage"
+            },
+            "field": "name",
+            "status": "applied",
+            "file": "cfgIgnoreList.xml"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "ignoredType",
+            "id": "b-i",
+            "status": "applied",
+            "file": "cfgIgnoreList.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "ignoredType",
+            "id": "b-dup",
+            "status": "collision",
+            "file": "cfgIgnoreList.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgIgnoreList.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

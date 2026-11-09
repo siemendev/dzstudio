@@ -1,0 +1,98 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-m",
+            "kind": "message",
+            "parent": null,
+            "data": {
+                "repeat": 15,
+                "text": "Join our Discord <3"
+            }
+        },
+        {
+            "id": "b-dup",
+            "kind": "message",
+            "parent": null,
+            "data": {
+                "onconnect": 1,
+                "text": "Welcome to my server #name"
+            }
+        },
+        {
+            "id": "b-bad",
+            "kind": "message",
+            "parent": null,
+            "data": {
+                "delay": 1
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "message",
+            "key": {
+                "text": "Welcome to my server #name"
+            },
+            "field": "delay",
+            "from": 2,
+            "to": 5
+        },
+        {
+            "op": "set",
+            "block": "message",
+            "key": {
+                "text": "Welcome to my server #name"
+            },
+            "field": "text",
+            "from": "Welcome to my server #name",
+            "to": "Welcome to #name & friends"
+        },
+        {
+            "op": "set",
+            "block": "message",
+            "key": {
+                "text": "Welcome to #name & friends"
+            },
+            "field": "delay",
+            "to": 1
+        },
+        {
+            "op": "set",
+            "block": "message",
+            "key": {
+                "text": "Check our web page at www.dayz.com"
+            },
+            "field": "repeat",
+            "to": 10
+        },
+        {
+            "op": "set",
+            "block": "message",
+            "key": {
+                "text": "Welcome to my server #name"
+            },
+            "field": "repeat",
+            "to": 30
+        },
+        {
+            "op": "remove",
+            "block": "message",
+            "key": {
+                "text": "Nope"
+            }
+        },
+        {
+            "op": "set",
+            "block": "message",
+            "key": {
+                "text": "Welcome to my server #name"
+            },
+            "field": "delay",
+            "to": 1.5
+        }
+    ]
+}

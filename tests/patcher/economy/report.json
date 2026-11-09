@@ -1,0 +1,95 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "economy",
+            "key": {
+                "name": "zombies"
+            },
+            "field": "save",
+            "status": "applied",
+            "file": "db/economy.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "economy",
+            "key": {
+                "name": "dynamic"
+            },
+            "field": "init",
+            "status": "already",
+            "file": "db/economy.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "economy",
+            "key": {
+                "name": "weather"
+            },
+            "field": "init",
+            "status": "invalid",
+            "file": "db/economy.xml",
+            "detail": "bad-key"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "remove",
+            "kind": "economy",
+            "key": {
+                "name": "custom"
+            },
+            "status": "invalid",
+            "file": "db/economy.xml",
+            "detail": "bad-op"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "economy",
+            "key": {
+                "name": "custom"
+            },
+            "field": "respawn",
+            "status": "applied",
+            "file": "db/economy.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "set",
+            "kind": "economy",
+            "key": {
+                "name": "custom"
+            },
+            "field": "init",
+            "status": "invalid",
+            "file": "db/economy.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "economy",
+            "id": "b-e",
+            "status": "invalid",
+            "detail": "unknown-kind"
+        }
+    ],
+    "files": [
+        {
+            "path": "db/economy.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

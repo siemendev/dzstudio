@@ -1,0 +1,122 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "message",
+            "key": {
+                "text": "Welcome to my server #name"
+            },
+            "field": "delay",
+            "status": "applied",
+            "file": "db/messages.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "message",
+            "key": {
+                "text": "Welcome to my server #name"
+            },
+            "field": "text",
+            "status": "applied",
+            "file": "db/messages.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "message",
+            "key": {
+                "text": "Welcome to #name & friends"
+            },
+            "field": "delay",
+            "status": "orphaned",
+            "file": "db/messages.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "message",
+            "key": {
+                "text": "Check our web page at www.dayz.com"
+            },
+            "field": "repeat",
+            "status": "orphaned",
+            "file": "db/messages.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "message",
+            "key": {
+                "text": "Welcome to my server #name"
+            },
+            "field": "repeat",
+            "status": "applied",
+            "file": "db/messages.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "remove",
+            "kind": "message",
+            "key": {
+                "text": "Nope"
+            },
+            "status": "gone",
+            "file": "db/messages.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "message",
+            "key": {
+                "text": "Welcome to my server #name"
+            },
+            "field": "delay",
+            "status": "invalid",
+            "file": "db/messages.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "message",
+            "id": "b-m",
+            "status": "applied",
+            "file": "db/messages.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "message",
+            "id": "b-dup",
+            "status": "collision",
+            "file": "db/messages.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "message",
+            "id": "b-bad",
+            "status": "invalid",
+            "file": "db/messages.xml",
+            "detail": "incomplete"
+        }
+    ],
+    "files": [
+        {
+            "path": "db/messages.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

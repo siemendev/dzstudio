@@ -1,0 +1,42 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "restrictedArea",
+            "id": "b-pra",
+            "status": "applied",
+            "file": "dzstudio/test/b-pra.json"
+        },
+        {
+            "what": "registration",
+            "field": "WorldsData.playerRestrictedAreaFiles",
+            "value": "pra/warheadstorage.json",
+            "status": "applied",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "registration",
+            "id": "b-pra",
+            "field": "WorldsData.playerRestrictedAreaFiles",
+            "value": "dzstudio/test/b-pra.json",
+            "status": "applied",
+            "file": "cfggameplay.json"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfggameplay.json",
+            "status": "written"
+        },
+        {
+            "path": "dzstudio/test/b-pra.json",
+            "status": "created"
+        }
+    ],
+    "notes": [
+        "enableCfgGameplayFile"
+    ]
+}

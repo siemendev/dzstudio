@@ -46,7 +46,7 @@ class DZS_PatcherBase : Managed
 			}
 			return DZS_PatchNum.Fixed6(parts[0]) + " " + DZS_PatchNum.Fixed6(parts[1]) + " " + DZS_PatchNum.Fixed6(parts[2]);
 		}
-		if (fmt == DZS_PField.BOOL01)
+		if (fmt == DZS_PField.BOOL01 || fmt == DZS_PField.FLAG)
 		{
 			int b = BoolOf(v);
 			if (b < 0)
@@ -110,6 +110,16 @@ class DZS_PatcherBase : Managed
 	// Whether a file value (has = present) equals a project value of a scalar field.
 	static bool Equal(DZS_PField f, string cur, bool has, DZS_Json v)
 	{
+		if (f.m_Fmt == DZS_PField.FLAG)
+		{
+			int wantFlag = 0;
+			if (v && v.m_Type != DZS_Json.NUL)
+				wantFlag = BoolOf(v);
+			int hasFlag = 0;
+			if (has)
+				hasFlag = 1;
+			return wantFlag == hasFlag;
+		}
 		if (!v || v.m_Type == DZS_Json.NUL)
 			return !has;
 		if (!has)
@@ -138,7 +148,8 @@ class DZS_PatcherBase : Managed
 		return v.IsStr() && v.m_Str == cur;
 	}
 
-	// List values: members as "name=…" / "user=…"; a project list holds names or {"user": …}.
+	// List values: members as "name=…" / "user=…", a chance appended as "\tchance=…"; a project list holds names,
+	// {"user": …} or {"name": …, "chance": …}.
 	static bool ListTokens(DZS_Json v, array<string> tokens)
 	{
 		if (!v || !v.IsArr())
@@ -150,6 +161,18 @@ class DZS_PatcherBase : Managed
 				tokens.Insert("name=" + it.m_Str);
 			else if (it.IsObj() && it.GetStr("user") != "")
 				tokens.Insert("user=" + it.GetStr("user"));
+			else if (it.IsObj() && it.GetStr("name") != "")
+			{
+				string tok = "name=" + it.GetStr("name");
+				DZS_Json chance = it.Get("chance");
+				if (chance)
+				{
+					if (!chance.IsNum() || !DZS_PatchNum.IsNumber(chance.m_Str))
+						return false;
+					tok += "\tchance=" + DZS_PatchNum.Canon(chance.m_Str);
+				}
+				tokens.Insert(tok);
+			}
 			else
 				return false;
 		}

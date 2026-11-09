@@ -307,7 +307,7 @@ class DZS_PatchTests
 		array<string> names;
 		array<bool> folders;
 		DZS_Files.List(dir, names, folders);
-		array<string> files = {"db/events.xml", "cfgeventspawns.xml", "cfgeventgroups.xml", "cfgeffectarea.json", "cfgweather.xml", "cfggameplay.json", "db/types.xml", "mapgroupproto.xml", "mapgrouppos.xml"};
+		array<string> files = {"db/events.xml", "cfgeventspawns.xml", "cfgeventgroups.xml", "cfgeffectarea.json", "cfgweather.xml", "cfggameplay.json", "db/types.xml", "mapgroupproto.xml", "mapgrouppos.xml", "db/globals.xml", "db/messages.xml", "db/economy.xml", "cfgeconomycore.xml", "cfgignorelist.xml", "cfgspawnabletypes.xml", "cfgrandompresets.xml", "cfgplayerspawnpoints.xml"};
 		int bad = 0;
 		for (int i = 0; i < names.Count(); i++)
 		{
@@ -359,7 +359,7 @@ class DZS_PatchTests
 	protected static string KeyCheck(DZS_PatchFile f)
 	{
 		DZS_Patcher p = new DZS_Patcher();
-		array<string> kinds = {"event", "eventChild", "spawnList", "spawnPosition", "eventGroup", "eventGroupChild", "itemType", "lootType", "lootContainer", "lootPoint", "lootRow"};
+		array<string> kinds = {"event", "eventChild", "spawnList", "spawnPosition", "eventGroup", "eventGroupChild", "itemType", "lootType", "lootContainer", "lootPoint", "lootRow", "global", "spawnable", "cargoPreset", "attachmentsPreset", "ignoredType"};
 		string r = "";
 		foreach (string kn : kinds)
 		{

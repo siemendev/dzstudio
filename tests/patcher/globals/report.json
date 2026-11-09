@@ -1,0 +1,158 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "global",
+            "key": {
+                "name": "AnimalMaxCount"
+            },
+            "field": "value",
+            "status": "applied",
+            "file": "db/globals.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "global",
+            "key": {
+                "name": "LootDamageMax"
+            },
+            "field": "value",
+            "status": "applied",
+            "file": "db/globals.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "global",
+            "key": {
+                "name": "ZombieMaxCount"
+            },
+            "field": "value",
+            "status": "invalid",
+            "file": "db/globals.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "global",
+            "key": {
+                "name": "TimeLogin"
+            },
+            "field": "value",
+            "status": "overrode",
+            "file": "db/globals.xml",
+            "current": "15"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "global",
+            "key": {
+                "name": "NoSuchVar"
+            },
+            "field": "value",
+            "status": "orphaned",
+            "file": "db/globals.xml"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "remove",
+            "kind": "global",
+            "key": {
+                "name": "TimePenalty"
+            },
+            "status": "applied",
+            "file": "db/globals.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "global",
+            "key": {
+                "name": "FoodDecay"
+            },
+            "field": "value",
+            "status": "already",
+            "file": "db/globals.xml"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "set",
+            "kind": "global",
+            "key": {
+                "name": "LootDamageMin"
+            },
+            "field": "type",
+            "status": "invalid",
+            "file": "db/globals.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "change",
+            "index": 8,
+            "op": "set",
+            "kind": "global",
+            "key": {
+                "name": "animalmaxcount"
+            },
+            "field": "value",
+            "status": "orphaned",
+            "file": "db/globals.xml",
+            "detail": "case-mismatch"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "global",
+            "id": "b-v",
+            "status": "applied",
+            "file": "db/globals.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "global",
+            "id": "b-dup",
+            "status": "collision",
+            "file": "db/globals.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "global",
+            "id": "b-int",
+            "status": "invalid",
+            "file": "db/globals.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "global",
+            "id": "b-type",
+            "status": "invalid",
+            "file": "db/globals.xml",
+            "detail": "bad-value"
+        }
+    ],
+    "files": [
+        {
+            "path": "db/globals.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

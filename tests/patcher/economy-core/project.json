@@ -1,0 +1,105 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-d",
+            "kind": "ceDefault",
+            "parent": null,
+            "data": {
+                "name": "log_ce_animals",
+                "value": "true"
+            }
+        },
+        {
+            "id": "b-c",
+            "kind": "ceRootClass",
+            "parent": null,
+            "data": {
+                "name": "DZ_MyVehicle",
+                "act": "car"
+            }
+        },
+        {
+            "id": "b-dup",
+            "kind": "ceDefault",
+            "parent": null,
+            "data": {
+                "name": "dyn_radius",
+                "value": "1"
+            }
+        },
+        {
+            "id": "b-core",
+            "kind": "economyCore",
+            "parent": null,
+            "data": {}
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "ceDefault",
+            "key": {
+                "name": "dyn_radius"
+            },
+            "field": "value",
+            "from": "30",
+            "to": "40"
+        },
+        {
+            "op": "set",
+            "block": "ceDefault",
+            "key": {
+                "name": "log_ce_loop"
+            },
+            "field": "value",
+            "from": "false",
+            "to": "true"
+        },
+        {
+            "op": "remove",
+            "block": "ceDefault",
+            "key": {
+                "name": "save_events_startup"
+            }
+        },
+        {
+            "op": "set",
+            "block": "ceRootClass",
+            "key": {
+                "name": "BoatScript"
+            },
+            "field": "reportMemoryLOD",
+            "from": "no",
+            "to": "yes"
+        },
+        {
+            "op": "set",
+            "block": "ceRootClass",
+            "key": {
+                "name": "BoatScript"
+            },
+            "field": "act",
+            "from": "car",
+            "to": "bike"
+        },
+        {
+            "op": "remove",
+            "block": "ceRootClass",
+            "key": {
+                "name": "NoSuchClass"
+            }
+        },
+        {
+            "op": "set",
+            "block": "ceDefault",
+            "key": {
+                "name": "dyn_radius"
+            },
+            "field": "value",
+            "to": 40
+        }
+    ]
+}

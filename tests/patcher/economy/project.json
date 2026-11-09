@@ -1,0 +1,72 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-e",
+            "kind": "economy",
+            "parent": null,
+            "data": {
+                "init": 1
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "economy",
+            "key": {
+                "name": "zombies"
+            },
+            "field": "save",
+            "from": 0,
+            "to": 1
+        },
+        {
+            "op": "set",
+            "block": "economy",
+            "key": {
+                "name": "dynamic"
+            },
+            "field": "init",
+            "from": 1,
+            "to": true
+        },
+        {
+            "op": "set",
+            "block": "economy",
+            "key": {
+                "name": "weather"
+            },
+            "field": "init",
+            "to": 1
+        },
+        {
+            "op": "remove",
+            "block": "economy",
+            "key": {
+                "name": "custom"
+            }
+        },
+        {
+            "op": "set",
+            "block": "economy",
+            "key": {
+                "name": "custom"
+            },
+            "field": "respawn",
+            "from": 0,
+            "to": true
+        },
+        {
+            "op": "set",
+            "block": "economy",
+            "key": {
+                "name": "custom"
+            },
+            "field": "init",
+            "to": null
+        }
+    ]
+}

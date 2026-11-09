@@ -1,0 +1,118 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "cargoPreset",
+            "key": {
+                "name": "foodHermit"
+            },
+            "field": "chance",
+            "status": "applied",
+            "file": "cfgrandompresets.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "cargoPreset",
+            "key": {
+                "name": "foodHermit"
+            },
+            "field": "item",
+            "status": "applied",
+            "file": "cfgrandompresets.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "attachmentsPreset",
+            "key": {
+                "name": "optics"
+            },
+            "field": "chance",
+            "status": "applied",
+            "file": "cfgrandompresets.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "cargoPreset",
+            "key": {
+                "name": "optics"
+            },
+            "field": "chance",
+            "status": "orphaned",
+            "file": "cfgrandompresets.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "cargoPreset",
+            "key": {
+                "name": "FOODHERMIT"
+            },
+            "field": "chance",
+            "status": "orphaned",
+            "file": "cfgrandompresets.xml",
+            "detail": "case-mismatch"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "remove",
+            "kind": "cargoPreset",
+            "key": {
+                "name": "nope"
+            },
+            "status": "gone",
+            "file": "cfgrandompresets.xml"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "cargoPreset",
+            "id": "b-c",
+            "status": "applied",
+            "file": "cfgrandompresets.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "attachmentsPreset",
+            "id": "b-a",
+            "status": "applied",
+            "file": "cfgrandompresets.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "cargoPreset",
+            "id": "b-dup",
+            "status": "collision",
+            "file": "cfgrandompresets.xml"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "cargoPreset",
+            "id": "b-bad",
+            "status": "invalid",
+            "file": "cfgrandompresets.xml",
+            "detail": "incomplete"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgrandompresets.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

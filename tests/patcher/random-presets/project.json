@@ -1,0 +1,114 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-c",
+            "kind": "cargoPreset",
+            "parent": null,
+            "data": {
+                "name": "myLoot",
+                "chance": 0.5,
+                "item": [
+                    {
+                        "name": "Apple",
+                        "chance": 0.5
+                    }
+                ]
+            }
+        },
+        {
+            "id": "b-a",
+            "kind": "attachmentsPreset",
+            "parent": null,
+            "data": {
+                "name": "foodHermit",
+                "chance": 1
+            }
+        },
+        {
+            "id": "b-dup",
+            "kind": "cargoPreset",
+            "parent": null,
+            "data": {
+                "name": "foodHermit",
+                "chance": 1
+            }
+        },
+        {
+            "id": "b-bad",
+            "kind": "cargoPreset",
+            "parent": null,
+            "data": {
+                "name": "x"
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "cargoPreset",
+            "key": {
+                "name": "foodHermit"
+            },
+            "field": "chance",
+            "from": 0.15,
+            "to": 0.25
+        },
+        {
+            "op": "set",
+            "block": "cargoPreset",
+            "key": {
+                "name": "foodHermit"
+            },
+            "field": "item",
+            "from": "sha256:7bc5e109f251018bb12010c8e96e603096534965e2475a5ccefbc3b792530220",
+            "to": [
+                {
+                    "name": "TunaCan",
+                    "chance": 0.2
+                },
+                {
+                    "name": "Apple",
+                    "chance": 0.05
+                }
+            ]
+        },
+        {
+            "op": "set",
+            "block": "attachmentsPreset",
+            "key": {
+                "name": "optics"
+            },
+            "field": "chance",
+            "from": 0.3,
+            "to": 0.4
+        },
+        {
+            "op": "set",
+            "block": "cargoPreset",
+            "key": {
+                "name": "optics"
+            },
+            "field": "chance",
+            "to": 0.4
+        },
+        {
+            "op": "set",
+            "block": "cargoPreset",
+            "key": {
+                "name": "FOODHERMIT"
+            },
+            "field": "chance",
+            "to": 0.4
+        },
+        {
+            "op": "remove",
+            "block": "cargoPreset",
+            "key": {
+                "name": "nope"
+            }
+        }
+    ]
+}

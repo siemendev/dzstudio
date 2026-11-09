@@ -7,8 +7,10 @@ class DZS_Patcher : DZS_PatcherJson
 	ref array<string> m_OutPaths = new array<string>();
 	protected ref array<ref DZS_POwn> m_Owns = new array<ref DZS_POwn>();
 	protected ref array<DZS_POwn> m_AllOwns = new array<DZS_POwn>();
-	protected ref array<DZS_PatchFile> m_SpawnerFiles = new array<DZS_PatchFile>();
-	protected ref array<DZS_PatchEntry> m_SpawnerEntries = new array<DZS_PatchEntry>();
+	// own files to register, with their entries and the cfggameplay.json list they go into
+	protected ref array<DZS_PatchFile> m_RegFiles = new array<DZS_PatchFile>();
+	protected ref array<DZS_PatchEntry> m_RegEntries = new array<DZS_PatchEntry>();
+	protected ref array<string> m_RegLists = new array<string>();
 	protected bool m_Gameplay;
 
 	static DZS_Patcher Run(DZS_PatchProject project, string baseDir, map<string, string> over = null)
@@ -87,7 +89,7 @@ class DZS_Patcher : DZS_PatcherJson
 		if (!Usable(e, f))
 			return;
 		bool remove = c.m_Op == "remove";
-		if (remove && k.m_Singleton)
+		if (remove && (k.m_Singleton || k.m_Fixed))
 		{
 			e.m_Status = "invalid";
 			e.m_Detail = "bad-op";
@@ -136,6 +138,12 @@ class DZS_Patcher : DZS_PatcherJson
 			Depends(e, f);
 			return;
 		}
+		if (k.m_Name == "global" && !GlobalOk(f, k, t.m_Nodes, fields, tos))
+		{
+			e.m_Status = "invalid";
+			e.m_Detail = "bad-value";
+			return;
+		}
 		bool same = true;
 		foreach (DZS_XmlNode sn : t.m_Nodes)
 		{
@@ -182,6 +190,31 @@ class DZS_Patcher : DZS_PatcherJson
 			}
 		}
 		Depends(e, f);
+	}
+
+	// A global's value stays a whole number where its type says integer, also when the type is what changes.
+	protected bool GlobalOk(DZS_PatchFile f, DZS_PKind k, array<DZS_XmlNode> nodes, array<DZS_PField> fields, array<ref DZS_Json> tos)
+	{
+		DZS_PField tf = k.Field("type");
+		DZS_PField vf = k.Field("value");
+		foreach (DZS_XmlNode n : nodes)
+		{
+			bool hasType;
+			string type = Current(f, n, tf, hasType);
+			bool hasVal;
+			string val = Current(f, n, vf, hasVal);
+			for (int i = 0; i < fields.Count(); i++)
+			{
+				DZS_Json to = tos[i];
+				if (fields[i].m_Name == "type" && to)
+					type = to.m_Str;
+				if (fields[i].m_Name == "value" && to)
+					val = to.m_Str;
+			}
+			if (!DZS_PKind.GlobalValueOk(type, val))
+				return false;
+		}
+		return true;
 	}
 
 	// The fields a set touches with their new and expected values; "pos" of a spawn position sets x/z/a/y together.
@@ -312,8 +345,8 @@ class DZS_Patcher : DZS_PatcherJson
 				OwnArea(ea, ba, areaNames);
 			else if (ba.m_Kind == "safePosition")
 				OwnSafe(ea, ba, safeKeys);
-			else if (ba.m_Kind == "spawnerGroup")
-				OwnSpawner(ea, ba);
+			else if (ba.m_Kind == "spawnerGroup" || ba.m_Kind == "gearPreset" || ba.m_Kind == "restrictedArea")
+				OwnFile(ea, ba);
 			else if (ba.m_Kind == "weather")
 			{
 				if (weather)
@@ -327,7 +360,7 @@ class DZS_Patcher : DZS_PatcherJson
 			else
 			{
 				DZS_PKind k = DZS_PKinds.Get(ba.m_Kind);
-				if (!k || k.m_Singleton)
+				if (!k || k.m_Singleton || k.m_Fixed)
 				{
 					ea.m_Status = "invalid";
 					ea.m_Detail = "unknown-kind";
@@ -454,6 +487,13 @@ class DZS_Patcher : DZS_PatcherJson
 			return;
 		}
 		DZS_PatchFile f = File(rel);
+		if (!f.m_Exists && f.m_Error == "" && k.m_Skeleton != "")
+		{
+			array<string> skeleton = DZS_Files.Chunk(k.m_Skeleton);
+			f.Load(skeleton, false);
+			f.m_Exists = true;
+			f.m_Fresh = true;
+		}
 		if (!Usable(e, f))
 			return;
 		string err;
@@ -832,7 +872,8 @@ class DZS_Patcher : DZS_PatcherJson
 		Depends(e, f);
 	}
 
-	protected void OwnSpawner(DZS_PatchEntry e, DZS_PatchBlock b)
+	// An own block that is a file of its own (spawner group, gear preset, restricted area), registered in cfggameplay.json.
+	protected void OwnFile(DZS_PatchEntry e, DZS_PatchBlock b)
 	{
 		if (!SafeName(m_Project.m_Slug, true))
 		{
@@ -847,7 +888,20 @@ class DZS_Patcher : DZS_PatcherJson
 			return;
 		}
 		string err;
-		array<string> chunks = SpawnerText(b, err);
+		string regList = SPAWNERS;
+		array<string> chunks;
+		if (b.m_Kind == "gearPreset")
+		{
+			regList = GEAR;
+			chunks = GearText(b, err);
+		}
+		else if (b.m_Kind == "restrictedArea")
+		{
+			regList = PRA;
+			chunks = PraText(b, err);
+		}
+		else
+			chunks = SpawnerText(b, err);
 		if (err != "")
 		{
 			e.m_Status = "invalid";
@@ -856,10 +910,16 @@ class DZS_Patcher : DZS_PatcherJson
 		}
 		string path = SpawnerPath(b);
 		DZS_PatchFile made = m_Files.Create(path, chunks);
-		m_SpawnerFiles.Insert(made);
-		m_SpawnerEntries.Insert(e);
+		AddRegistration(made, e, regList);
 		e.m_Status = "applied";
 		Depends(e, made);
+	}
+
+	protected void AddRegistration(DZS_PatchFile f, DZS_PatchEntry e, string list)
+	{
+		m_RegFiles.Insert(f);
+		m_RegEntries.Insert(e);
+		m_RegLists.Insert(list);
 	}
 
 	// ---- registrations ----
@@ -875,34 +935,68 @@ class DZS_Patcher : DZS_PatcherJson
 
 	protected void Registrations()
 	{
-		if (m_SpawnerFiles.Count() == 0)
+		if (m_RegFiles.Count() == 0)
 			return;
 		DZS_PatchFile g = File(GAMEPLAY_FILE);
-		bool ok = true;
-		DZS_SrcNode list = null;
-		if (!g.Ok())
-			ok = false;
-		else
+		DZS_SrcNode root = null;
+		if (g.Ok())
+			root = g.m_Json.m_Root;
+		array<string> lists = new array<string>();
+		lists.Insert(SPAWNERS);
+		lists.Insert(GEAR);
+		lists.Insert(PRA);
+		array<string> done = new array<string>();
+		foreach (string path : lists)
 		{
-			list = JsonAt(g, g.m_Json.m_Root, SPAWNERS);
-			if (list && !list.IsArr())
-				ok = false;
-		}
-		if (!ok)
-		{
-			for (int i = 0; i < m_SpawnerEntries.Count(); i++)
+			array<int> mine = new array<int>();
+			for (int i = 0; i < m_RegLists.Count(); i++)
 			{
-				DZS_PatchEntry se = m_SpawnerEntries[i];
-				Usable(se, g);
-				if (se.m_Status != "invalid")
-				{
-					se.m_Status = "invalid";
-					se.m_Detail = "base-invalid";
-				}
-				m_SpawnerFiles[i].m_Out = null;
+				if (m_RegLists[i] == path)
+					mine.Insert(i);
 			}
-			return;
+			if (mine.Count() == 0)
+				continue;
+			bool ok = g.Ok() && root != null;
+			DZS_SrcNode list = null;
+			if (ok)
+			{
+				list = JsonAt(g, root, path);
+				if (list && !list.IsArr())
+					ok = false;
+			}
+			if (!ok)
+			{
+				foreach (int m : mine)
+				{
+					DZS_PatchEntry se = m_RegEntries[m];
+					Usable(se, g);
+					if (se.m_Status != "invalid")
+					{
+						se.m_Status = "invalid";
+						se.m_Detail = "base-invalid";
+					}
+					m_RegFiles[m].m_Out = null;
+				}
+				continue;
+			}
+			RegisterIn(g, root, path, list, mine);
+			done.Insert(path);
 		}
+		if (done.Count() == 0)
+			return;
+		for (int n = 0; n < m_RegEntries.Count(); n++)
+		{
+			DZS_PatchEntry sp = m_RegEntries[n];
+			if (done.Find(m_RegLists[n]) >= 0 && g.m_Entries.Find(sp) < 0)
+				g.m_Entries.Insert(sp);
+		}
+		m_Report.Note("enableCfgGameplayFile");
+	}
+
+	// Lists the own files of one registration list: duplicates in the base go, every file is listed once, existing
+	// entries keep their order. A restricted-area list made new on Sakhal keeps the map's warhead storage.
+	protected void RegisterIn(DZS_PatchFile g, DZS_SrcNode root, string path, DZS_SrcNode list, array<int> mine)
+	{
 		array<string> seen = new array<string>();
 		if (list)
 		{
@@ -916,7 +1010,7 @@ class DZS_Patcher : DZS_PatcherJson
 				{
 					g.RemoveItem(list, k);
 					DZS_PatchEntry de = m_Report.Add("registration", -1, "deduplicated");
-					de.m_Field = SPAWNERS;
+					de.m_Field = path;
 					de.m_Value = item.m_Str;
 					Depends(de, g);
 					continue;
@@ -925,14 +1019,24 @@ class DZS_Patcher : DZS_PatcherJson
 			}
 		}
 		DZS_Json added = DZS_Json.Arr();
-		for (int n = 0; n < m_SpawnerFiles.Count(); n++)
+		if (!list && path == PRA && DZS_PatchText.Lower(m_Project.m_Map) == "sakhal")
 		{
-			DZS_PatchFile sf = m_SpawnerFiles[n];
+			DZS_PatchEntry wh = m_Report.Add("registration", -1, "applied");
+			wh.m_Field = path;
+			wh.m_Value = SAKHAL_PRA;
+			Depends(wh, g);
+			seen.Insert(SAKHAL_PRA);
+			DZS_Json whj = DZS_Json.Str(SAKHAL_PRA);
+			added.Add(whj);
+		}
+		foreach (int n : mine)
+		{
+			DZS_PatchFile sf = m_RegFiles[n];
 			DZS_PatchEntry re = m_Report.Add("registration", -1, "applied");
-			re.m_Field = SPAWNERS;
+			re.m_Field = path;
 			re.m_Value = sf.m_Path;
-			re.m_Id = m_SpawnerEntries[n].m_Id;
-			m_SpawnerEntries[n].m_File = sf.m_Path;
+			re.m_Id = m_RegEntries[n].m_Id;
+			m_RegEntries[n].m_File = sf.m_Path;
 			Depends(re, g);
 			if (seen.Find(sf.m_Path) >= 0)
 			{
@@ -948,13 +1052,7 @@ class DZS_Patcher : DZS_PatcherJson
 			m_Gameplay = true;
 		}
 		if (!list && added.Count() > 0)
-			JsonSet(g, g.m_Json.m_Root, SPAWNERS, added);
-		foreach (DZS_PatchEntry sp : m_SpawnerEntries)
-		{
-			if (g.m_Entries.Find(sp) < 0)
-				g.m_Entries.Insert(sp);
-		}
-		m_Report.Note("enableCfgGameplayFile");
+			JsonSet(g, root, path, added);
 	}
 
 	// ---- finishing ----
@@ -981,6 +1079,17 @@ class DZS_Patcher : DZS_PatcherJson
 			if (f.m_Created)
 				continue;
 			bool changed = f.Finish();
+			if (f.m_Fresh)
+			{
+				if (changed)
+				{
+					m_Report.FileNote(f.m_Path, "created", "");
+					Output(f.m_Path, f.m_Out);
+				}
+				else
+					m_Report.FileNote(f.m_Path, "missing", "");
+				continue;
+			}
 			if (changed && f.m_IsJson)
 			{
 				string bad = EngineCheck(DZS_PatchText.Lower(f.m_Path), f.m_Out);
@@ -1006,7 +1115,7 @@ class DZS_Patcher : DZS_PatcherJson
 		{
 			if (!c.m_Created || !c.m_Out)
 				continue;
-			if (m_SpawnerFiles.Find(c) >= 0 && !gameplayOk)
+			if (m_RegFiles.Find(c) >= 0 && !gameplayOk)
 			{
 				Refuse(c, "registration");
 				continue;

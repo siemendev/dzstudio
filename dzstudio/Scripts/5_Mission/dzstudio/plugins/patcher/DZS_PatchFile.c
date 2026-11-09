@@ -34,6 +34,8 @@ class DZS_PatchFile : Managed
 	bool m_Exists;
 	bool m_IsJson;
 	bool m_Created;
+	// an empty file made for own blocks (a messages.xml the base lacks): reported as created
+	bool m_Fresh;
 	ref array<string> m_Chunks;
 	ref DZS_XmlDoc m_Xml;
 	ref DZS_SrcDoc m_Json;
@@ -312,6 +314,16 @@ class DZS_PatchFile : Managed
 		string k = "t" + n.m_Start;
 		if (m_Over.Contains(k))
 			return m_Over.Get(k);
+		if (n.m_SelfClose)
+			return "";
+		string raw = m_Xml.Slice(n.m_OpenEnd, EndTagStart(n));
+		raw.TrimInPlace();
+		return DZS_Xml.Unescape(raw);
+	}
+
+	// The text of an element as the base has it, without values set in this run.
+	string BaseText(DZS_XmlNode n)
+	{
 		if (n.m_SelfClose)
 			return "";
 		string raw = m_Xml.Slice(n.m_OpenEnd, EndTagStart(n));

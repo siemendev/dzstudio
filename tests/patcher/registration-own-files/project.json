@@ -1,0 +1,350 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "slug": "test",
+    "blocks": [
+        {
+            "id": "b-koth",
+            "kind": "spawnerGroup",
+            "parent": null,
+            "data": {
+                "name": "KotH",
+                "objects": [
+                    {
+                        "name": "Land_Mil_Barracks1",
+                        "pos": [
+                            100,
+                            5.5,
+                            200
+                        ],
+                        "ypr": [
+                            90,
+                            0,
+                            0
+                        ]
+                    },
+                    {
+                        "name": "Barrel_Blue",
+                        "pos": [
+                            101,
+                            5,
+                            201
+                        ],
+                        "scale": 1.5,
+                        "enableCEPersistency": 1,
+                        "customString": "x"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "b-gear",
+            "kind": "gearPreset",
+            "parent": null,
+            "data": {
+                "name": "Hunter",
+                "spawnWeight": 2,
+                "characterTypes": [
+                    "SurvivorM_Mirek",
+                    "SurvivorF_Eva"
+                ],
+                "attachmentSlotItemSets": [
+                    {
+                        "slotName": "Body",
+                        "discreteItemSets": [
+                            {
+                                "itemType": "HuntingJacket_Brown",
+                                "spawnWeight": 1,
+                                "attributes": {
+                                    "healthMin": 0.7,
+                                    "healthMax": 1,
+                                    "quantityMin": 0,
+                                    "quantityMax": 0
+                                },
+                                "complexChildrenTypes": [
+                                    {
+                                        "itemType": "Mag_CZ527_5rnd",
+                                        "attributes": {
+                                            "healthMin": 0.7,
+                                            "healthMax": 1,
+                                            "quantityMin": 0,
+                                            "quantityMax": 0
+                                        },
+                                        "quickBarSlot": 2,
+                                        "complexChildrenTypes": [
+                                            {
+                                                "itemType": "Ammo_762x39",
+                                                "attributes": {
+                                                    "healthMin": 0.7,
+                                                    "healthMax": 1,
+                                                    "quantityMin": 0,
+                                                    "quantityMax": 0
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "simpleChildrenTypes": [
+                                    "Rag"
+                                ]
+                            },
+                            {
+                                "itemType": "",
+                                "spawnWeight": 1,
+                                "attributes": {
+                                    "healthMin": 0.7,
+                                    "healthMax": 1,
+                                    "quantityMin": 0,
+                                    "quantityMax": 0
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "discreteUnsortedItemSets": [
+                    {
+                        "name": "food",
+                        "spawnWeight": 1,
+                        "attributes": {
+                            "healthMin": 0.7,
+                            "healthMax": 1,
+                            "quantityMin": 0,
+                            "quantityMax": 0
+                        },
+                        "simpleChildrenTypes": [
+                            "Apple"
+                        ],
+                        "simpleChildrenUseDefaultAttributes": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "b-pra",
+            "kind": "restrictedArea",
+            "parent": null,
+            "data": {
+                "areaName": "Bunker",
+                "PRABoxes": [
+                    [
+                        [
+                            2,
+                            2,
+                            3
+                        ],
+                        [
+                            108.5,
+                            0,
+                            0
+                        ],
+                        [
+                            2570,
+                            15.22,
+                            5963.8
+                        ]
+                    ]
+                ],
+                "safePositions3D": [
+                    [
+                        2575.12,
+                        15.25,
+                        5954.31
+                    ]
+                ]
+            }
+        },
+        {
+            "id": "b-poly",
+            "kind": "restrictedArea",
+            "parent": null,
+            "data": {
+                "PRAPolygons": [
+                    [
+                        [
+                            1,
+                            2
+                        ],
+                        [
+                            3,
+                            4
+                        ],
+                        [
+                            5,
+                            6.5
+                        ]
+                    ]
+                ],
+                "safePositions2D": [
+                    [
+                        10,
+                        20
+                    ]
+                ]
+            }
+        },
+        {
+            "id": "b-g0",
+            "kind": "gearPreset",
+            "parent": null,
+            "data": {
+                "name": "Hunter",
+                "spawnWeight": 0,
+                "characterTypes": [
+                    "SurvivorM_Mirek",
+                    "SurvivorF_Eva"
+                ],
+                "attachmentSlotItemSets": [
+                    {
+                        "slotName": "Body",
+                        "discreteItemSets": [
+                            {
+                                "itemType": "HuntingJacket_Brown",
+                                "spawnWeight": 1,
+                                "attributes": {
+                                    "healthMin": 0.7,
+                                    "healthMax": 1,
+                                    "quantityMin": 0,
+                                    "quantityMax": 0
+                                },
+                                "complexChildrenTypes": [
+                                    {
+                                        "itemType": "Mag_CZ527_5rnd",
+                                        "attributes": {
+                                            "healthMin": 0.7,
+                                            "healthMax": 1,
+                                            "quantityMin": 0,
+                                            "quantityMax": 0
+                                        },
+                                        "quickBarSlot": 2,
+                                        "complexChildrenTypes": [
+                                            {
+                                                "itemType": "Ammo_762x39",
+                                                "attributes": {
+                                                    "healthMin": 0.7,
+                                                    "healthMax": 1,
+                                                    "quantityMin": 0,
+                                                    "quantityMax": 0
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "simpleChildrenTypes": [
+                                    "Rag"
+                                ]
+                            },
+                            {
+                                "itemType": "",
+                                "spawnWeight": 1,
+                                "attributes": {
+                                    "healthMin": 0.7,
+                                    "healthMax": 1,
+                                    "quantityMin": 0,
+                                    "quantityMax": 0
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "discreteUnsortedItemSets": [
+                    {
+                        "name": "food",
+                        "spawnWeight": 1,
+                        "attributes": {
+                            "healthMin": 0.7,
+                            "healthMax": 1,
+                            "quantityMin": 0,
+                            "quantityMax": 0
+                        },
+                        "simpleChildrenTypes": [
+                            "Apple"
+                        ],
+                        "simpleChildrenUseDefaultAttributes": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": "b-g1",
+            "kind": "gearPreset",
+            "parent": null,
+            "data": {
+                "spawnWeight": 1,
+                "attachmentSlotItemSets": [
+                    {
+                        "slotName": "Hands",
+                        "discreteItemSets": [
+                            {
+                                "itemType": "Apple",
+                                "spawnWeight": 1
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "b-g2",
+            "kind": "gearPreset",
+            "parent": null,
+            "data": {
+                "spawnWeight": 1,
+                "colour": "red"
+            }
+        },
+        {
+            "id": "b-p0",
+            "kind": "restrictedArea",
+            "parent": null,
+            "data": {
+                "areaName": "x",
+                "PRABoxes": [
+                    [
+                        [
+                            2,
+                            2,
+                            3
+                        ],
+                        [
+                            108.5,
+                            0,
+                            0
+                        ],
+                        [
+                            2570,
+                            15.22,
+                            5963.8
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "id": "b-p1",
+            "kind": "restrictedArea",
+            "parent": null,
+            "data": {
+                "PRAPolygons": [
+                    [
+                        [
+                            1,
+                            2
+                        ],
+                        [
+                            3,
+                            4
+                        ]
+                    ]
+                ],
+                "safePositions2D": [
+                    [
+                        1,
+                        2
+                    ]
+                ]
+            }
+        }
+    ],
+    "changes": []
+}

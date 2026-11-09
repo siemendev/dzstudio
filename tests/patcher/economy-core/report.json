@@ -1,0 +1,129 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "ceDefault",
+            "key": {
+                "name": "dyn_radius"
+            },
+            "field": "value",
+            "status": "applied",
+            "file": "cfgeconomycore.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "ceDefault",
+            "key": {
+                "name": "log_ce_loop"
+            },
+            "field": "value",
+            "status": "applied",
+            "file": "cfgeconomycore.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "remove",
+            "kind": "ceDefault",
+            "key": {
+                "name": "save_events_startup"
+            },
+            "status": "applied",
+            "file": "cfgeconomycore.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "set",
+            "kind": "ceRootClass",
+            "key": {
+                "name": "BoatScript"
+            },
+            "field": "reportMemoryLOD",
+            "status": "applied",
+            "file": "cfgeconomycore.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "ceRootClass",
+            "key": {
+                "name": "BoatScript"
+            },
+            "field": "act",
+            "status": "invalid",
+            "file": "cfgeconomycore.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "remove",
+            "kind": "ceRootClass",
+            "key": {
+                "name": "NoSuchClass"
+            },
+            "status": "gone",
+            "file": "cfgeconomycore.xml"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "ceDefault",
+            "key": {
+                "name": "dyn_radius"
+            },
+            "field": "value",
+            "status": "invalid",
+            "file": "cfgeconomycore.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "ceDefault",
+            "id": "b-d",
+            "status": "applied",
+            "file": "cfgeconomycore.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "ceRootClass",
+            "id": "b-c",
+            "status": "applied",
+            "file": "cfgeconomycore.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "ceDefault",
+            "id": "b-dup",
+            "status": "collision",
+            "file": "cfgeconomycore.xml"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "economyCore",
+            "id": "b-core",
+            "status": "invalid",
+            "detail": "unknown-kind"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgeconomycore.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

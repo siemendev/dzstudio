@@ -54,10 +54,10 @@ def bl(i, kind, id, status, file=None, detail=None):
     if detail: e["detail"] = detail
     return e
 
-def reg(id, value, status, file="cfggameplay.json"):
+def reg(id, value, status, file="cfggameplay.json", field="WorldsData.objectSpawnersArr"):
     e = {"what": "registration"}
     if id: e["id"] = id
-    e["field"] = "WorldsData.objectSpawnersArr"
+    e["field"] = field
     e["value"] = value
     e["status"] = status
     e["file"] = file
@@ -76,3 +76,23 @@ def S(key, field, frm=None, to=None, kind="event", has_from=True):
 
 def R(key, kind="event"):
     return {"op": "remove", "block": kind, "key": key}
+
+def jtext(v, indent='', unit='    '):
+    """JSON as the patcher writes it: scalar arrays on one line; N("…") keeps a number's text."""
+    if isinstance(v, bool):
+        return 'true' if v else 'false'
+    if isinstance(v, str):
+        if v.startswith('#N') and v.endswith('#'):
+            return v[2:-1]
+        return json.dumps(v, ensure_ascii=False)
+    if isinstance(v, (int, float)):
+        return str(v)
+    if isinstance(v, list):
+        if not v:
+            return '[]'
+        if all(not isinstance(i, (list, dict)) for i in v):
+            return '[' + ', '.join(jtext(i) for i in v) + ']'
+        return '[' + ','.join('\n' + indent + unit + jtext(i, indent + unit, unit) for i in v) + '\n' + indent + ']'
+    if not v:
+        return '{}'
+    return '{' + ','.join('\n' + indent + unit + json.dumps(k) + ': ' + jtext(x, indent + unit, unit) for k, x in v.items()) + '\n' + indent + '}'

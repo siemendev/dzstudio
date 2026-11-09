@@ -1,0 +1,42 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "message",
+            "key": {
+                "text": "Welcome to my server #name"
+            },
+            "field": "delay",
+            "status": "invalid",
+            "file": "db/messages.xml",
+            "detail": "missing-file"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "message",
+            "id": "b-r",
+            "status": "applied",
+            "file": "db/messages.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "message",
+            "id": "b-h",
+            "status": "applied",
+            "file": "db/messages.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "db/messages.xml",
+            "status": "created"
+        }
+    ],
+    "notes": []
+}

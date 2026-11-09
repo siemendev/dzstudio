@@ -1,0 +1,48 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-i",
+            "kind": "ignoredType",
+            "parent": null,
+            "data": {
+                "name": "Mag_Custom_30Rnd"
+            }
+        },
+        {
+            "id": "b-dup",
+            "kind": "ignoredType",
+            "parent": null,
+            "data": {
+                "name": "bandage"
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "remove",
+            "block": "ignoredType",
+            "key": {
+                "name": "spear"
+            }
+        },
+        {
+            "op": "remove",
+            "block": "ignoredType",
+            "key": {
+                "name": "Nope"
+            }
+        },
+        {
+            "op": "set",
+            "block": "ignoredType",
+            "key": {
+                "name": "Bandage"
+            },
+            "field": "name",
+            "to": "X"
+        }
+    ]
+}

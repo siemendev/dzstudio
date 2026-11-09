@@ -1,0 +1,135 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "spawnerGroup",
+            "id": "b-koth",
+            "status": "applied",
+            "file": "dzstudio/test/b-koth.json"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "gearPreset",
+            "id": "b-gear",
+            "status": "applied",
+            "file": "dzstudio/test/b-gear.json"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "restrictedArea",
+            "id": "b-pra",
+            "status": "applied",
+            "file": "dzstudio/test/b-pra.json"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "restrictedArea",
+            "id": "b-poly",
+            "status": "applied",
+            "file": "dzstudio/test/b-poly.json"
+        },
+        {
+            "what": "block",
+            "index": 4,
+            "kind": "gearPreset",
+            "id": "b-g0",
+            "status": "invalid",
+            "detail": "bad-value"
+        },
+        {
+            "what": "block",
+            "index": 5,
+            "kind": "gearPreset",
+            "id": "b-g1",
+            "status": "invalid",
+            "detail": "incomplete"
+        },
+        {
+            "what": "block",
+            "index": 6,
+            "kind": "gearPreset",
+            "id": "b-g2",
+            "status": "invalid",
+            "detail": "unknown-field"
+        },
+        {
+            "what": "block",
+            "index": 7,
+            "kind": "restrictedArea",
+            "id": "b-p0",
+            "status": "invalid",
+            "detail": "incomplete"
+        },
+        {
+            "what": "block",
+            "index": 8,
+            "kind": "restrictedArea",
+            "id": "b-p1",
+            "status": "invalid",
+            "detail": "bad-value"
+        },
+        {
+            "what": "registration",
+            "id": "b-koth",
+            "field": "WorldsData.objectSpawnersArr",
+            "value": "dzstudio/test/b-koth.json",
+            "status": "applied",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "registration",
+            "id": "b-gear",
+            "field": "PlayerData.spawnGearPresetFiles",
+            "value": "dzstudio/test/b-gear.json",
+            "status": "applied",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "registration",
+            "id": "b-pra",
+            "field": "WorldsData.playerRestrictedAreaFiles",
+            "value": "dzstudio/test/b-pra.json",
+            "status": "applied",
+            "file": "cfggameplay.json"
+        },
+        {
+            "what": "registration",
+            "id": "b-poly",
+            "field": "WorldsData.playerRestrictedAreaFiles",
+            "value": "dzstudio/test/b-poly.json",
+            "status": "applied",
+            "file": "cfggameplay.json"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfggameplay.json",
+            "status": "written"
+        },
+        {
+            "path": "dzstudio/test/b-gear.json",
+            "status": "created"
+        },
+        {
+            "path": "dzstudio/test/b-koth.json",
+            "status": "created"
+        },
+        {
+            "path": "dzstudio/test/b-poly.json",
+            "status": "created"
+        },
+        {
+            "path": "dzstudio/test/b-pra.json",
+            "status": "created"
+        }
+    ],
+    "notes": [
+        "enableCfgGameplayFile"
+    ]
+}

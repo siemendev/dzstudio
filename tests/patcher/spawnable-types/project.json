@@ -1,0 +1,224 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-r",
+            "kind": "spawnable",
+            "parent": null,
+            "data": {
+                "name": "MyRifle",
+                "damage": {
+                    "min": 0.1,
+                    "max": 0.5
+                }
+            }
+        },
+        {
+            "id": "b-r-a",
+            "kind": "spawnableAttachments",
+            "parent": "b-r",
+            "data": {
+                "chance": 0.6,
+                "item": [
+                    {
+                        "name": "M4_Suppressor",
+                        "chance": 1
+                    }
+                ]
+            }
+        },
+        {
+            "id": "b-r-c",
+            "kind": "spawnableCargo",
+            "parent": "b-r",
+            "data": {
+                "preset": "mixArmy"
+            }
+        },
+        {
+            "id": "b-nv",
+            "kind": "spawnableAttachments",
+            "parent": {
+                "type": "nvgoggles"
+            },
+            "data": {
+                "chance": 1,
+                "item": [
+                    {
+                        "name": "Battery9V",
+                        "chance": 1
+                    }
+                ]
+            }
+        },
+        {
+            "id": "b-both",
+            "kind": "spawnableCargo",
+            "parent": {
+                "type": "NVGoggles"
+            },
+            "data": {
+                "preset": "x",
+                "chance": 1
+            }
+        },
+        {
+            "id": "b-none",
+            "kind": "spawnableAttachments",
+            "parent": {
+                "type": "NVGoggles"
+            },
+            "data": {
+                "item": [
+                    "Battery9V"
+                ]
+            }
+        },
+        {
+            "id": "b-dup",
+            "kind": "spawnable",
+            "parent": null,
+            "data": {
+                "name": "m4a1",
+                "hoarder": true
+            }
+        },
+        {
+            "id": "b-h",
+            "kind": "spawnable",
+            "parent": null,
+            "data": {
+                "name": "MyCrate",
+                "hoarder": true
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "spawnable",
+            "key": {
+                "name": "barrel_blue"
+            },
+            "field": "hoarder",
+            "from": 1,
+            "to": false
+        },
+        {
+            "op": "set",
+            "block": "spawnable",
+            "key": {
+                "name": "NVGoggles"
+            },
+            "field": "hoarder",
+            "to": true
+        },
+        {
+            "op": "set",
+            "block": "spawnable",
+            "key": {
+                "name": "NVGoggles"
+            },
+            "field": "damage.max",
+            "from": 0.32,
+            "to": 0.5
+        },
+        {
+            "op": "set",
+            "block": "spawnableAttachments",
+            "key": {
+                "type": "M4A1"
+            },
+            "field": "chance",
+            "to": 0.5
+        },
+        {
+            "op": "set",
+            "block": "spawnableAttachments",
+            "key": {
+                "type": "M4A1",
+                "ordinal": 2
+            },
+            "field": "item",
+            "from": "sha256:4ec86355af50110266dc5c494344f3fabe1c499d104175160cd0c8a6b0aed1f0",
+            "to": [
+                {
+                    "name": "ACOGOptic",
+                    "chance": 0.50
+                },
+                {
+                    "name": "M4_CarryHandleOptic",
+                    "chance": 1
+                }
+            ]
+        },
+        {
+            "op": "set",
+            "block": "spawnableCargo",
+            "key": {
+                "type": "M4A1"
+            },
+            "field": "preset",
+            "from": "mixArmy",
+            "to": "mixHunter"
+        },
+        {
+            "op": "set",
+            "block": "spawnableCargo",
+            "key": {
+                "type": "ZmbM_Mummy"
+            },
+            "field": "chance",
+            "from": 0.20,
+            "to": 0.3
+        },
+        {
+            "op": "remove",
+            "block": "spawnableAttachments",
+            "key": {
+                "type": "M4A1",
+                "ordinal": 1
+            }
+        },
+        {
+            "op": "remove",
+            "block": "spawnable",
+            "key": {
+                "name": "Nope"
+            }
+        },
+        {
+            "op": "remove",
+            "block": "spawnable",
+            "key": {
+                "name": "giftwrappaper"
+            }
+        },
+        {
+            "op": "set",
+            "block": "spawnable",
+            "key": {
+                "name": "Commented"
+            },
+            "field": "hoarder",
+            "to": true
+        },
+        {
+            "op": "set",
+            "block": "spawnableAttachments",
+            "key": {
+                "type": "M4A1",
+                "ordinal": 2
+            },
+            "field": "item",
+            "to": [
+                {
+                    "name": "X",
+                    "chance": "high"
+                }
+            ]
+        }
+    ]
+}

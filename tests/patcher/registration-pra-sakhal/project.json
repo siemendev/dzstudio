@@ -1,0 +1,43 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "sakhal",
+    "slug": "test",
+    "blocks": [
+        {
+            "id": "b-pra",
+            "kind": "restrictedArea",
+            "parent": null,
+            "data": {
+                "areaName": "Bunker",
+                "PRABoxes": [
+                    [
+                        [
+                            2,
+                            2,
+                            3
+                        ],
+                        [
+                            108.5,
+                            0,
+                            0
+                        ],
+                        [
+                            2570,
+                            15.22,
+                            5963.8
+                        ]
+                    ]
+                ],
+                "safePositions3D": [
+                    [
+                        2575.12,
+                        15.25,
+                        5954.31
+                    ]
+                ]
+            }
+        }
+    ],
+    "changes": []
+}
