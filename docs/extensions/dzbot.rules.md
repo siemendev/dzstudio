@@ -46,7 +46,19 @@ mod's settings (below): `{"data": {"settings": [ … ]}}`.
     target, or the whole project is not applied on that server.
   - `repeat` — `{"count": "<formula>"}` or `{"over": "<list setting>"}`: the block (with its child blocks) is repeated.
     Copies are named `<id>-1`, `<id>-2` …; formulas in them read `index` (0, 1, …) and, over a list, `item` and
-    `item.<property>`.
+    `item.<property>`. Optional `"name"`: a template for the copies' names (below).
+- **Names of repeated blocks.** A block whose kind is identified by a name — an event, a spawn zone, an event group, an
+  item type, a loot type, a spawnable type, a random preset, a global, a message (its text), a player spawn group, a CE
+  default or root class, an ignored type, an event child (its `type`) — would collide with its own copies, so each
+  copy gets a name of its own: `<name>_1`, `<name>_2` … by default (no hyphen: game identifiers may not allow it), or what the repeat's `name` template makes:
+  `{name}` is the block's name, `{n}` the copy's number from 1, `{index}` from 0 — `"name": "StaticHeli_{n}"` gives
+  `StaticHeli_1`, `StaticHeli_2` … A template must hold `{n}` or `{index}` (so the names differ) and nothing else in
+  braces; an event's name must still start with its prefix (`Vehicle`, `Static`, …). Kinds whose entries may share a
+  name (loot containers, territories) or are known by a position keep it, and a template there is refused, as on a
+  list element. A block whose `fields` set the name (`"name": {"setting": "item.name"}`) keeps that value and takes
+  no template. Child blocks follow their parent's copy: those placed in it by its id, and those whose `parent` key
+  names the repeated block (`{"event": "StaticHeli"}`, `{"group": "…"}`) — they are repeated with it and their key
+  names the copy.
   - `fields` — per path in the block's `data`, `{"setting": "<name>"}` (the setting's value as it is; a coordinate is a
     whole position) or `{"formula": "<formula>"}` (a number; `base` is the value in the project). Settings are applied
     before formulas. A block's paths stay outside list elements (`nominal`, `flags.deletable`); a value of an element
@@ -149,7 +161,8 @@ by one new identifier of the same type counts as renamed, so installations keep 
 (two settings with one identifier, an identifier rules cannot read, a condition on a setting further down) refuses the
 whole save with the reason. The workbench's config panel writes into the same list (and only into it); renaming a
 setting there can rename it in every rule too. New project mods start with an empty list; dzStudio is sent the
-settings with the project as well.
+settings with the project as well — the entries whole, in the shape above (the file's own list as written, or the
+mod's fields written in that shape when the file has none).
 
 dzbot reads the rules when it applies the project at a transfer and in the preview; a later version would be another
 URL, which this dzbot does not read. dzbot also knows dzStudio's editor extension (`https://developers.dzbot.de/specs/dzstudio/editor/1.json`) and ignores it; any other
