@@ -667,7 +667,8 @@ class DZS_Instance : DZS_ProjectState
 
 	// Save state beyond the history: "" normal, "new" (never saved, shows
 	// "Not saved yet"), "opened" ("Saved" without clock), "restored" (from a backup, unsaved
-	// until saved), "manifest" (project file missing: one extra unsaved change).
+	// until saved), "manifest" (project file missing: one extra unsaved change), "extension" (an extension of the project
+	// file changed outside the history: one extra unsaved change).
 	void SetSaveMode(string mode)
 	{
 		m_SaveMode = mode;
@@ -729,7 +730,7 @@ class DZS_Instance : DZS_ProjectState
 
 	bool IsUnsaved()
 	{
-		return m_SaveMode == "restored" || m_SaveMode == "manifest" || m_History.Unsaved() > 0 || m_Foreign > 0;
+		return m_SaveMode == "restored" || m_SaveMode == "manifest" || m_SaveMode == "extension" || m_History.Unsaved() > 0 || m_Foreign > 0;
 	}
 
 	// The host's save state: operations of others since the last save count
@@ -756,7 +757,7 @@ class DZS_Instance : DZS_ProjectState
 	int GetUnsavedCount()
 	{
 		int n = m_History.Unsaved() + m_Foreign;
-		if (m_SaveMode == "manifest")
+		if (m_SaveMode == "manifest" || m_SaveMode == "extension")
 			n++;
 		return n;
 	}
@@ -773,7 +774,7 @@ class DZS_Instance : DZS_ProjectState
 	{
 		if (m_ForeignTouched && m_ForeignTouched.m_Manifest)
 			return false;
-		return m_SaveMode != "restored" && m_SaveMode != "manifest" && m_History.IsManifestClean();
+		return m_SaveMode != "restored" && m_SaveMode != "manifest" && m_SaveMode != "extension" && m_History.IsManifestClean();
 	}
 	int GetHistoryLength() { return m_History.Count(); }
 	int GetHistoryPosition() { return m_History.Position(); }

@@ -606,6 +606,9 @@ class DZS_ProjectBar : DZS_PanelContent
 			sub += " · " + selected + DZS_Texts.Pick(" ausgewählt", " selected");
 		if (dupCount > 0 && closed)
 			sub += " · " + dupCount + DZS_Texts.Pick(" doppelt", " duplicate");
+		string extMarks = DZS_ProjectExtensions.GroupMarks(inst, gid);
+		if (extMarks != "")
+			sub += " · " + extMarks;
 		if (closed)
 			sub += HeldBy(inst, gid);
 		r.m_Sub.SetText(DZS_W.Literal(sub));
@@ -1402,6 +1405,7 @@ class DZS_ProjectBar : DZS_PanelContent
 			del.m_Reason = why;
 		}
 		items.Insert(del);
+		DZS_ProjectExtensions.GroupMenu(inst, gid, items);
 		DZS_Popup pop = m_P.Kernel().GetScreen().OpenContextMenu(items);
 		pop.m_OnChoose.Insert(OnGroupMenu);
 		DZS_Log.Info("projects: group menu " + gid + ", delete " + (why == ""));
@@ -1410,6 +1414,8 @@ class DZS_ProjectBar : DZS_PanelContent
 	void OnGroupMenu(DZS_Popup p, DZS_MenuItem it)
 	{
 		m_P.Kernel().GetScreen().CloseMenu();
+		if (it.m_Enabled && DZS_ProjectExtensions.GroupMenuChosen(m_P.Kernel().GetShown(), m_MenuGroup, it.m_Tag))
+			return;
 		if (!it.m_Enabled || it.m_Tag != "deleteGroup")
 			return;
 		m_P.AskDeleteGroup(m_MenuGroup);

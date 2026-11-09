@@ -1063,6 +1063,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				cp.Closed(m_Open.m_Folder);
 		}
 		m_Kernel.GetScreen().SetProviderPlate(DZS_Texts.Get("core.provider.local"), "");
+		DZS_ProjectExtensions.Reset();
 		m_AutoOffShown = false;
 		m_Kernel.GetScreen().SetStatusIcon("projects.autoOff", false, "", "", "");
 		m_Open = null;
@@ -1386,6 +1387,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				ShowHome(true);
 				return;
 			}
+			DZS_ProjectExtensions.Load(DZS_WorkFolder.RootOf(pchunks), issues);
 			pchunks = wr.m_Manifest;
 			src = wr.m_Dir;
 			op.m_Work = src;
@@ -2432,7 +2434,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			folder = DZS_LocalStore.FolderFor(plan.m_Name);
 			// the project file carries the new name
 			DZS_SaveFile pfile = plan.m_Files[plan.m_Files.Count() - 1];
-			pfile.m_Chunks = DZS_ProjectFile.ComposeV2(plan.m_Blocks, plan.m_Name, m_Open.m_MapKey, plan.m_Base, plan.m_ProjectPart, CameraView());
+			pfile.m_Chunks = DZS_ProjectFile.ComposeV2(plan.m_Blocks, plan.m_Name, m_Open.m_MapKey, plan.m_Base, plan.m_ProjectPart, CameraView(), DZS_ProjectExtensions.Save());
 		}
 		m_Busy = true;
 		if (plan.m_Copy)
@@ -2894,7 +2896,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		plan.m_Base = m_Open.m_Base;
 		DZS_SaveFile pf = new DZS_SaveFile();
 		pf.m_Rel = DZS_ProjectFile.NAME;
-		pf.m_Chunks = DZS_ProjectFile.ComposeV2(plan.m_Blocks, m_Open.m_Name, m_Open.m_MapKey, plan.m_Base, proj, CameraView());
+		pf.m_Chunks = DZS_ProjectFile.ComposeV2(plan.m_Blocks, m_Open.m_Name, m_Open.m_MapKey, plan.m_Base, proj, CameraView(), DZS_ProjectExtensions.Save());
 		plan.m_Files.Insert(pf);
 	}
 
@@ -3018,7 +3020,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				plan.m_Files.Remove(di);
 		}
 		DZS_SaveFile pfile = plan.m_Files[plan.m_Files.Count() - 1];
-		pfile.m_Chunks = DZS_ProjectFile.ComposeV2(plan.m_Blocks, name, m_Open.m_MapKey, plan.m_Base, plan.m_ProjectPart, CameraView());
+		pfile.m_Chunks = DZS_ProjectFile.ComposeV2(plan.m_Blocks, name, m_Open.m_MapKey, plan.m_Base, plan.m_ProjectPart, CameraView(), DZS_ProjectExtensions.Save());
 		DZS_Files.MakeDirs(DZS_LocalStore.Dir(folder));
 		m_Busy = true;
 		inst.SetSaving(true);

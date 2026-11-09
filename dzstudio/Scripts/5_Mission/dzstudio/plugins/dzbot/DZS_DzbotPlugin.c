@@ -28,6 +28,12 @@ class DZS_DzbotActions : DZS_ActionHandler
 			reasonEn = "Not connected with dzbot";
 			return m_P.IsConnected();
 		}
+		if (actionId == "dzbot.rules")
+		{
+			reasonDe = "Nur in einem dzbot-Projekt-Mod";
+			reasonEn = "Only in a dzbot project mod";
+			return m_P.OpenProjectMod() != null && m_P.Kernel().GetShown() != null;
+		}
 		return true;
 	}
 
@@ -35,6 +41,8 @@ class DZS_DzbotActions : DZS_ActionHandler
 	{
 		if (actionId == "dzbot.friends")
 			return m_P.IsDzbotSession();
+		if (actionId == "dzbot.rules")
+			return m_P.OpenProjectMod() != null;
 		return true;
 	}
 
@@ -46,6 +54,8 @@ class DZS_DzbotActions : DZS_ActionHandler
 			m_P.AskDisconnect();
 		else if (actionId == "dzbot.friends")
 			m_P.OpenFriends();
+		else if (actionId == "dzbot.rules")
+			m_P.OpenRules("");
 	}
 }
 
@@ -100,6 +110,8 @@ class DZS_DzbotProject : Managed
 	// a mod's kind in dzbot: "files", or "project" — a building-block project saved as one file, dzstudio/project.json
 	string m_ModKind;
 	ref DZS_DzbotFile m_ProjectFile;
+	// a project mod's settings, for the rules (DZS_DzbotRules)
+	ref array<ref DZS_DzbotSetting> m_Settings = new array<ref DZS_DzbotSetting>();
 	ref array<ref DZS_DzbotFile> m_Files = new array<ref DZS_DzbotFile>();
 	int m_ManifestRev;
 	ref DZS_DzbotLootState m_Loot;
@@ -313,6 +325,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 	ref DZS_DzbotCatalog m_Catalog;
 	protected ref DZS_DzbotProvider m_Provider;
 	protected ref DZS_DzbotActions m_Actions;
+	protected ref DZS_DzbotRules m_Rules;
 	protected bool m_Session;
 	ref DZS_DzbotFriends m_Friends;
 	ref DZS_DzbotFriendsDialog m_FriendsDialog;
@@ -356,6 +369,98 @@ class DZS_DzbotPlugin : DZS_Plugin
 
 	DZS_Kernel Kernel() { return m_Kernel; }
 
+	// The open project when it is a dzbot project mod, else null.
+	DZS_DzbotProject OpenProjectMod()
+	{
+		if (m_OpenFolder == "")
+			return null;
+		DZS_DzbotProject dp = m_Projects.Get(RefOf(m_OpenFolder));
+		if (!dp || !IsProjectMod(dp))
+			return null;
+		return dp;
+	}
+
+	array<ref DZS_DzbotSetting> OpenSettings()
+	{
+		DZS_DzbotProject dp = OpenProjectMod();
+		if (!dp)
+			return new array<ref DZS_DzbotSetting>();
+		return dp.m_Settings;
+	}
+
+	// The rules of the open project mod; a group's block first when one is named.
+	void OpenRules(string groupId)
+	{
+		DZS_Instance inst = m_Kernel.GetShown();
+		if (!inst || !OpenProjectMod())
+			return;
+		DZS_RulesDialog d = new DZS_RulesDialog(m_Rules, inst, groupId);
+		d.Open();
+	}
+
+	// "settings" of a load or poll reply: [{id, title, type, multiple, options: [{value, label}], props: [{name}]}].
+	static void TakeSettings(DZS_SrcNode list, array<ref DZS_DzbotSetting> into)
+	{
+		if (!list || !list.IsArr())
+			return;
+		into.Clear();
+		foreach (DZS_SrcNode n : list.m_Items)
+		{
+			DZS_DzbotSetting st = new DZS_DzbotSetting();
+			st.m_Id = DZS_DzbotCatalog.Text(n, "id");
+			if (st.m_Id == "")
+				continue;
+			st.m_Title = DZS_DzbotCatalog.Text(n, "title");
+			st.m_Type = DZS_DzbotCatalog.Text(n, "type");
+			DZS_SrcNode mul = n.Get("multiple");
+			st.m_Multiple = mul && mul.IsBool() && mul.m_Bool;
+			DZS_SrcNode opts = n.Get("options");
+			if (opts && opts.IsArr())
+			{
+				foreach (DZS_SrcNode o : opts.m_Items)
+					st.m_Options.Insert(DZS_DzbotCatalog.Text(o, "value"));
+			}
+			DZS_SrcNode props = n.Get("props");
+			if (props && props.IsArr())
+			{
+				foreach (DZS_SrcNode pr : props.m_Items)
+					st.m_Props.Insert(DZS_DzbotCatalog.Text(pr, "name"));
+			}
+			into.Insert(st);
+		}
+	}
+
+	static DZS_Json SettingsJson(array<ref DZS_DzbotSetting> list)
+	{
+		DZS_Json arr = DZS_Json.Arr();
+		foreach (DZS_DzbotSetting st : list)
+		{
+			DZS_Json o = DZS_Json.Obj();
+			o.Set("id", DZS_Json.Str(st.m_Id));
+			o.Set("title", DZS_Json.Str(st.m_Title));
+			o.Set("type", DZS_Json.Str(st.m_Type));
+			o.Set("multiple", DZS_Json.Boolean(st.m_Multiple));
+			DZS_Json opts = DZS_Json.Arr();
+			foreach (string ov : st.m_Options)
+			{
+				DZS_Json oo = DZS_Json.Obj();
+				oo.Set("value", DZS_Json.Str(ov));
+				opts.Add(oo);
+			}
+			o.Set("options", opts);
+			DZS_Json props = DZS_Json.Arr();
+			foreach (string pv : st.m_Props)
+			{
+				DZS_Json po = DZS_Json.Obj();
+				po.Set("name", DZS_Json.Str(pv));
+				props.Add(po);
+			}
+			o.Set("props", props);
+			arr.Add(o);
+		}
+		return arr;
+	}
+
 	override void OnRegister()
 	{
 		string shaArg;
@@ -397,6 +502,12 @@ class DZS_DzbotPlugin : DZS_Plugin
 		ui.AddMenuEntry("project", "dzbot.connect", 120);
 		ui.AddMenuEntry("project", "dzbot.disconnect", 121);
 		ui.RegisterAction("dzbot", "dzbot.friends", "Freunde …", "Friends …", null, m_Actions);
+		m_Rules = new DZS_DzbotRules();
+		m_Rules.m_P = this;
+		DZS_ProjectExtensions.Add(m_Rules);
+		ui.RegisterAction("dzbot", "dzbot.rules", "dzbot-Regeln …", "dzbot rules …", null, m_Actions);
+		ui.SetWhen("dzbot.rules", "scene");
+		ui.AddMenuEntry("project", "dzbot.rules", 456);
 		DZS_SessionKnobs.Add("dzbot.friends", "Freunde …", "Friends …");
 		m_Friends = new DZS_DzbotFriends();
 		m_Friends.m_P = this;
@@ -1236,7 +1347,10 @@ class DZS_DzbotPlugin : DZS_Plugin
 		bool asProject = IsProjectMod(dp);
 		array<string> projectChunks = null;
 		if (asProject)
+		{
 			projectChunks = ProjectChunksOf(r);
+			TakeSettings(r.m_Json.Get("settings"), dp.m_Settings);
+		}
 		string projectPart = "";
 		DZS_DzbotSection msec = r.Find("manifest", "manifest");
 		if (msec)
@@ -1877,6 +1991,8 @@ class DZS_DzbotPlugin : DZS_Plugin
 			pj.Set("rev", DZS_Json.Int(pf.m_Rev));
 			st.Set("project", pj);
 		}
+		if (IsProjectMod(dp))
+			st.Set("settings", SettingsJson(dp.m_Settings));
 		return st;
 	}
 
@@ -1915,6 +2031,14 @@ class DZS_DzbotPlugin : DZS_Plugin
 			pf.m_Rev = pj.GetInt("rev");
 			pf.m_Role = "project";
 			dp.m_ProjectFile = pf;
+		}
+		DZS_Json sts = st.Get("settings");
+		if (sts)
+		{
+			array<string> stText = sts.ToChunks(false);
+			DZS_SrcDoc stDoc = DZS_SrcJson.Parse(stText);
+			if (stDoc && stDoc.m_Root)
+				TakeSettings(stDoc.m_Root, dp.m_Settings);
 		}
 		dp.m_Loot = new DZS_DzbotLootState();
 		if (dp.m_Kind != "mod")
@@ -2028,6 +2152,8 @@ class DZS_DzbotPlugin : DZS_Plugin
 		if (!dp)
 			return;
 		PlateFor(m_OpenFolder);
+		if (IsProjectMod(dp))
+			TakeSettings(r.m_Json.Get("settings"), dp.m_Settings);
 		DZS_ProjectsPlugin pp = Projects();
 		DZS_Instance inst = m_Kernel.GetShown();
 		bool dirty = inst && inst.IsUnsaved();
@@ -2474,8 +2600,8 @@ class DZS_DzbotPlugin : DZS_Plugin
 		DZS_Log.Info("dzbot: save handed to the request in " + ((TickCount(0) - t0) / 10000) + " ms");
 	}
 
-	// A project mod holds the project as building blocks: the saved project file (blocks and the editor part) replaces
-	// dzstudio/project.json; dzbot applies it to each server and keeps its own rules for it.
+	// A project mod holds the project as building blocks: the saved project file (blocks, the editor part and the
+	// extensions, the rules "dzbot.rules" among them — DZS_ProjectExtensions) replaces dzstudio/project.json.
 	protected void ProjectPart(DZS_DzbotProject dp, DZS_DzbotSave sv, array<ref DZS_SaveFile> files)
 	{
 		DZS_DzbotFile pf = dp.m_ProjectFile;

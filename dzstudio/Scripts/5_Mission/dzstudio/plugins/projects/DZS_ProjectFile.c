@@ -798,8 +798,9 @@ class DZS_ProjectFile
 		return DZS_Files.Chunk(s);
 	}
 
-	// Version 2: the building blocks plus the editor part (name, map, base, project part, view part; view "" = none).
-	static array<string> ComposeV2(DZS_Json blocks, string name, string mapKey, string base, string projectPart, string viewPart)
+	// Version 2: the building blocks plus the editor part (name, map, base, project part, view part; view "" = none) and
+	// the extensions (DZS_ProjectExtensions.Save, null = none).
+	static array<string> ComposeV2(DZS_Json blocks, string name, string mapKey, string base, string projectPart, string viewPart, DZS_Json extensions = null)
 	{
 		DZS_Json root = blocks.Clone();
 		DZS_Json slug = DZS_Json.Str(DZS_ProjectV2.Slug(name));
@@ -827,6 +828,8 @@ class DZS_ProjectFile
 				ed.Set("view", view);
 		}
 		root.Set("editor", ed);
+		if (extensions)
+			root.Set("extensions", extensions);
 		return Text(root);
 	}
 
