@@ -17,14 +17,16 @@ project means "everything, with the values as saved".
     "id": "g-teleporter", "kind": "spawnerGroup",
     "data": {
       "objects": [
-        { "name": "Land_Teleporter", "pos": [0, 0, 0] },
+        { "name": "Land_Teleporter", "pos": [0, 0, 0],
+          "extensions": { "https://developers.dzbot.de/specs/dzbot/rules/1.json": {
+            "fields": { "pos": { "setting": "source" } } } } },
         { "name": "Sign_Back", "pos": [2, 0, 0],
           "extensions": { "https://developers.dzbot.de/specs/dzbot/rules/1.json": {
             "if": { "field": "reverse", "op": "eq", "value": true } } } }
       ]
     },
     "extensions": { "https://developers.dzbot.de/specs/dzbot/rules/1.json": {
-      "fields": { "objects[0].pos": { "setting": "source" } } } }
+      "if": { "field": "teleport", "op": "eq", "value": true } } }
   }
 ],
 "changes": [
@@ -47,7 +49,8 @@ mod's settings (below): `{"data": {"settings": [ … ]}}`.
     `item.<property>`.
   - `fields` — per path in the block's `data`, `{"setting": "<name>"}` (the setting's value as it is; a coordinate is a
     whole position) or `{"formula": "<formula>"}` (a number; `base` is the value in the project). Settings are applied
-    before formulas.
+    before formulas. A block's paths stay outside list elements (`nominal`, `flags.deletable`); a value of an element
+    is set by the element's own rule.
 - On a **list element** of a block's data (an object of a group, an item of a preset — any object inside a list):
   `if`, `repeat` and `fields`, with paths in `fields` starting at the element (`pos`, `pos[0]`).
 - On a **change**: `if`, `formula` (only for `op: "set"`; names: the settings, `base` = the value found on the server,
@@ -56,9 +59,13 @@ mod's settings (below): `{"data": {"settings": [ … ]}}`.
 Members not listed here are kept by every program that rewrites the entry. Patchers ignore `extensions` everywhere —
 of the project, of blocks and changes and of elements inside block data — and never write them into a mission file.
 
-**Paths** name a value inside a block's data: keys joined with dots, list elements by their index from 0 —
-`nominal`, `objects[2].pos`, `children[0].max`, `objects[0].pos[1]`. They count as in the project, also when an
-element before them is left out.
+**Paths** name a value inside a block's data, or inside a list element for the element's own rule: keys joined with
+dots — `nominal`, `flags.deletable`, `pos` — and an index from 0 only into a list of plain values, like a position's
+numbers (`pos[1]`). No path reaches into a list element by its place (`objects[2].pos`, `children[0].max`): deleting an
+element before it would make it mean another one. dzbot refuses such a path: its preview names the element whose own
+rule takes the value, and on a server a block with one is left out, with the reason in the mod's log. Nothing else in the
+rules addresses an element by its place either: an element's rule is in its own `extensions`, and an `items` member in a
+block's rule is not read.
 
 **Conditions** are JSON trees: `{"field": "<setting>", "op": "<op>", "value": …}` with `op` one of `eq`, `neq`, `in`,
 `not_in` (value a list), `empty`, `not_empty` (no value), `gt`, `gte`, `lt`, `lte`, `contains`; groups
@@ -118,8 +125,9 @@ groups with rules are marked "dzbot rules". A rule opens in its own dialog:
   "all apply" or "at least one applies". Nested groups and `not` are shown read-only.
 - **Formula for the value** (changes that set a value), **Target required** (changes, and blocks inside an existing
   entry).
-- **Repeat**, **Values from settings and formulas** (paths picked from the block's data; the selected objects'
-  positions first) and **Single elements** (each with its own condition, repetition and values).
+- **Repeat**, **Values from settings and formulas** (paths picked from the block's data outside its lists, or from the
+  element in an element's rule; a path typed through a list element is marked as not applied) and **Single elements**
+  (each with its own condition, repetition and values; the selected objects first).
 
 Every edit — a rule, a setting added, changed or removed — is a step of the history and saved with the project.
 Renaming a setting renames it in every rule that names it in the same step, so undo puts back the settings and the rules
@@ -128,9 +136,9 @@ identifier); one whose target is deleted meanwhile — by undo or by a partner i
 element was deleted" and writes nothing.
 
 **Copying.** The spec sets `"copy": "same-project"`: an object duplicated or pasted in the same project keeps its rules;
-pasted into another project it starts without them, because rules name the settings of their own project. Block-level
-`fields` paths into a group's data (`objects[2].pos`) count places in the list; deleting an object before them shifts
-what they mean — put a value on the object's own rule (`pos`) to tie it to that object.
+pasted into another project it starts without them, because rules name the settings of their own project. Since every
+value of an object sits in the object's own rule, it goes along with the object and stays with it when others are
+deleted.
 
 ## In dzbot
 

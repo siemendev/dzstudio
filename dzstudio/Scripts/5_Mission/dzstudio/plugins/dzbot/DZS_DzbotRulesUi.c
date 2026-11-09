@@ -877,7 +877,10 @@ class DZS_RuleDialog : DZS_RulesBase
 				DZS_FieldRow row = new DZS_FieldRow();
 				row.m_Rule = rule;
 				DZS_RLine l = Line(4, 28);
-				row.m_Path = Field(l, path, DZS_Texts.Pick("Pfad, z. B. objects[0].pos", "Path, e.g. objects[0].pos"), 200);
+				string hint = DZS_Texts.Pick("Pfad, z. B. nominal", "Path, e.g. nominal");
+				if (m_Kind == "item")
+					hint = DZS_Texts.Pick("Pfad, z. B. pos", "Path, e.g. pos");
+				row.m_Path = Field(l, path, hint, 200);
 				Knob(l, "ghost", "", "fieldPath:" + i, "chevron-down");
 				bool formula = rule && rule.IsObj() && rule.Has("formula");
 				string modeText = DZS_Texts.Pick("Einstellung", "Setting");
@@ -895,6 +898,13 @@ class DZS_RuleDialog : DZS_RulesBase
 					Knob(l, "ghost", "", "fieldSetting:" + i, "chevron-down");
 				Knob(l, "ghost", "", "fieldDel:" + i, "x");
 				m_FieldRows.Insert(row);
+				string element = DZS_DzbotRules.ByPlace(path, Data());
+				if (element != "")
+				{
+					string warnDe = "Greift über den Platz in der Liste auf " + element + " zu und wird nicht angewendet: setz den Wert in den Regeln dieses Elements.";
+					string warnEn = "Reaches into " + element + " by its place in the list and is not applied: set the value in that element's rules.";
+					Note(DZS_Texts.Pick(warnDe, warnEn), "warning");
+				}
 			}
 		}
 		DZS_RLine al = Line(6, 28);
@@ -905,17 +915,24 @@ class DZS_RuleDialog : DZS_RulesBase
 		if (Repeated(true))
 			names += ", item";
 		Note(DZS_Texts.Pick("Eine Koordinate gibt eine ganze Position; Formeln lesen ", "A coordinate gives a whole position; formulas read ") + names + DZS_Texts.Pick(" und die Einstellungen (source.x …).", " and the settings (source.x …)."));
+		if (m_Kind == "block")
+			Note(DZS_Texts.Pick("Werte eines Objekts oder Elements einer Liste (seine Position) setzt du in seinen eigenen Regeln unter Einzelne Elemente.", "Values of an object or other list element (its position) go into its own rules under Single elements."));
 	}
 
-	// Paths of the data a value can take: plain values and short number lists (positions), one list level deep.
+	// Paths of the data a value can take: plain values, short number lists (positions) and the values of objects inside
+	// — never inside a list element: an element's values go into its own rule (Single elements).
 	protected void Paths(DZS_Json v, string prefix, int depth, array<ref DZS_MenuItem> items)
 	{
-		if (!v || !v.IsObj() || items.Count() >= 80)
+		if (!v || !v.IsObj() || items.Count() >= 80 || depth > 4)
 			return;
 		for (int i = 0; i < v.m_Keys.Count(); i++)
 		{
 			string k = v.m_Keys[i];
+			if (k == "extensions")
+				continue;
 			DZS_Json child = v.Get(k);
+			if (!child)
+				continue;
 			string p = k;
 			if (prefix != "")
 				p = prefix + "." + k;
@@ -924,21 +941,13 @@ class DZS_RuleDialog : DZS_RulesBase
 				items.Insert(Item("path:" + p, p + " = " + DZS_DzbotRules.Short(child, 24)));
 				continue;
 			}
-			if (!child.IsArr())
-				continue;
-			if (child.Count() > 0 && child.Count() <= 4 && child.At(0).IsNum())
+			if (child.IsObj())
 			{
+				Paths(child, p, depth + 1, items);
+				continue;
+			}
+			if (child.IsArr() && child.Count() > 0 && child.Count() <= 4 && child.At(0).IsNum())
 				items.Insert(Item("path:" + p, p + " = " + DZS_DzbotRules.Short(child, 32)));
-				continue;
-			}
-			if (depth > 0)
-				continue;
-			for (int n = 0; n < child.Count() && n < 20; n++)
-			{
-				DZS_Json el = child.At(n);
-				string at = p + "[" + n + "]";
-				Paths(el, at, depth + 1, items);
-			}
 		}
 	}
 
@@ -979,26 +988,6 @@ class DZS_RuleDialog : DZS_RulesBase
 		return n;
 	}
 
-	// Indexes into "objects" of the block's group that are selected (the order the project file writes them in).
-	protected array<int> SelectedObjects()
-	{
-		array<int> r = new array<int>();
-		DZS_SelectionApi sel = DZS_SelectionApi.Get();
-		if (!sel || m_GroupId == "" || !m_Inst)
-			return r;
-		array<string> kids = m_Inst.GetChildren(m_GroupId);
-		int n = 0;
-		foreach (string oid : kids)
-		{
-			if (m_Inst.GetKind(oid) != DZS_KIND_OBJECT)
-				continue;
-			if (sel.IsSelected(oid))
-				r.Insert(n);
-			n++;
-		}
-		return r;
-	}
-
 	protected void BuildItems()
 	{
 		Heading(DZS_Texts.Pick("Einzelne Elemente (Objekte, Fahrzeuge, Positionen)", "Single elements (objects, children, positions)"));
@@ -1021,21 +1010,6 @@ class DZS_RuleDialog : DZS_RulesBase
 		}
 		DZS_RLine al = Line(6, 28);
 		Knob(al, "side", DZS_Texts.Pick("+ Element", "+ Element"), "itemAdd");
-	}
-
-	// The element a path like objects[3] names in the block's data as it is now; null when there is none.
-	protected DZS_Json ElementAt(string path)
-	{
-		DZS_Json data = Data();
-		int open = path.IndexOf("[");
-		if (!data || open <= 0 || path.Get(path.Length() - 1) != "]")
-			return null;
-		string k = path.Substring(0, open);
-		int n = path.Substring(open + 1, path.Length() - open - 2).ToInt();
-		DZS_Json list = data.Get(k);
-		if (!list || !list.IsArr() || n < 0 || n >= list.Count())
-			return null;
-		return list.At(n);
 	}
 
 	protected void EditItem(string path)
@@ -1269,7 +1243,6 @@ class DZS_RuleDialog : DZS_RulesBase
 		{
 			if (what == "fieldAdd")
 				items.Insert(Item("path:", DZS_Texts.Pick("Pfad selbst eingeben", "Type the path")));
-			SelectedPaths(items);
 			Paths(Data(), "", 0, items);
 			Pick(b, items, what);
 		}
@@ -1377,23 +1350,6 @@ class DZS_RuleDialog : DZS_RulesBase
 		}
 		foreach (string ov : st.m_Options)
 			items.Insert(Item(ov, ov));
-	}
-
-	// "objects[n].pos" of the selected objects of the block's group, first.
-	protected void SelectedPaths(array<ref DZS_MenuItem> items)
-	{
-		if (m_Kind != "block")
-			return;
-		array<int> selected = SelectedObjects();
-		foreach (int n : selected)
-		{
-			string p = "objects[" + n + "].pos";
-			string name = "";
-			DZS_Json el = ElementAt("objects[" + n + "]");
-			if (el)
-				name = " · " + ElementName(el);
-			items.Insert(Item("path:" + p, p + name + DZS_Texts.Pick(" · ausgewählt", " · selected")));
-		}
 	}
 
 	override void Picked(string what, string tag)

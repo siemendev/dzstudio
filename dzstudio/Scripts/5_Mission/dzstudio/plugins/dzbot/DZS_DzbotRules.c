@@ -702,6 +702,73 @@ class DZS_DzbotRules : DZS_ProjectExtension
 	static string ChangeLabel(DZS_Json change) { return DZS_ProjectRefs.ChangeLabel(change); }
 	static string Short(DZS_Json v, int max) { return DZS_ProjectRefs.Short(v, max); }
 
+	// The list element a field path steps into by its place ("objects[2]" of "objects[2].pos"), "" when it addresses
+	// none: only keys, or an index into a list of plain values ("pos[1]"). dzbot refuses such a path: deleting an
+	// element before it would retarget it, so the value belongs into the element's own rule. data: where the path
+	// starts (a block's data or the element), null when unknown — then only an index with more after it counts.
+	static string ByPlace(string path, DZS_Json data)
+	{
+		DZS_Json at = data;
+		string shown = "";
+		string key = "";
+		int len = path.Length();
+		int c = 0;
+		while (c < len)
+		{
+			string ch = path.Get(c);
+			if (ch != "." && ch != "[")
+			{
+				key += ch;
+				c++;
+				continue;
+			}
+			if (key != "")
+			{
+				if (shown != "")
+					shown += ".";
+				shown += key;
+				if (at && at.IsObj())
+					at = at.Get(key);
+				else
+					at = null;
+				key = "";
+			}
+			if (ch == ".")
+			{
+				c++;
+				continue;
+			}
+			int close = path.IndexOfFrom(c, "]");
+			if (close < 0)
+				return "";
+			string num = path.Substring(c + 1, close - c - 1);
+			shown += "[" + num + "]";
+			if (close < len - 1)
+				return shown;
+			if (HoldsElements(at))
+				return shown;
+			at = null;
+			c = close + 1;
+		}
+		return "";
+	}
+
+	// whether a list holds elements (objects, lists) rather than plain values like a position's numbers
+	static bool HoldsElements(DZS_Json list)
+	{
+		if (!list)
+			return false;
+		if (!list.IsArr())
+			return false;
+		for (int i = 0; i < list.Count(); i++)
+		{
+			DZS_Json el = list.At(i);
+			if (el && (el.IsObj() || el.IsArr()))
+				return true;
+		}
+		return false;
+	}
+
 	// A change can carry a formula when it sets a value.
 	static bool CanFormula(DZS_Json change)
 	{
