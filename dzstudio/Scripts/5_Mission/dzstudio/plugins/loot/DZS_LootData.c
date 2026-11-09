@@ -275,6 +275,117 @@ class DZS_LootEEntry : Managed
 		return null;
 	}
 
+	// The container holding the point with this identity, or null.
+	DZS_LootEContainer ContainerOfPoint(string uid)
+	{
+		foreach (DZS_LootEContainer c : m_Containers)
+		{
+			foreach (DZS_LootEPoint p : c.m_Points)
+			{
+				if (uid != "" && p.m_Uid == uid)
+					return c;
+			}
+		}
+		return null;
+	}
+
+	void CollectUids(map<string, bool> into)
+	{
+		foreach (DZS_LootEContainer c : m_Containers)
+		{
+			if (c.m_Uid != "")
+				into.Set(c.m_Uid, true);
+			foreach (DZS_LootEPoint p : c.m_Points)
+			{
+				if (p.m_Uid != "")
+					into.Set(p.m_Uid, true);
+			}
+		}
+	}
+
+	// A new identity, unique in the entry (for a container or point about to be added).
+	string FreshUid()
+	{
+		map<string, bool> seen = new map<string, bool>();
+		CollectUids(seen);
+		return NewUid(seen);
+	}
+
+	// Carries the identities of 'prev' (the same type's entry as shown before) over to this one where this one has
+	// none (the base state and older projects store none) or gave its parts other ones (a partner's first change
+	// stores fresh ones). Only parts whose identity the other side does not know are paired, each counterpart once: a
+	// container by its name (the n-th of a name the n-th), a point within its container by its spot (within 1 cm, as
+	// the patcher does). A part that is gone has a known identity on neither side and is never replaced by a
+	// neighbour. Taken over identities are set; changed ones land in 'renamed' (old -> new); the rest gets new ones.
+	void TakeUids(DZS_LootEEntry prev, map<string, string> renamed)
+	{
+		map<string, bool> mine = new map<string, bool>();
+		CollectUids(mine);
+		map<string, bool> theirs = new map<string, bool>();
+		if (prev)
+			prev.CollectUids(theirs);
+		map<string, bool> usedC = new map<string, bool>();
+		map<string, bool> usedP = new map<string, bool>();
+		foreach (DZS_LootEContainer c : m_Containers)
+		{
+			DZS_LootEContainer pc = null;
+			if (c.m_Uid != "" && theirs.Contains(c.m_Uid))
+				pc = prev.ContainerByUid(c.m_Uid);
+			else if (prev)
+			{
+				foreach (DZS_LootEContainer cand : prev.m_Containers)
+				{
+					if (pc == null && cand.m_Uid != "" && !mine.Contains(cand.m_Uid) && !usedC.Contains(cand.m_Uid) && cand.m_Name == c.m_Name)
+						pc = cand;
+				}
+				if (pc)
+				{
+					usedC.Set(pc.m_Uid, true);
+					if (c.m_Uid == "")
+						c.m_Uid = pc.m_Uid;
+					else
+						renamed.Set(pc.m_Uid, c.m_Uid);
+				}
+			}
+			if (!pc)
+				continue;
+			foreach (DZS_LootEPoint p : c.m_Points)
+			{
+				if (p.m_Uid != "" && theirs.Contains(p.m_Uid))
+					continue;
+				// the same text first (cheap, the usual case), then the same spot within 1 cm
+				DZS_LootEPoint pp = null;
+				foreach (DZS_LootEPoint cp : pc.m_Points)
+				{
+					if (cp.m_Pos == p.m_Pos && cp.m_Uid != "" && !mine.Contains(cp.m_Uid) && !usedP.Contains(cp.m_Uid))
+					{
+						pp = cp;
+						break;
+					}
+				}
+				if (!pp)
+				{
+					foreach (DZS_LootEPoint np : pc.m_Points)
+					{
+						if (np.m_Uid != "" && !mine.Contains(np.m_Uid) && !usedP.Contains(np.m_Uid) && DZS_LootBlocks.Near(np.m_Pos, p.m_Pos))
+						{
+							pp = np;
+							break;
+						}
+					}
+				}
+				if (!pp)
+					continue;
+				usedP.Set(pp.m_Uid, true);
+				if (p.m_Uid == "")
+					p.m_Uid = pp.m_Uid;
+				else
+					renamed.Set(pp.m_Uid, p.m_Uid);
+			}
+		}
+		GiveUids();
+	}
+
 	// The text form stores the identities ("I" after its container or point line), giving missing ones first.
 	string ToText()
 	{

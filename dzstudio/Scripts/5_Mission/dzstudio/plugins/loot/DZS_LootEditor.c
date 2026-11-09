@@ -91,8 +91,10 @@ class DZS_LootEditor : Managed
 	// the entry as shown: the effective one, or a working copy during a gesture
 	ref DZS_LootEEntry m_Entry;
 	protected bool m_Working;
+	// selected points, hovered point, the point a press started on, test items: by the point's identity (m_Uid),
+	// never by place in the list; the active container by its m_Uid. Refresh carries them over to a new entry.
 	ref map<string, bool> m_Sel = new map<string, bool>();
-	int m_Active;
+	string m_ActiveUid;
 	string m_Hover;
 	int m_Gen;
 	protected int m_EntryVer = -1;
@@ -117,8 +119,9 @@ class DZS_LootEditor : Managed
 	protected ref DZS_LootEEntry m_DragStart;
 	protected vector m_GrabWorld;
 	protected ref DZS_LootEEntry m_PendingEntry;
+	// identities in m_PendingEntry (what is committed once the question is answered)
 	protected string m_PendingSel;
-	protected int m_PendingActive;
+	protected string m_PendingActive;
 	float m_LastRange = -1;
 	float m_LastHeight = -1;
 	protected bool m_Rect;
@@ -137,7 +140,7 @@ class DZS_LootEditor : Managed
 	protected ref DZS_LootEEntry m_HandleStart;
 	protected vector m_HandleCenter;
 	protected ref array<vector> m_HandleTips = new array<vector>();
-	// test items by point key (view only)
+	// test items by point identity (view only)
 	protected ref map<string, Object> m_Tests = new map<string, Object>();
 
 	void DZS_LootEditor(DZS_LootPlugin p, DZS_Kernel k)
@@ -265,7 +268,8 @@ class DZS_LootEditor : Managed
 		m_Obj = id;
 		m_Type = name;
 		m_Sel.Clear();
-		m_Active = 0;
+		m_ActiveUid = "";
+		m_Entry = null;
 		m_Working = false;
 		Refresh(inst);
 		DZS_SelectionApi sel = DZS_SelectionApi.Get();
@@ -326,11 +330,18 @@ class DZS_LootEditor : Managed
 			e = new DZS_LootEEntry();
 			e.m_Name = m_Type;
 		}
+		map<string, string> renamed = new map<string, string>();
+		e.TakeUids(m_Entry, renamed);
 		m_Entry = e;
 		m_Working = false;
 		m_Gen++;
-		if (m_Active >= m_Entry.m_Containers.Count())
-			m_Active = 0;
+		Rekey(renamed);
+		if (!m_Entry.ContainerByUid(m_ActiveUid))
+		{
+			m_ActiveUid = "";
+			if (m_Entry.m_Containers.Count() > 0)
+				m_ActiveUid = m_Entry.m_Containers[0].m_Uid;
+		}
 		array<string> drop = new array<string>();
 		for (int i = 0; i < m_Sel.Count(); i++)
 		{
@@ -349,6 +360,45 @@ class DZS_LootEditor : Managed
 		}
 		foreach (string gt : goneTests)
 			RemoveTest(gt);
+	}
+
+	// Identities the new entry gave other parts (see DZS_LootEEntry.TakeUids): selection, test items, the active
+	// container and the pressed point follow. Pending keys refer to the pending entry and stay.
+	protected void Rekey(map<string, string> renamed)
+	{
+		if (renamed.Count() == 0)
+			return;
+		array<string> selKeys = new array<string>();
+		for (int i = 0; i < m_Sel.Count(); i++)
+			selKeys.Insert(m_Sel.GetKey(i));
+		m_Sel.Clear();
+		foreach (string k : selKeys)
+		{
+			string nk = Renamed(renamed, k);
+			m_Sel.Set(nk, true);
+		}
+		array<string> testKeys = new array<string>();
+		array<Object> testObjs = new array<Object>();
+		for (int t = 0; t < m_Tests.Count(); t++)
+		{
+			string tk = Renamed(renamed, m_Tests.GetKey(t));
+			testKeys.Insert(tk);
+			testObjs.Insert(m_Tests.GetElement(t));
+		}
+		m_Tests.Clear();
+		for (int j = 0; j < testKeys.Count(); j++)
+			m_Tests.Set(testKeys[j], testObjs[j]);
+		m_ActiveUid = Renamed(renamed, m_ActiveUid);
+		m_PressKey = Renamed(renamed, m_PressKey);
+		DZS_Log.Info("loot: " + renamed.Count() + " identities taken over after a reload");
+	}
+
+	protected static string Renamed(map<string, string> renamed, string key)
+	{
+		string to;
+		if (key != "" && renamed.Find(key, to))
+			return to;
+		return key;
 	}
 
 	void OnStateChanged(DZS_Instance inst)
@@ -424,37 +474,14 @@ class DZS_LootEditor : Managed
 		return true;
 	}
 
+	// A point of the shown entry by its identity (a key of m_Sel, m_Tests, m_Hover), or null.
 	DZS_LootEPoint PointOf(string key)
 	{
-		int c, i;
-		if (!Split(key, c, i) || !m_Entry)
+		if (!m_Entry)
 			return null;
-		if (c >= m_Entry.m_Containers.Count())
-			return null;
-		DZS_LootEContainer lc = m_Entry.m_Containers[c];
-		if (i >= lc.m_Points.Count())
-			return null;
-		return lc.m_Points[i];
+		return m_Entry.PointByUid(key);
 	}
 
-	static string Key(int c, int i)
-	{
-		string a = c.ToString();
-		string b = i.ToString();
-		return a + ":" + b;
-	}
-
-	static bool Split(string key, out int c, out int i)
-	{
-		int colon = key.IndexOf(":");
-		if (colon < 0)
-			return false;
-		string a = key.Substring(0, colon);
-		string b = key.Substring(colon + 1, key.Length() - colon - 1);
-		c = a.ToInt();
-		i = b.ToInt();
-		return true;
-	}
 
 	vector WorldOfPoint(DZS_LootEPoint p)
 	{
@@ -606,7 +633,7 @@ class DZS_LootEditor : Managed
 				while (at > 0 && ts[at - 1] > t)
 					at--;
 				ts.InsertAt(t, at);
-				string k = Key(c, i);
+				string k = p.m_Uid;
 				keys.InsertAt(k, at);
 			}
 		}
@@ -639,7 +666,7 @@ class DZS_LootEditor : Managed
 				if (RayCylinder(from, dir, b, p.Range(), p.Height(), t) && t < best)
 				{
 					best = t;
-					bestKey = Key(c, i);
+					bestKey = p.m_Uid;
 				}
 			}
 		}
@@ -716,9 +743,11 @@ class DZS_LootEditor : Managed
 			m_Sel.Clear();
 			m_Sel.Set(key, true);
 		}
-		int c, i;
-		Split(key, c, i);
-		m_Active = c;
+		DZS_LootEContainer pc = null;
+		if (m_Entry)
+			pc = m_Entry.ContainerOfPoint(key);
+		if (pc)
+			m_ActiveUid = pc.m_Uid;
 		DZS_LootEPoint p = PointOf(key);
 		if (p)
 		{
@@ -767,10 +796,7 @@ class DZS_LootEditor : Managed
 				if (mz < bmin[2] - r || mz > bmax[2] + r)
 					isOut = true;
 				if (isOut)
-				{
-					string k = Key(c, i);
-					into.Insert(k);
-				}
+					into.Insert(p.m_Uid);
 			}
 		}
 	}
@@ -790,36 +816,33 @@ class DZS_LootEditor : Managed
 		for (int c = 0; c < m_Entry.m_Containers.Count(); c++)
 		{
 			DZS_LootEContainer lc = m_Entry.m_Containers[c];
-			for (int i = 0; i < lc.m_Points.Count(); i++)
-			{
-				string tk1 = Key(c, i);
-				m_Sel.Set(tk1, true);
-			}
+			foreach (DZS_LootEPoint p : lc.m_Points)
+				m_Sel.Set(p.m_Uid, true);
 		}
 		m_Gen++;
 		DZS_Log.Info("loot: all " + m_Sel.Count() + " points selected");
 	}
 
-	void SelectContainer(int c)
+	void SelectContainer(string uid)
 	{
 		m_Sel.Clear();
-		if (c < m_Entry.m_Containers.Count())
+		DZS_LootEContainer lc = m_Entry.ContainerByUid(uid);
+		string shown = "(gone)";
+		if (lc)
 		{
-			DZS_LootEContainer lc = m_Entry.m_Containers[c];
-			for (int i = 0; i < lc.m_Points.Count(); i++)
-			{
-				string tk2 = Key(c, i);
-				m_Sel.Set(tk2, true);
-			}
+			foreach (DZS_LootEPoint p : lc.m_Points)
+				m_Sel.Set(p.m_Uid, true);
+			m_ActiveUid = uid;
+			shown = lc.m_Name;
 		}
-		m_Active = c;
 		m_Gen++;
-		DZS_Log.Info("loot: points of container " + c + " selected: " + m_Sel.Count());
+		DZS_Log.Info("loot: points of container " + shown + " selected: " + m_Sel.Count());
 	}
 
 	// ---- changes ----
 
-	// Commits a new entry: first change of an entry "as vanilla" asks (first intervention); selKeys select afterwards.
+	// Commits a new entry: first change of an entry "as vanilla" asks (first intervention); selKeys (point identities,
+	// comma separated) select afterwards.
 	void Change(DZS_LootEEntry e, string selKeys = "")
 	{
 		DZS_Instance inst = m_Kernel.GetShown();
@@ -830,7 +853,7 @@ class DZS_LootEditor : Managed
 		{
 			m_PendingEntry = e;
 			m_PendingSel = selKeys;
-			m_PendingActive = m_Active;
+			m_PendingActive = m_ActiveUid;
 			int pts, mapRows, inProj;
 			m_P.Facts(inst, m_Type, pts, mapRows, inProj);
 			string mapText = DZS_LootPlugin.Plural(mapRows, "Gebäude", "Gebäude", "building", "buildings");
@@ -863,6 +886,13 @@ class DZS_LootEditor : Managed
 		}
 		DZS_OpBuilder b = inst.BeginOperation("loot:edit", 1);
 		DZS_LootEEntry start = m_P.Effective(inst, m_Type);
+		// the step stores the identities the editor shows (the base state has none), so the pending entry's
+		// selection and parts stay the same ones
+		if (start)
+		{
+			map<string, string> unused = new map<string, string>();
+			start.TakeUids(m_Entry, unused);
+		}
 		m_P.SetEntry(b, inst, m_Type, start);
 		array<string> objs = m_P.ClassObjects(inst);
 		string low = m_Type;
@@ -882,11 +912,8 @@ class DZS_LootEditor : Managed
 		string en = StepName("loot.stepOwn", false);
 		DZS_SubmitResult r = b.Commit(de, en);
 		DZS_Log.Info("loot: step '" + de + "' ok " + r.Ok());
-		m_Active = m_PendingActive;
+		m_ActiveUid = m_PendingActive;
 		Commit(inst, e, m_PendingSel);
-		m_Active = Math.Min(m_PendingActive, m_Entry.m_Containers.Count() - 1);
-		if (m_Active < 0)
-			m_Active = 0;
 	}
 
 	protected void Commit(DZS_Instance inst, DZS_LootEEntry e, string selKeys)
@@ -949,12 +976,13 @@ class DZS_LootEditor : Managed
 		{
 			DZS_LootEContainer nc = new DZS_LootEContainer();
 			nc.m_Name = "lootFloor";
+			nc.m_Uid = e.FreshUid();
 			e.m_Containers.Insert(nc);
-			m_Active = 0;
 		}
-		if (m_Active >= e.m_Containers.Count())
-			m_Active = 0;
-		DZS_LootEContainer lc = e.m_Containers[m_Active];
+		DZS_LootEContainer lc = e.ContainerByUid(m_ActiveUid);
+		if (!lc)
+			lc = e.m_Containers[0];
+		m_ActiveUid = lc.m_Uid;
 		float range = NEW_RANGE;
 		float height = NEW_HEIGHT;
 		if (m_LastRange > 0)
@@ -972,8 +1000,9 @@ class DZS_LootEditor : Managed
 		p.SetP(LootOfWorld(hit));
 		p.SetRange(range);
 		p.SetHeight(height);
+		p.m_Uid = e.FreshUid();
 		lc.m_Points.Insert(p);
-		string key = Key(m_Active, lc.m_Points.Count() - 1);
+		string key = p.m_Uid;
 		DZS_Log.Info("loot: point set at " + hit + " = " + p.m_Pos + " range " + p.m_Range + " height " + p.m_Height + " in " + lc.m_Name);
 		Change(e, key);
 	}
@@ -1018,11 +1047,9 @@ class DZS_LootEditor : Managed
 		DZS_LootEEntry e = m_DragStart.Copy();
 		for (int k = 0; k < m_Sel.Count(); k++)
 		{
-			int c, i;
-			Split(m_Sel.GetKey(k), c, i);
-			if (c >= e.m_Containers.Count() || i >= e.m_Containers[c].m_Points.Count())
+			DZS_LootEPoint p = PointIn(e, m_Sel.GetKey(k));
+			if (!p)
 				continue;
-			DZS_LootEPoint p = e.m_Containers[c].m_Points[i];
 			vector np = p.P() + delta;
 			p.SetP(np);
 		}
@@ -1091,91 +1118,61 @@ class DZS_LootEditor : Managed
 		DZS_Log.Info("loot: drag cancelled");
 	}
 
-	// Keys of the selected points, ordered by container and from the last point back (safe for removing).
-	protected array<string> SelectedDescending()
-	{
-		array<int> codes = new array<int>();
-		for (int k = 0; k < m_Sel.Count(); k++)
-		{
-			int c, i;
-			Split(m_Sel.GetKey(k), c, i);
-			codes.Insert(c * 100000 + i);
-		}
-		codes.Sort(true);
-		array<string> r = new array<string>();
-		foreach (int code : codes)
-		{
-			int cc = code / 100000;
-			int ii = code % 100000;
-			string rk = Key(cc, ii);
-			r.Insert(rk);
-		}
-		return r;
-	}
-
 	void DeletePoints()
 	{
 		if (m_Sel.Count() == 0)
 			return;
 		DZS_LootEEntry e = Copy();
-		array<string> keys = SelectedDescending();
-		foreach (string k : keys)
+		int n = 0;
+		foreach (DZS_LootEContainer lc : e.m_Containers)
 		{
-			int c, i;
-			Split(k, c, i);
-			if (c < e.m_Containers.Count() && i < e.m_Containers[c].m_Points.Count())
-				e.m_Containers[c].m_Points.RemoveOrdered(i);
+			for (int i = lc.m_Points.Count() - 1; i >= 0; i--)
+			{
+				DZS_LootEPoint p = lc.m_Points[i];
+				if (!m_Sel.Contains(p.m_Uid))
+					continue;
+				lc.m_Points.RemoveOrdered(i);
+				n++;
+			}
 		}
-		DZS_Log.Info("loot: delete " + keys.Count() + " point(s)");
+		DZS_Log.Info("loot: delete " + n + " point(s)");
+		array<string> keys = new array<string>();
+		for (int k = 0; k < m_Sel.Count(); k++)
+			keys.Insert(m_Sel.GetKey(k));
 		foreach (string dk : keys)
-			ShiftTests(dk, -1);
+			RemoveTest(dk);
 		m_Sel.Clear();
 		Change(e);
 	}
 
+	// Each selected point gets a copy right after it (a new identity); the copies are selected afterwards.
 	void DuplicatePoints()
 	{
 		if (m_Sel.Count() == 0)
 			return;
 		DZS_LootEEntry e = Copy();
-		array<string> keys = SelectedDescending();
-		map<int, int> added = new map<int, int>();
-		foreach (string k : keys)
-		{
-			int c, i;
-			Split(k, c, i);
-			if (c >= e.m_Containers.Count() || i >= e.m_Containers[c].m_Points.Count())
-				continue;
-			DZS_LootEContainer lc = e.m_Containers[c];
-			DZS_LootEPoint p = lc.m_Points[i].Copy();
-			p.m_Src = -1;
-			p.m_Flags = "";
-			p.m_Uid = "";
-			p.m_Ext = DZS_ExtCopy.Text(p.m_Ext, "block", "lootPoint", "", true);
-			lc.m_Points.InsertAt(p, i + 1);
-		}
-		// the copies: each original's index shifted by the copies before it
 		string sel = "";
-		array<string> asc = new array<string>();
-		for (int a = keys.Count() - 1; a >= 0; a--)
-			asc.Insert(keys[a]);
-		map<int, int> before = new map<int, int>();
-		foreach (string k2 : asc)
+		int n = 0;
+		foreach (DZS_LootEContainer lc : e.m_Containers)
 		{
-			int c2, i2;
-			Split(k2, c2, i2);
-			int n = 0;
-			before.Find(c2, n);
-			int copyAt = i2 + n + 1;
-			before.Set(c2, n + 1);
-			if (sel != "")
-				sel += ",";
-			string ck = Key(c2, copyAt);
-			sel += ck;
+			for (int i = lc.m_Points.Count() - 1; i >= 0; i--)
+			{
+				DZS_LootEPoint orig = lc.m_Points[i];
+				if (!m_Sel.Contains(orig.m_Uid))
+					continue;
+				DZS_LootEPoint p = orig.Copy();
+				p.m_Src = -1;
+				p.m_Flags = "";
+				p.m_Uid = e.FreshUid();
+				p.m_Ext = DZS_ExtCopy.Text(p.m_Ext, "block", "lootPoint", "", true);
+				lc.m_Points.InsertAt(p, i + 1);
+				if (sel != "")
+					sel += ",";
+				sel += p.m_Uid;
+				n++;
+			}
 		}
-		foreach (string uk : keys)
-			ShiftTests(uk, 1);
-		DZS_Log.Info("loot: duplicate " + keys.Count() + " point(s)");
+		DZS_Log.Info("loot: duplicate " + n + " point(s)");
 		Change(e, sel);
 	}
 
@@ -1211,7 +1208,7 @@ class DZS_LootEditor : Managed
 				vector sp = DZS_PlaceMath.Project(w);
 				if (sp[0] < x0 || sp[0] > x1 || sp[1] < y0 || sp[1] > y1)
 					continue;
-				string k = Key(c, i);
+				string k = p.m_Uid;
 				if (ctrl)
 					m_Sel.Remove(k);
 				else
@@ -1340,12 +1337,9 @@ class DZS_LootEditor : Managed
 
 	protected DZS_LootEPoint PointIn(DZS_LootEEntry e, string key)
 	{
-		int c, i;
-		if (!e || !Split(key, c, i))
+		if (!e)
 			return null;
-		if (c >= e.m_Containers.Count() || i >= e.m_Containers[c].m_Points.Count())
-			return null;
-		return e.m_Containers[c].m_Points[i];
+		return e.PointByUid(key);
 	}
 
 	// Move tool: arrows at the centre of the selected points along the building's axes.
@@ -1553,10 +1547,10 @@ class DZS_LootEditor : Managed
 		if (m_Sel.Count() == 0)
 			return;
 		array<string> first = new array<string>();
-		int c, i;
 		string k0 = m_Sel.GetKey(0);
-		if (Split(k0, c, i) && c < m_Entry.m_Containers.Count())
-			first.Copy(m_Entry.m_Containers[c].m_Cats);
+		DZS_LootEContainer fc = m_Entry.ContainerOfPoint(k0);
+		if (fc)
+			first.Copy(fc.m_Cats);
 		DZS_LootTestDialog d = new DZS_LootTestDialog(this, first);
 		d.Open();
 	}
@@ -1606,34 +1600,6 @@ class DZS_LootEditor : Managed
 		if (o)
 			GetGame().ObjectDelete(o);
 		DZS_Log.Info("loot: test item at " + key + " removed");
-	}
-
-	// After deleting (dir -1) or duplicating (+1) the point at key: later test keys of its container move along.
-	protected void ShiftTests(string key, int dir)
-	{
-		int c, i;
-		if (!Split(key, c, i))
-			return;
-		if (dir < 0)
-			RemoveTest(key);
-		map<string, Object> moved = new map<string, Object>();
-		array<string> old = new array<string>();
-		for (int t = 0; t < m_Tests.Count(); t++)
-		{
-			string tk = m_Tests.GetKey(t);
-			int tc, ti;
-			Split(tk, tc, ti);
-			if (tc == c && ti > i)
-			{
-				old.Insert(tk);
-				string nk = Key(tc, ti + dir);
-				moved.Set(nk, m_Tests.GetElement(t));
-			}
-		}
-		foreach (string ok : old)
-			m_Tests.Remove(ok);
-		for (int m = 0; m < moved.Count(); m++)
-			m_Tests.Set(moved.GetKey(m), moved.GetElement(m));
 	}
 
 	// Centred on the ground circle, upright, yaw like the building; follows its point (also while dragging).
@@ -1692,11 +1658,8 @@ class DZS_LootEditor : Managed
 		int shown = 0;
 		foreach (string k : outside)
 		{
-			int c, i;
-			if (!Split(k, c, i))
-				continue;
-			DZS_LootEPoint p = m_Entry.m_Containers[c].m_Points[i];
-			if (!p.Valid())
+			DZS_LootEPoint p = PointOf(k);
+			if (!p || !p.Valid())
 				continue;
 			vector b = DZS_LootPlugin.WorldOf(o, r, u, f, p.P());
 			vector top = b + Vector(0, p.Height(), 0);

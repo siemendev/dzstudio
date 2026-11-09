@@ -2622,7 +2622,8 @@ class DZS_LootPlugin : DZS_Plugin
 	}
 
 	// The points of an entry at a building as cylinders: container
-	// colours in order, covered pieces with half the opacity, selected points in the accent colour and wider.
+	// colours in order, covered pieces with half the opacity, selected points in the accent colour and wider. 'selected'
+	// and 'hover' hold point identities (m_Uid); the line cache key is the place, a drawing matter only.
 	void DrawEntry(CanvasWidget cv, string keyBase, DZS_LootEEntry e, vector origin, vector ypr, float alpha, map<string, bool> selected, string hover)
 	{
 		vector r, u, f;
@@ -2639,15 +2640,17 @@ class DZS_LootPlugin : DZS_Plugin
 				DZS_LootEPoint pt = lc.m_Points[i];
 				if (!pt.Valid())
 					continue;
-				string pk = DZS_LootEditor.Key(c, i);
+				string ck = c.ToString();
+				string ik = i.ToString();
+				string pk = ck + ":" + ik;
 				int col = base;
 				float w = w1;
-				if (selected && selected.Contains(pk))
+				if (selected && pt.m_Uid != "" && selected.Contains(pt.m_Uid))
 				{
 					col = accent;
 					w = w2;
 				}
-				if (pk == hover)
+				if (hover != "" && pt.m_Uid == hover)
 					col = Lighter(col);
 				int full = WithAlpha(col, alpha);
 				int half = WithAlpha(col, alpha * 0.5);

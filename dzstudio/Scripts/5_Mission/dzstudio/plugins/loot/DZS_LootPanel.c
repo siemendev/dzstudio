@@ -6,13 +6,14 @@ class DZS_LootRowHit : DZS_HitListener
 {
 	DZS_LootEntryPanel m_Panel;
 	ref DZS_Hit m_Hit;
-	int m_Index;
+	// the container's identity (m_Uid)
+	string m_Uid;
 	protected float m_Last = -10;
 
-	void DZS_LootRowHit(Widget parent, DZS_LootEntryPanel p, int index)
+	void DZS_LootRowHit(Widget parent, DZS_LootEntryPanel p, string uid)
 	{
 		m_Panel = p;
-		m_Index = index;
+		m_Uid = uid;
 		m_Hit = new DZS_Hit(parent, this, "lootrow");
 	}
 
@@ -21,7 +22,7 @@ class DZS_LootRowHit : DZS_HitListener
 		float now = GetGame().GetTickTime();
 		bool dbl = now - m_Last < 0.4;
 		m_Last = now;
-		m_Panel.OnContainerRow(m_Index, dbl);
+		m_Panel.OnContainerRow(m_Uid, dbl);
 	}
 }
 
@@ -40,7 +41,7 @@ class DZS_LootEntryPanel : DZS_PanelContent
 	protected float m_Y;
 	protected float m_Scroll;
 	protected float m_ViewH;
-	// what a "+ add" menu adds to: "usage", "value", "category", "tag"
+	// what a "+ add" menu adds to: "<kind>|<container uid>", kind "usage", "value", "category", "tag"
 	protected string m_AddKind;
 
 	void DZS_LootEntryPanel(DZS_LootEditor e)
@@ -132,8 +133,8 @@ class DZS_LootEntryPanel : DZS_PanelContent
 		m_Y = DZS_Scale.Px(8) - m_Scroll;
 		BuildHead(inst);
 		BuildLootmax("", m_E.m_Entry.m_Lootmax, m_E.m_P.m_Files.m_DefGroup, DZS_Texts.Pick("Höchstzahl im Gebäude", "Maximum in the building"));
-		NameList("value", DZS_Texts.Pick("Stufen", "Tiers"), m_E.m_Entry.m_Values, -1);
-		NameList("usage", DZS_Texts.Pick("Arten des Orts", "Kinds of place"), m_E.m_Entry.m_Usages, -1);
+		NameList("value", DZS_Texts.Pick("Stufen", "Tiers"), m_E.m_Entry.m_Values, "");
+		NameList("usage", DZS_Texts.Pick("Arten des Orts", "Kinds of place"), m_E.m_Entry.m_Usages, "");
 		BuildContainers();
 		BuildKept();
 		BuildHints(inst);
@@ -232,7 +233,7 @@ class DZS_LootEntryPanel : DZS_PanelContent
 		m_Y += DZS_Scale.Px(4);
 	}
 
-	// Maximum: integer 0–9999, empty = default; container index -1 = the entry.
+	// Maximum: integer 0–9999, empty = default; tag = the container's identity, "" = the entry.
 	protected void BuildLootmax(string tag, string value, int def, string label)
 	{
 		TextWidget l = DZS_W.Text(m_Root, DZS_Font.READ, 13, DZS_Color.Get("textMuted"));
@@ -297,18 +298,18 @@ class DZS_LootEntryPanel : DZS_PanelContent
 			e.m_Lootmax = v;
 			return true;
 		}
-		int c = tag.ToInt();
-		if (c >= e.m_Containers.Count() || e.m_Containers[c].m_Lootmax == v)
+		DZS_LootEContainer lc = e.ContainerByUid(tag);
+		if (!lc || lc.m_Lootmax == v)
 			return false;
-		e.m_Containers[c].m_Lootmax = v;
+		lc.m_Lootmax = v;
 		return true;
 	}
 
-	// A list of names with "×" and "+ add"; container -1 = the entry's list.
-	protected void NameList(string kind, string title, array<string> names, int container)
+	// A list of names with "×" and "+ add"; container = its identity, "" = the entry's list. A name is held by itself.
+	protected void NameList(string kind, string title, array<string> names, string container)
 	{
 		float x0 = Pad();
-		if (container >= 0)
+		if (container != "")
 			x0 += DZS_Scale.Px(14);
 		TextWidget t = DZS_W.Text(m_Root, DZS_Font.READ, 12, DZS_Color.Get("textMuted"));
 		t.SetText(title);
@@ -329,7 +330,7 @@ class DZS_LootEntryPanel : DZS_PanelContent
 			n.SetText(DZS_W.Literal(shown));
 			DZS_W.Place(n, x0 + DZS_Scale.Px(6), m_Y, m_Width - x0 - DZS_Scale.Px(40), DZS_Scale.Px(22));
 			DZS_Button x = Btn("ghost", "×", "", m_Width - Pad() - DZS_Scale.Px(24), m_Y);
-			x.m_Tag = kind + "|" + container + "|" + i;
+			x.m_Tag = kind + "|" + container + "|" + nm;
 			x.m_OnClick.Insert(OnRemoveName);
 			m_Y += DZS_Scale.Px(22);
 		}
@@ -374,27 +375,51 @@ class DZS_LootEntryPanel : DZS_PanelContent
 		return r;
 	}
 
-	protected array<string> NamesIn(DZS_LootEEntry e, string kind, int c)
+	protected array<string> NamesIn(DZS_LootEEntry e, string kind, string cuid)
 	{
 		if (kind == "usage")
 			return e.m_Usages;
 		if (kind == "value")
 			return e.m_Values;
-		if (c < 0 || c >= e.m_Containers.Count())
+		DZS_LootEContainer lc = e.ContainerByUid(cuid);
+		if (!lc)
 			return null;
 		if (kind == "category")
-			return e.m_Containers[c].m_Cats;
-		return e.m_Containers[c].m_Tags;
+			return lc.m_Cats;
+		return lc.m_Tags;
+	}
+
+	// "<kind>|<container uid>|<name>" (the name may contain "|"); missing parts stay "".
+	protected static void TagParts(string tag, out string kind, out string cuid, out string nm)
+	{
+		kind = tag;
+		cuid = "";
+		nm = "";
+		int a = tag.IndexOf("|");
+		if (a < 0)
+			return;
+		kind = tag.Substring(0, a);
+		string rest = tag.Substring(a + 1, tag.Length() - a - 1);
+		int b = rest.IndexOf("|");
+		if (b < 0)
+		{
+			cuid = rest;
+			return;
+		}
+		cuid = rest.Substring(0, b);
+		nm = rest.Substring(b + 1, rest.Length() - b - 1);
 	}
 
 	void OnRemoveName(DZS_Button b)
 	{
-		array<string> p = new array<string>();
-		b.m_Tag.Split("|", p);
+		string kind, cuid, nm;
+		TagParts(b.m_Tag, kind, cuid, nm);
 		DZS_LootEEntry e = m_E.Copy();
-		array<string> names = NamesIn(e, p[0], p[1].ToInt());
-		int i = p[2].ToInt();
-		if (!names || i >= names.Count())
+		array<string> names = NamesIn(e, kind, cuid);
+		if (!names)
+			return;
+		int i = names.Find(nm);
+		if (i < 0)
 			return;
 		names.RemoveOrdered(i);
 		m_E.Change(e);
@@ -403,10 +428,10 @@ class DZS_LootEntryPanel : DZS_PanelContent
 	void OnAddName(DZS_Button b)
 	{
 		m_AddKind = b.m_Tag;
-		array<string> p = new array<string>();
-		b.m_Tag.Split("|", p);
-		array<string> names = NamesIn(m_E.m_Entry, p[0], p[1].ToInt());
-		array<string> list = ListOf(p[0]);
+		string kind, cuid, nm;
+		TagParts(b.m_Tag, kind, cuid, nm);
+		array<string> names = NamesIn(m_E.m_Entry, kind, cuid);
+		array<string> list = ListOf(kind);
 		array<ref DZS_MenuItem> items = new array<ref DZS_MenuItem>();
 		foreach (string n : list)
 		{
@@ -424,14 +449,14 @@ class DZS_LootEntryPanel : DZS_PanelContent
 
 	void OnNameChosen(DZS_Popup pop, DZS_MenuItem it)
 	{
-		array<string> p = new array<string>();
-		m_AddKind.Split("|", p);
+		string kind, cuid, nm;
+		TagParts(m_AddKind, kind, cuid, nm);
 		DZS_LootEEntry e = m_E.Copy();
-		array<string> names = NamesIn(e, p[0], p[1].ToInt());
+		array<string> names = NamesIn(e, kind, cuid);
 		if (!names || names.Find(it.m_Tag) >= 0)
 			return;
 		names.Insert(it.m_Tag);
-		DZS_Log.Info("loot: add " + p[0] + " " + it.m_Tag);
+		DZS_Log.Info("loot: add " + kind + " " + it.m_Tag);
 		m_E.Change(e);
 	}
 
@@ -447,10 +472,10 @@ class DZS_LootEntryPanel : DZS_PanelContent
 		{
 			DZS_LootEContainer lc = e.m_Containers[c];
 			float rowH = DZS_Scale.Px(26);
-			DZS_LootRowHit rh = new DZS_LootRowHit(m_Root, this, c);
+			DZS_LootRowHit rh = new DZS_LootRowHit(m_Root, this, lc.m_Uid);
 			rh.m_Hit.Place(0, m_Y, m_Width - Pad() - DZS_Scale.Px(28), rowH);
 			m_RowHits.Insert(rh);
-			bool active = c == m_E.m_Active;
+			bool active = lc.m_Uid == m_E.m_ActiveUid;
 			if (active)
 			{
 				Widget bar = DZS_W.Panel(m_Root, DZS_Color.Get("accent"));
@@ -473,15 +498,15 @@ class DZS_LootEntryPanel : DZS_PanelContent
 			qi.SetText(DZS_W.Literal(info));
 			DZS_W.Place(qi, m_Width * 0.35, m_Y, m_Width * 0.65 - Pad() - DZS_Scale.Px(30), rowH);
 			DZS_Button x = Btn("ghost", "×", "", m_Width - Pad() - DZS_Scale.Px(24), m_Y + DZS_Scale.Px(1));
-			x.m_Tag = c.ToString();
+			x.m_Tag = lc.m_Uid;
 			x.m_OnClick.Insert(OnDeleteContainer);
 			m_Y += rowH;
 			if (active)
 			{
-				BuildContainerName(lc, c);
-				BuildLootmax(c.ToString(), lc.m_Lootmax, defC, DZS_Texts.Pick("Höchstzahl", "Maximum"));
-				NameList("category", DZS_Texts.Pick("Kategorien", "Categories"), lc.m_Cats, c);
-				NameList("tag", DZS_Texts.Pick("Tags", "Tags"), lc.m_Tags, c);
+				BuildContainerName(lc);
+				BuildLootmax(lc.m_Uid, lc.m_Lootmax, defC, DZS_Texts.Pick("Höchstzahl", "Maximum"));
+				NameList("category", DZS_Texts.Pick("Kategorien", "Categories"), lc.m_Cats, lc.m_Uid);
+				NameList("tag", DZS_Texts.Pick("Tags", "Tags"), lc.m_Tags, lc.m_Uid);
 			}
 		}
 		DZS_Button add = Btn("ghost", DZS_Texts.Pick("+ Container", "+ Container"), "", Pad(), m_Y);
@@ -489,7 +514,7 @@ class DZS_LootEntryPanel : DZS_PanelContent
 		m_Y += DZS_Scale.Px(30);
 	}
 
-	protected void BuildContainerName(DZS_LootEContainer lc, int c)
+	protected void BuildContainerName(DZS_LootEContainer lc)
 	{
 		float rowH = DZS_Scale.Px(26);
 		TextWidget l = DZS_W.Text(m_Root, DZS_Font.READ, 13, DZS_Color.Get("textMuted"));
@@ -497,7 +522,7 @@ class DZS_LootEntryPanel : DZS_PanelContent
 		DZS_W.Place(l, Pad() + DZS_Scale.Px(14), m_Y, m_Width * 0.3, rowH);
 		DZS_TextField f = new DZS_TextField("loot.cname", "", "textMuted", 160);
 		f.Build(m_Root);
-		f.m_Tag = c.ToString();
+		f.m_Tag = lc.m_Uid;
 		f.ShowValue(lc.m_Name);
 		f.m_OnCommit.Insert(OnContainerName);
 		f.Place(m_Width - Pad() - f.GetWidth(), m_Y, rowH);
@@ -509,11 +534,11 @@ class DZS_LootEntryPanel : DZS_PanelContent
 	{
 		string t = typed;
 		t.Trim();
-		int c = f.m_Tag.ToInt();
 		DZS_LootEEntry e = m_E.Copy();
-		if (c >= e.m_Containers.Count())
+		DZS_LootEContainer lc = e.ContainerByUid(f.m_Tag);
+		if (!lc)
 			return;
-		if (t == "" || t == e.m_Containers[c].m_Name)
+		if (t == "" || t == lc.m_Name)
 		{
 			r.m_Ok = true;
 			return;
@@ -526,29 +551,32 @@ class DZS_LootEntryPanel : DZS_PanelContent
 			return;
 		}
 		r.m_Ok = true;
-		e.m_Containers[c].m_Name = t;
+		lc.m_Name = t;
 		m_E.Change(e);
 	}
 
-	void OnContainerRow(int c, bool dbl)
+	void OnContainerRow(string uid, bool dbl)
 	{
 		if (dbl)
-			m_E.SelectContainer(c);
+			m_E.SelectContainer(uid);
 		else
 		{
-			m_E.m_Active = c;
+			if (!m_E.m_Entry || !m_E.m_Entry.ContainerByUid(uid))
+				return;
+			m_E.m_ActiveUid = uid;
 			m_E.m_Gen++;
-			DZS_Log.Info("loot: active container " + c);
+			DZS_Log.Info("loot: active container " + uid);
 		}
 	}
 
 	void OnDeleteContainer(DZS_Button b)
 	{
-		int c = b.m_Tag.ToInt();
 		DZS_LootEEntry e = m_E.Copy();
-		if (c >= e.m_Containers.Count())
+		DZS_LootEContainer lc = e.ContainerByUid(b.m_Tag);
+		if (!lc)
 			return;
-		DZS_Log.Info("loot: delete container " + e.m_Containers[c].m_Name + " with " + e.m_Containers[c].m_Points.Count() + " point(s)");
+		DZS_Log.Info("loot: delete container " + lc.m_Name + " with " + lc.m_Points.Count() + " point(s)");
+		int c = e.m_Containers.Find(lc);
 		e.m_Containers.RemoveOrdered(c);
 		m_E.m_Sel.Clear();
 		m_E.Change(e);
@@ -577,8 +605,9 @@ class DZS_LootEntryPanel : DZS_PanelContent
 		}
 		DZS_LootEContainer lc = new DZS_LootEContainer();
 		lc.m_Name = name;
+		lc.m_Uid = e.FreshUid();
 		e.m_Containers.Insert(lc);
-		m_E.m_Active = e.m_Containers.Count() - 1;
+		m_E.m_ActiveUid = lc.m_Uid;
 		DZS_Log.Info("loot: new container " + name);
 		m_E.Change(e);
 	}
@@ -727,20 +756,27 @@ class DZS_LootEntryPanel : DZS_PanelContent
 		}
 		DZS_LootEEntry e = m_E.m_Entry;
 		string key = m_E.m_Sel.GetKey(0);
-		int c, i;
-		DZS_LootEditor.Split(key, c, i);
-		if (c >= e.m_Containers.Count())
-			return;
-		DZS_LootEContainer lc = e.m_Containers[c];
+		DZS_LootEContainer lc = e.ContainerOfPoint(key);
 		DZS_LootEPoint p = m_E.PointOf(key);
-		if (!p)
+		if (!lc || !p)
 			return;
 		if (n == 1)
 		{
 			int total = e.CountPoints();
-			int idx = i + 1;
-			for (int k = 0; k < c; k++)
-				idx += e.m_Containers[k].m_Points.Count();
+			// its place is only shown
+			int idx = 0;
+			bool found = false;
+			foreach (DZS_LootEContainer ic : e.m_Containers)
+			{
+				foreach (DZS_LootEPoint ip : ic.m_Points)
+				{
+					if (found)
+						break;
+					idx++;
+					if (ip == p)
+						found = true;
+				}
+			}
 			string w1 = DZS_Texts.Pick("Punkt ", "Point ");
 			string w2 = DZS_Texts.Pick(" von ", " of ");
 			Line(w1 + idx + w2 + total + " · " + lc.m_Name, DZS_Font.READBOLD, 13, "text", 22);
@@ -787,7 +823,7 @@ class DZS_LootEntryPanel : DZS_PanelContent
 		for (int cc = 0; cc < e.m_Containers.Count(); cc++)
 		{
 			DZS_Button cb = Btn("side", e.m_Containers[cc].m_Name, "", x, m_Y);
-			cb.m_Tag = cc.ToString();
+			cb.m_Tag = e.m_Containers[cc].m_Uid;
 			cb.m_OnClick.Insert(OnMoveTo);
 			x += cb.GetWidth() + DZS_Scale.Px(4);
 			if (x > m_Width - DZS_Scale.Px(90))
@@ -871,11 +907,9 @@ class DZS_LootEntryPanel : DZS_PanelContent
 		DZS_LootEEntry e = m_E.Copy();
 		for (int s = 0; s < m_E.m_Sel.Count(); s++)
 		{
-			int c, i;
-			DZS_LootEditor.Split(m_E.m_Sel.GetKey(s), c, i);
-			if (c >= e.m_Containers.Count() || i >= e.m_Containers[c].m_Points.Count())
+			DZS_LootEPoint p = e.PointByUid(m_E.m_Sel.GetKey(s));
+			if (!p)
 				continue;
-			DZS_LootEPoint p = e.m_Containers[c].m_Points[i];
 			vector lp = p.P();
 			if (tag == "r")
 			{
@@ -930,34 +964,33 @@ class DZS_LootEntryPanel : DZS_PanelContent
 		m_E.Change(e);
 	}
 
+	// The selected points (in list order) to the end of the container with the button's identity.
 	void OnMoveTo(DZS_Button b)
 	{
-		int to = b.m_Tag.ToInt();
 		DZS_LootEEntry e = m_E.Copy();
-		if (to >= e.m_Containers.Count())
+		DZS_LootEContainer target = e.ContainerByUid(b.m_Tag);
+		if (!target)
 			return;
-		array<int> codes = new array<int>();
-		for (int s = 0; s < m_E.m_Sel.Count(); s++)
-		{
-			int c, i;
-			DZS_LootEditor.Split(m_E.m_Sel.GetKey(s), c, i);
-			codes.Insert(c * 100000 + i);
-		}
-		codes.Sort(true);
 		array<ref DZS_LootEPoint> moved = new array<ref DZS_LootEPoint>();
-		foreach (int code : codes)
+		foreach (DZS_LootEContainer sc : e.m_Containers)
 		{
-			int cc = code / 100000;
-			int ii = code % 100000;
-			if (cc == to || cc >= e.m_Containers.Count() || ii >= e.m_Containers[cc].m_Points.Count())
+			if (sc == target)
 				continue;
-			DZS_LootEPoint p = e.m_Containers[cc].m_Points[ii];
-			moved.InsertAt(p, 0);
-			e.m_Containers[cc].m_Points.RemoveOrdered(ii);
+			int i = 0;
+			while (i < sc.m_Points.Count())
+			{
+				DZS_LootEPoint p = sc.m_Points[i];
+				if (m_E.m_Sel.Contains(p.m_Uid))
+				{
+					moved.Insert(p);
+					sc.m_Points.RemoveOrdered(i);
+				}
+				else
+					i++;
+			}
 		}
 		if (moved.Count() == 0)
 			return;
-		DZS_LootEContainer target = e.m_Containers[to];
 		string sel = "";
 		foreach (DZS_LootEPoint mp : moved)
 		{
@@ -965,10 +998,9 @@ class DZS_LootEntryPanel : DZS_PanelContent
 			target.m_Points.Insert(mp);
 			if (sel != "")
 				sel += ",";
-			string tk = DZS_LootEditor.Key(to, target.m_Points.Count() - 1);
-			sel += tk;
+			sel += mp.m_Uid;
 		}
-		m_E.m_Active = to;
+		m_E.m_ActiveUid = target.m_Uid;
 		DZS_Log.Info("loot: " + moved.Count() + " point(s) to " + target.m_Name);
 		m_E.Change(e, sel);
 	}
