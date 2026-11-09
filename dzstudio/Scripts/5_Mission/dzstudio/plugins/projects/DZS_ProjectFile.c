@@ -1,9 +1,9 @@
 // The project file: <id>.dzstudio.json in the project list, project.dzstudio.json inside a folder (a backup, the
-// working folder). Version 2 (the saved form): the building blocks of the project ({format, version, map, slug,
-// blocks, changes}, DZS_ProjectV2) plus dzStudio's editor extension (EDITOR_EXT) with what only dzStudio needs: provider
-// part, base, project part (groups by block id, loot switches, plugin parts) and view part
-// (docs/extensions/dzstudio.editor.md). Version 1 (read when an older project opens, and the
-// form of the working folder and of dzbot placements): provider part, project part and view part.
+// working folder). Version 2 is the saved form of every project, local, a provider's and dzbot's mods and placements:
+// the building blocks ({format, version, map, slug, blocks, changes}, DZS_ProjectV2) plus dzStudio's editor extension
+// (EDITOR_EXT) with what only dzStudio needs: provider part, base, project part (groups by block id, loot switches,
+// plugin parts) and view part (docs/extensions/dzstudio.editor.md). Version 1 (provider part, project part and view
+// part): the project file the working folder composes for the open path, and projects of older versions.
 class DZS_Maps
 {
 	static array<string> Keys()
@@ -210,8 +210,7 @@ class DZS_ProjectFile
 	// dzStudio's own part of a version 2 file, a built-in extension: the URL of its spec
 	static const string EDITOR_EXT = "https://developers.dzbot.de/specs/dzstudio/editor/1.json";
 
-	// The editor part of a version 2 file: the data of its extension EDITOR_EXT; a file written before the extension
-	// existed has it as the top-level "editor". Null when there is none.
+	// The editor part of a version 2 file: the data of its extension EDITOR_EXT. Null when there is none.
 	static DZS_Json EditorOf(DZS_Json root)
 	{
 		if (!root || !root.IsObj())
@@ -227,9 +226,6 @@ class DZS_ProjectFile
 					return data;
 			}
 		}
-		DZS_Json old = root.Get("editor");
-		if (old && old.IsObj())
-			return old;
 		return null;
 	}
 
@@ -248,17 +244,12 @@ class DZS_ProjectFile
 					return data;
 			}
 		}
-		DZS_SrcNode old = root.Get("editor");
-		if (old && old.IsObj())
-			return old;
 		return null;
 	}
 
-	// Writes the editor part into its extension (added after the other extensions when the file has none yet); an
-	// old top-level "editor" goes.
+	// Writes the editor part into its extension (added after the other extensions when the file has none yet).
 	static void SetEditor(DZS_Json root, DZS_Json ed)
 	{
-		root.Remove("editor");
 		DZS_Json list = root.Get("extensions");
 		if (!list || !list.IsObj())
 		{

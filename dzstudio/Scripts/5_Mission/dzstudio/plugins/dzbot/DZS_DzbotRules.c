@@ -75,10 +75,9 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		m_Gen++;
 	}
 
-	// Rules of older files move onto their entities, the entry's data into the model (not a step of the history).
+	// The entry's data moves into the model (not a step of the history).
 	override void Opened(DZS_Instance inst)
 	{
-		Migrate(inst);
 		if (inst && m_File && m_File.Count() > 0 && !DZS_EntityExts.HasProjectData(inst, URL))
 			DZS_EntityExts.SetProjectData(inst, URL, m_File);
 		DZS_EntityExts.Commit(inst, "", "", true);
@@ -101,20 +100,9 @@ class DZS_DzbotRules : DZS_ProjectExtension
 	override DZS_Json Data()
 	{
 		DZS_Json d = Current();
-		if (!d || !d.IsObj())
-			return null;
-		Clean(d, "blocks");
-		Clean(d, "changes");
-		if (d.Count() == 0)
+		if (!d || !d.IsObj() || d.Count() == 0)
 			return null;
 		return d;
-	}
-
-	protected static void Clean(DZS_Json data, string section)
-	{
-		DZS_Json s = data.Get(section);
-		if (s && s.IsObj() && s.Count() == 0)
-			data.Remove(section);
 	}
 
 	protected DZS_Instance Inst()
@@ -122,49 +110,6 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		if (!m_P)
 			return null;
 		return m_P.Kernel().GetShown();
-	}
-
-	// Files written before the rules moved onto the entities held them in the project's entry, "blocks" by id and
-	// "changes" by ref: they move onto the entities (an entity that has a rule of its own keeps it).
-	protected void Migrate(DZS_Instance inst)
-	{
-		if (!m_File || !inst)
-			return;
-		int moved = 0;
-		DZS_Json blocks = m_File.Get("blocks");
-		if (blocks && blocks.IsObj())
-		{
-			for (int i = 0; i < blocks.m_Keys.Count(); i++)
-			{
-				string bid = blocks.m_Keys[i];
-				if (Rule("blocks", bid))
-					continue;
-				DZS_Json br = blocks.Get(bid);
-				PutBlock(inst, bid, br);
-				moved++;
-			}
-			m_File.Remove("blocks");
-		}
-		DZS_Json changes = m_File.Get("changes");
-		if (changes && changes.IsObj())
-		{
-			for (int k = 0; k < changes.m_Keys.Count(); k++)
-			{
-				string cref = changes.m_Keys[k];
-				DZS_Json cr = changes.Get(cref);
-				if (DZS_EntityExts.ChangeByRef(inst, cref, URL) || IsEmpty(cr))
-					continue;
-				DZS_Json crCopy = cr.Clone();
-				DZS_EntityExts.SetChangeByRef(inst, cref, URL, crCopy);
-				moved++;
-			}
-			m_File.Remove("changes");
-		}
-		if (moved > 0)
-		{
-			m_Gen++;
-			DZS_Log.Info("dzbot: " + moved + " rule(s) moved from the project entry onto their blocks and changes");
-		}
 	}
 
 	// ---- names of repeated blocks ----
@@ -516,13 +461,6 @@ class DZS_DzbotRules : DZS_ProjectExtension
 
 	// ---- rules on the entities ----
 
-	// section "blocks" (by block id) or "changes" (by ref) of the current state; null when there is none
-	DZS_Json Rule(string section, string rid)
-	{
-		DZS_Instance inst = Inst();
-		return RuleAt(DZS_EntityExts.Owner(inst, section, rid));
-	}
-
 	// The rule of an entity (a block's with its elements' rules under "items" by "<list>@<element id>"), null when
 	// there is none.
 	DZS_Json RuleAt(DZS_ExtOwner o)
@@ -604,74 +542,6 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		DZS_EntityExts.Commit(inst, "dzbot-Regeln ändern", "Edit dzbot rules");
 		m_Gen++;
 		return true;
-	}
-
-	// Rules of older files (opening only): a block by id, its elements' under "items" by "<list>[<index>]" of the file.
-	protected void PutBlock(DZS_Instance inst, string bid, DZS_Json rule)
-	{
-		DZS_Json own = null;
-		DZS_Json items = null;
-		if (rule && rule.IsObj())
-		{
-			own = rule.Clone();
-			items = own.Get("items");
-			own.Remove("items");
-			if (IsEmpty(own))
-				own = null;
-		}
-		DZS_EntityExts.SetBlock(inst, bid, URL, own);
-		map<string, ref DZS_Json> was = DZS_EntityExts.ElementsOf(inst, bid, URL);
-		for (int i = 0; i < was.Count(); i++)
-		{
-			string old = was.GetKey(i);
-			if (!items || !items.IsObj() || !items.Has(old))
-				SetItem(inst, bid, old, null);
-		}
-		if (!items || !items.IsObj())
-			return;
-		for (int k = 0; k < items.m_Keys.Count(); k++)
-		{
-			string path = items.m_Keys[k];
-			DZS_Json one = items.Get(path);
-			SetItem(inst, bid, path, one);
-		}
-	}
-
-	// "objects[3]" -> "objects", 3
-	static bool ItemPath(string path, out string list, out int index)
-	{
-		list = "";
-		index = -1;
-		int open = path.IndexOf("[");
-		int close = path.IndexOf("]");
-		if (open <= 0 || close != path.Length() - 1 || close < open + 2)
-			return false;
-		list = path.Substring(0, open);
-		string num = path.Substring(open + 1, close - open - 1);
-		if (!DZS_Json.IsNumberText(num) || num.IndexOf(".") >= 0 || num.IndexOf("-") >= 0)
-			return false;
-		index = num.ToInt();
-		return true;
-	}
-
-	protected void SetItem(DZS_Instance inst, string bid, string path, DZS_Json rule)
-	{
-		string list;
-		int index;
-		if (!ItemPath(path, list, index))
-			return;
-		DZS_Json copy = null;
-		if (!IsEmpty(rule))
-			copy = rule.Clone();
-		DZS_EntityExts.SetElement(inst, bid, list, index, URL, copy);
-	}
-
-	// Blocks ("blocks") or change refs ("changes") that hold a rule.
-	array<string> Refs(string section)
-	{
-		if (section == "changes")
-			return DZS_EntityExts.ChangeRefs(Inst(), URL);
-		return DZS_EntityExts.BlockIds(Inst(), URL);
 	}
 
 	// no member, or only empty "fields" / "items"

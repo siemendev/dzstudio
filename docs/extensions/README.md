@@ -14,9 +14,9 @@ about:
     { "id": "g-arena", "kind": "spawnerGroup", "parent": null,
       "data": { "name": "Arena", "objects": [
         { "name": "Land_Mil_Tower_Small", "pos": [4520.5, 312.25, 10210.0], "ypr": [0, 0, 0],
-          "extensions": { "https://example.com/specs/server-info/1.json": { "label": "North tower" } } }
+          "extensions": { "https://developers.dzbot.de/specs/examples/server-info/1.json": { "label": "North tower" } } }
       ] },
-      "extensions": { "https://example.com/specs/server-info/1.json": { "lootWeight": 2.5 } } }
+      "extensions": { "https://developers.dzbot.de/specs/examples/server-info/1.json": { "lootWeight": 2.5 } } }
   ],
   "changes": [
     { "op": "set", "block": "event", "key": { "name": "VehicleCivilianSedan" }, "field": "nominal", "from": 8, "to": 12,
@@ -24,7 +24,7 @@ about:
   ],
   "extensions": {
     "https://developers.dzbot.de/specs/dzstudio/editor/1.json": { "data": { "provider": { "name": "My project", "map": "chernarusplus" } } },
-    "https://example.com/specs/server-info/1.json": { "data": { "welcome": "Hello" } }
+    "https://developers.dzbot.de/specs/examples/server-info/1.json": { "data": { "welcome": "Hello" } }
   }
 }
 ```
@@ -146,9 +146,9 @@ one more value of it (`DZS_EntityExts`):
 - a spawner group and each of its objects carry their own; so does the loot row of an object with loot;
 - each element of a layer (an own event, a spawn point, an effect area, a territory or zone, a changed value) carries
   those of the blocks and changes it makes;
-- loot: an own loot type, container or point carries its own; a change of a loot type sits with that type, by the
-  change's ref (`<block> <key as compact JSON> <field>`, see [`dzbot.rules.md`](dzbot.rules.md) "Change refs" — the key
-  of an entry of the base, never a position in a list).
+- loot: an own loot type, container or point carries its own; a change of a loot type sits with that type, under the
+  change's name (`<block> <key as compact JSON> <field>`, as in [dzbot's reports](dzbot.rules.md#names-in-reports) — the
+  key of an entry of the base, never a position in a list).
 
 So the data goes wherever the entity goes: moving, renaming or reordering keeps it, deleting an entity takes it along,
 undo and redo restore it, a moved object keeps it, a live session shares it with every participant, and backups hold

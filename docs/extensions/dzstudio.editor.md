@@ -32,8 +32,9 @@ block becomes a group named after the block, loot off, the camera at the map's d
 
 - `provider` — `name`: the project's name as dzStudio shows it (the `slug` at the top level follows it); `map`: the map
   key.
-- `base` — the base dzStudio applies the project to: `"vanilla"` (Bohemia's mission of the map) or the name of a
-  mission folder in `Documents\DayZ\dzstudio\Missions`.
+- `base` — the base dzStudio applies the project to: `"vanilla"` (Bohemia's mission of the map) or
+  `"mission:<folder>"`, a mission folder in `Documents\DayZ\dzstudio\Missions` by its name
+  (`"mission:dayzOffline.chernarusplus"`). Missing or empty means `"vanilla"`.
 - `project` — the project bar's state:
   - `groups` — one entry per group, in the bar's order: `block` (the id of its `spawnerGroup` block), `name`, `color`
     (`#RRGGBB`), `hidden`, `locked`, `objectCount`; `objects` lists only objects that are hidden or locked (`index` in

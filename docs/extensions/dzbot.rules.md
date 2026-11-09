@@ -52,8 +52,8 @@ mod's settings (below): `{"data": {"settings": [ … ]}}`.
   default or root class, an ignored type, an event child (its `type`) — would collide with its own copies, so each
   copy gets a name of its own: `<name>_1`, `<name>_2` … by default (no hyphen: game identifiers may not allow it), or what the repeat's `name` template makes:
   `{name}` is the block's name, `{n}` the copy's number from 1, `{index}` from 0 — `"name": "StaticHeli_{n}"` gives
-  `StaticHeli_1`, `StaticHeli_2` … A template must hold `{n}` or `{index}` (so the names differ) and nothing else in
-  braces; an event's name must still start with its prefix (`Vehicle`, `Static`, …). Kinds whose entries may share a
+  `StaticHeli_1`, `StaticHeli_2` … A template must hold `{n}` or `{index}` (so the names differ), nothing else in
+  braces, and besides the placeholders only letters, digits and `_` (at most 200 characters); an event's name must still start with its prefix (`Vehicle`, `Static`, …). Kinds whose entries may share a
   name (loot containers, territories) or are known by a position keep it, and a template there is refused, as on a
   list element. A block whose `fields` set the name (`"name": {"setting": "item.name"}`) keeps that value and takes
   no template. Child blocks follow their parent's copy: those placed in it by its id, and those whose `parent` key

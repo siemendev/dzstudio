@@ -120,15 +120,6 @@ class DZS_ProjectExtensions
 		s_Generic = fresh;
 	}
 
-	// The handler of a URL: a plugin's, else the generic one of the open project.
-	static DZS_ProjectExtension Handler(string url)
-	{
-		DZS_ProjectExtension e = Find(url);
-		if (e)
-			return e;
-		return Generic(url);
-	}
-
 	// Plugins, then the generic handlers of the open project.
 	static array<DZS_ProjectExtension> Handlers()
 	{

@@ -1,4 +1,4 @@
-// Loot files of the project folder: the parsed mapgroupproto.xml and
+// Loot files of the project's working folder: the parsed mapgroupproto.xml and
 // mapgrouppos.xml with an index of entries by type, the rows of mapgrouppos.xml, the name lists of
 // cfglimitsdefinition.xml. Entries are read from the parsed file when asked for (DZS_LootEEntry); no object per entry
 // is kept — freeing a map of 436 entry objects with their containers and points crashed DayZ 1.30 (access violation).
@@ -226,7 +226,7 @@ class DZS_LootFiles : Managed
 		s_Ready = null;
 	}
 
-	// The project folder's files (as Read) to be read in steps.
+	// The working folder's files (as Read) to be read in steps.
 	static DZS_LootFiles BeginRead(string folder)
 	{
 		DZS_LootFiles f = new DZS_LootFiles();

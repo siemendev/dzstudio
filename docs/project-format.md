@@ -193,6 +193,9 @@ One entry per change, own block and registration:
 Per file: `written`, `unchanged`, `created`, `invalid` (output refused), `broken` (base unreadable) or `missing`.
 An entry may carry a `detail` code (`case-mismatch`, `bad-value`, `unknown-field`, `parent-missing` …).
 
+dzStudio applies projects straight into a mission folder and keeps the originals beside the files, so a project can be
+taken out again: [`apply-layout.md`](apply-layout.md).
+
 ## Extensions
 
 `extensions` holds data of other programs and plugins. An extension **is the URL of its spec file**: the project file

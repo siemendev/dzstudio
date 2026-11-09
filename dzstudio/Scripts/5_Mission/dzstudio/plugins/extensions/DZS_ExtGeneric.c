@@ -79,8 +79,6 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 	protected string m_Url;
 	// the entry's data as read, until Opened moved it into the model (or added without a project open)
 	protected ref DZS_Json m_Data;
-	protected string m_LoadedText;
-	protected bool m_Changed;
 	// bumped on every edit, for the marks in the project bar
 	protected int m_Gen;
 	protected int m_MarkGen = -1;
@@ -92,14 +90,6 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 	{
 		m_Url = url;
 		m_Data = data;
-		m_LoadedText = TextOf(data);
-	}
-
-	protected static string TextOf(DZS_Json data)
-	{
-		if (!data)
-			return "";
-		return DZS_EntityExts.TextOf(data);
 	}
 
 	protected static DZS_Instance Shown()
@@ -142,7 +132,6 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 	override void Load(DZS_Json data)
 	{
 		m_Data = data;
-		m_LoadedText = TextOf(data);
 	}
 
 	override DZS_Json Data()
@@ -166,17 +155,8 @@ class DZS_ExtGeneric : DZS_ProjectExtension
 		return m_Url;
 	}
 
-	bool IsChanged()
-	{
-		if (m_Changed)
-			return true;
-		DZS_Json d = ProjectNow(Shown());
-		return TextOf(d) != m_LoadedText;
-	}
-
 	void MarkChanged()
 	{
-		m_Changed = true;
 		m_Gen++;
 	}
 

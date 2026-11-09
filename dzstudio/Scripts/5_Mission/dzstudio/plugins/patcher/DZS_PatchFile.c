@@ -473,13 +473,6 @@ class DZS_PatchFile : Managed
 		Insertion(parent.m_OpenEnd, m_Eol + indent + Reindent(text, indent, m_Eol));
 	}
 
-	// Inserts an element before 'sibling' (which starts its line), on a line of its own.
-	void InsertBefore(DZS_XmlNode sibling, string text)
-	{
-		string indent = LineIndent(sibling.m_Start);
-		Insertion(LineStart(sibling.m_Start), indent + Reindent(text, indent, m_Eol) + m_Eol);
-	}
-
 	// ---- JSON ----
 
 	string Raw(DZS_SrcNode n)

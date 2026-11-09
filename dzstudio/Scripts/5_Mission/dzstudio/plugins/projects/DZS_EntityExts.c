@@ -472,12 +472,6 @@ class DZS_EntityExts
 		return null;
 	}
 
-	// Whether IndexReady is still building.
-	static bool IndexBuilding()
-	{
-		return s_Pending && DZS_Jobs.Running(s_Pending);
-	}
-
 	// How far IndexReady's build is (0..1), 0 when none runs.
 	static float IndexShare()
 	{
@@ -872,119 +866,9 @@ class DZS_EntityExts
 		return idx.m_Changes.Get(cref);
 	}
 
-	static DZS_Json Block(DZS_Instance inst, string blockId, string url)
-	{
-		return Value(inst, BlockOwner(inst, blockId), url);
-	}
-
-	static void SetBlock(DZS_Instance inst, string blockId, string url, DZS_Json value)
-	{
-		DZS_ExtOwner o = BlockOwner(inst, blockId);
-		if (!o)
-		{
-			DZS_Log.Warn("extensions: block " + blockId + " not in the project, value of " + url + " not stored");
-			return;
-		}
-		SetValue(inst, o, url, value);
-	}
-
 	static DZS_Json Element(DZS_Instance inst, string blockId, string list, int index, string url)
 	{
 		return Value(inst, ElementOwner(inst, blockId, list, index), url);
-	}
-
-	static void SetElement(DZS_Instance inst, string blockId, string list, int index, string url, DZS_Json value)
-	{
-		DZS_ExtOwner o = ElementOwner(inst, blockId, list, index);
-		if (!o)
-		{
-			string where = ElemKey(blockId, list, index);
-			DZS_Log.Warn("extensions: element " + where + " not in the project, " + url + " not stored");
-			return;
-		}
-		SetValue(inst, o, url, value);
-	}
-
-	static DZS_Json Change(DZS_Instance inst, DZS_Json change, string url)
-	{
-		return ChangeByRef(inst, DZS_ProjectRefs.ChangeRef(change), url);
-	}
-
-	static void SetChange(DZS_Instance inst, DZS_Json change, string url, DZS_Json value)
-	{
-		SetChangeByRef(inst, DZS_ProjectRefs.ChangeRef(change), url, value);
-	}
-
-	static DZS_Json ChangeByRef(DZS_Instance inst, string cref, string url)
-	{
-		return Value(inst, ChangeOwner(inst, cref), url);
-	}
-
-	static void SetChangeByRef(DZS_Instance inst, string cref, string url, DZS_Json value)
-	{
-		DZS_ExtOwner o = ChangeOwner(inst, cref);
-		if (!o)
-		{
-			DZS_Log.Warn("extensions: change " + cref + " not in the project (or not editable), value of " + url + " not stored");
-			return;
-		}
-		SetValue(inst, o, url, value);
-	}
-
-	// The values of the extension on a block's list elements by "<list>[<index>]".
-	static map<string, ref DZS_Json> ElementsOf(DZS_Instance inst, string blockId, string url)
-	{
-		map<string, ref DZS_Json> r = new map<string, ref DZS_Json>();
-		DZS_ExtIndex idx = Index(inst);
-		if (!idx)
-			return r;
-		string prefix = blockId + "\n";
-		foreach (string key : idx.m_ElementKeys)
-		{
-			if (key.IndexOf(prefix) != 0)
-				continue;
-			DZS_Json v = Value(inst, idx.m_Elements.Get(key), url);
-			if (!v)
-				continue;
-			string rest = key.Substring(prefix.Length(), key.Length() - prefix.Length());
-			int nl = rest.IndexOf("\n");
-			if (nl <= 0)
-				continue;
-			string list = rest.Substring(0, nl);
-			string at = rest.Substring(nl + 1, rest.Length() - nl - 1);
-			r.Set(list + "[" + at + "]", v);
-		}
-		return r;
-	}
-
-	// Ids of blocks that hold a value of the extension.
-	static array<string> BlockIds(DZS_Instance inst, string url)
-	{
-		array<string> r = new array<string>();
-		DZS_ExtIndex idx = Index(inst);
-		if (!idx)
-			return r;
-		foreach (string bid : idx.m_BlockIds)
-		{
-			if (Value(inst, idx.m_Blocks.Get(bid), url))
-				r.Insert(bid);
-		}
-		return r;
-	}
-
-	// Refs of changes that hold a value of the extension.
-	static array<string> ChangeRefs(DZS_Instance inst, string url)
-	{
-		array<string> r = new array<string>();
-		DZS_ExtIndex idx = Index(inst);
-		if (!idx)
-			return r;
-		foreach (string cref : idx.m_ChangeRefs)
-		{
-			if (Value(inst, idx.m_Changes.Get(cref), url))
-				r.Insert(cref);
-		}
-		return r;
 	}
 
 	// The scene group of a spawner group block, "" when the block is no spawner group.

@@ -632,7 +632,8 @@ class DZS_LootPlugin : DZS_Plugin
 		DZS_Log.Info("loot: written types from the provider: " + lo.m_OwnTypes.Count());
 	}
 
-	// Reads the working state and the vanilla state (project folder vanilla\, else the fetched one).
+	// Reads the working state and the vanilla state (the working folder's vanilla\, which DZS_WorkFolder.CopyLoot
+	// fills when the base is the vanilla mission, else the fetched one).
 	// ready: the files read already (Toggle's check), else they are read here
 	protected bool ReadFiles(DZS_Instance inst, string folder, DZS_Issues issues = null, DZS_LootFiles ready = null)
 	{
@@ -708,7 +709,7 @@ class DZS_LootPlugin : DZS_Plugin
 					DZS_Issue bad = issues.Add(DZS_Issue.HINT, "vanilla\\" + srcName + " ist nicht gültig und wird übergangen — die Vanilla-Dateien daneben gelten", "vanilla\\" + srcName + " is not valid and is skipped — the vanilla files next to it apply");
 					bad.m_File = "vanilla\\" + srcName;
 				}
-				DZS_Log.Info("loot: vanilla state from the project's vanilla\\, companion file " + DZS_Str.Bool(FileExist(src)));
+				DZS_Log.Info("loot: vanilla state from the working folder's vanilla\\, companion file " + DZS_Str.Bool(FileExist(src)));
 				return;
 			}
 			DZS_Log.Warn("loot: vanilla\\" + DZS_LootFiles.PROTO + " of the project unreadable: " + hand.m_Error);
@@ -1296,7 +1297,7 @@ class DZS_LootPlugin : DZS_Plugin
 	protected ref DZS_LootPrefetch m_Prefetch;
 	protected bool m_Prefetched;
 
-	// The files of a project folder and of the base LoadBase will take, read ahead over the next frames.
+	// The loot files of a working folder and of the base LoadBase will take, read ahead over the next frames.
 	static DZS_LootPrefetch StartPrefetch(string folder, string mapKey)
 	{
 		string baseProto = "";

@@ -31,16 +31,6 @@ class DZS_PatchProject : Managed
 	ref array<ref DZS_PatchBlock> m_Blocks = new array<ref DZS_PatchBlock>();
 	ref array<ref DZS_PatchChange> m_Changes = new array<ref DZS_PatchChange>();
 
-	DZS_PatchBlock FindBlock(string id)
-	{
-		foreach (DZS_PatchBlock b : m_Blocks)
-		{
-			if (b.m_Id == id)
-				return b;
-		}
-		return null;
-	}
-
 	// Reads the project file; null and 'error' set when it is not a version 2 project.
 	static DZS_PatchProject Read(array<string> chunks, out string error)
 	{
@@ -115,8 +105,9 @@ class DZS_PatchProject : Managed
 					c.m_Key = DZS_Json.Obj();
 				c.m_Field = cj.GetStr("field");
 				c.m_HasFrom = cj.Has("from");
-				c.m_From = cj.Get("from");
-				c.m_To = cj.Get("to");
+				// a value set into a file (an object, a list) never takes "extensions" members along either
+				c.m_From = WithoutExtensions(cj.Get("from"));
+				c.m_To = WithoutExtensions(cj.Get("to"));
 				p.m_Changes.Insert(c);
 			}
 		}
