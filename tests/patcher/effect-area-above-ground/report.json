@@ -1,0 +1,47 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "effectArea",
+            "id": "b-two",
+            "status": "applied",
+            "file": "cfgEffectArea.json"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "effectArea",
+            "id": "b-three",
+            "status": "applied",
+            "file": "cfgEffectArea.json"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "effectArea",
+            "id": "b-bad",
+            "status": "invalid",
+            "file": "cfgEffectArea.json",
+            "detail": "bad-value"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "effectArea",
+            "id": "b-short",
+            "status": "invalid",
+            "file": "cfgEffectArea.json",
+            "detail": "bad-value"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgEffectArea.json",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

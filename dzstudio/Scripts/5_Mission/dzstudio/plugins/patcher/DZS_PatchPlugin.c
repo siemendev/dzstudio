@@ -200,7 +200,8 @@ class DZS_PatchTests
 			return false;
 		}
 		int t0 = TickCount(0);
-		DZS_Patcher p = DZS_Patcher.Run(project, caseDir + "\\base");
+		DZS_PatchGroundFlat flat = new DZS_PatchGroundFlat();
+		DZS_Patcher p = DZS_Patcher.Run(project, caseDir + "\\base", null, flat);
 		int ms = (TickCount(0) - t0) / 10000;
 		string outDir = dir + "-out\\" + name;
 		DZS_Files.DeleteTree(outDir);

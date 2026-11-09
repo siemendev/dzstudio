@@ -13,10 +13,14 @@ class DZS_Patcher : DZS_PatcherJson
 	protected ref array<string> m_RegLists = new array<string>();
 	protected bool m_Gameplay;
 
-	static DZS_Patcher Run(DZS_PatchProject project, string baseDir, map<string, string> over = null)
+	// 'ground' defaults to the game's terrain; the conformance runner passes a flat one.
+	static DZS_Patcher Run(DZS_PatchProject project, string baseDir, map<string, string> over = null, DZS_PatchGround ground = null)
 	{
 		DZS_Patcher p = new DZS_Patcher();
 		p.m_Project = project;
+		p.m_Ground = ground;
+		if (!p.m_Ground)
+			p.m_Ground = new DZS_PatchGroundGame();
 		p.m_Files = new DZS_PatchFiles(baseDir);
 		if (over)
 			p.m_Files.m_Over.Copy(over);

@@ -102,7 +102,8 @@ class DZS_EffectsModel
 	}
 
 	// A complete effect area of a preset (every field written, the engine has no usable defaults).
-	static DZS_Json PresetData(string preset, string name, string x, string z, string r)
+	// 'above': metres above the ground (aboveGround, the position is then [x, z]), or "" for a position on height 0.
+	static DZS_Json PresetData(string preset, string name, string x, string z, string r, string above = "")
 	{
 		string type = "SpookyArea";
 		string trig = "";
@@ -166,12 +167,17 @@ class DZS_EffectsModel
 		Str(d, "AreaName", name);
 		Str(d, "Type", type);
 		Str(d, "TriggerType", trig);
+		if (above != "")
+			Num(d, "aboveGround", above);
 		DZS_Json data = DZS_Json.Obj();
 		DZS_Json pos = DZS_Json.Arr();
 		DZS_Json px = DZS_Json.Num(x);
 		pos.Add(px);
-		DZS_Json py = DZS_Json.Num("0");
-		pos.Add(py);
+		if (above == "")
+		{
+			DZS_Json py = DZS_Json.Num("0");
+			pos.Add(py);
+		}
 		DZS_Json pz = DZS_Json.Num(z);
 		pos.Add(pz);
 		data.Set("Pos", pos);
@@ -236,7 +242,7 @@ class DZS_EffectsModel
 		array<string> own = Of(inst, AREA);
 		foreach (string oid : own)
 		{
-			DZS_Json data = PresetData(Field(inst, oid, "preset"), Field(inst, oid, "name"), Field(inst, oid, "x"), Field(inst, oid, "z"), Field(inst, oid, "r"));
+			DZS_Json data = PresetData(Field(inst, oid, "preset"), Field(inst, oid, "name"), Field(inst, oid, "x"), Field(inst, oid, "z"), Field(inst, oid, "r"), Field(inst, oid, "above"));
 			DZS_Json b = DZS_SpawnsModel.Block("fx-" + DZS_ProjectV2.IdPart(oid), "effectArea", null, "", data);
 			DZS_EntityExts.Attach(b, inst, oid, DZS_EntityExts.SLOT);
 			blocks.Add(b);
@@ -320,8 +326,15 @@ class DZS_EffectsModel
 				map<string, string> f = new map<string, string>();
 				f.Set("name", d.GetStr("AreaName"));
 				f.Set("preset", PresetOf(d.GetStr("Type"), pd.GetStr("AroundPartName")));
+				// a position above the ground is [x, z]
+				int zi = 2;
+				if (pos && pos.IsArr() && pos.Count() == 2)
+					zi = 1;
 				f.Set("x", VecPart(pos, 0));
-				f.Set("z", VecPart(pos, 2));
+				f.Set("z", VecPart(pos, zi));
+				DZS_Json ab = d.Get("aboveGround");
+				if (ab && ab.IsNum())
+					f.Set("above", ab.m_Str);
 				f.Set("r", data.Get("Radius").m_Str);
 				DZS_EntityExts.TakeInto(f, DZS_EntityExts.SLOT, bl);
 				DZS_SpawnsModel.CreateFor(b, AREA, f, bl.GetStr("id"), "fx-");

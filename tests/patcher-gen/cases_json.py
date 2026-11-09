@@ -50,14 +50,14 @@ def own_area(name, typ="ContaminatedArea_Static"):
                            "TinyPartName": "graphics/particles/contaminated_area_gas_around_tiny",
                            "PPERequesterType": "PPERequester_ContaminatedAreaTint"}}
 
-def own_area_text(name, ind, unit):
+def own_area_text(name, ind, unit, pos='[1000.000000, 0.000000, 2000.000000]'):
     i1, i2 = ind + unit, ind + unit + unit
     return (ind + '{\n'
             + i1 + '"AreaName": "%s",\n' % name
             + i1 + '"Type": "ContaminatedArea_Static",\n'
             + i1 + '"TriggerType": "ContaminatedTrigger",\n'
             + i1 + '"Data": {\n'
-            + i2 + '"Pos": [1000.000000, 0.000000, 2000.000000],\n'
+            + i2 + '"Pos": %s,\n' % pos
             + i2 + '"Radius": 50,\n'
             + i2 + '"PosHeight": 20,\n'
             + i2 + '"NegHeight": 5,\n'
@@ -127,6 +127,34 @@ def effect_areas():
         bl(4, "safePosition", "b-safe2", "collision", EA_CH),
     ]
     case("effect-areas", {EA_CH: base}, {"changes": changes, "blocks": blocks}, {EA_CH: out},
+         {"entries": entries, "files": [fl(EA_CH, "written")]})
+
+def effect_area_above_ground():
+    # aboveGround puts an own area that many metres above the ground at its x/z: Data.Pos is [x, z] (or [x, y, z],
+    # its y left aside); the runners use a flat ground at 0, so y is aboveGround. The member is never written.
+    base = area_file([area("Ship-Bow", 13917, 11178)])
+    E = "effectArea"
+    def above(name, pos, h):
+        d = own_area(name)
+        d = dict([("AreaName", d["AreaName"]), ("Type", d["Type"]), ("TriggerType", d["TriggerType"]), ("aboveGround", h)]
+                 + [(k, v) for k, v in d.items() if k not in ("AreaName", "Type", "TriggerType")])
+        d["Data"] = dict(d["Data"], Pos=pos)
+        return d
+    blocks = [
+        {"id": "b-two", "kind": E, "parent": None, "data": above("Above-Two", [1000, 2000], N("2.5"))},
+        {"id": "b-three", "kind": E, "parent": None, "data": above("Above-Three", [1000, 312.5, 2000], 0)},
+        {"id": "b-bad", "kind": E, "parent": None, "data": above("Above-Bad", [1000, 2000], "high")},
+        {"id": "b-short", "kind": E, "parent": None, "data": above("Above-Short", [1000], 1)},
+    ]
+    out = rep(base, '\t\t}\n\t]', '\t\t},\n' + own_area_text("Above-Two", "\t\t", "\t", '[1000.000000, 2.500000, 2000.000000]')
+              + ',\n' + own_area_text("Above-Three", "\t\t", "\t", '[1000.000000, 0.000000, 2000.000000]') + '\n\t]')
+    entries = [
+        bl(0, E, "b-two", "applied", EA_CH),
+        bl(1, E, "b-three", "applied", EA_CH),
+        bl(2, E, "b-bad", "invalid", EA_CH, "bad-value"),
+        bl(3, E, "b-short", "invalid", EA_CH, "bad-value"),
+    ]
+    case("effect-area-above-ground", {EA_CH: base}, {"blocks": blocks}, {EA_CH: out},
          {"entries": entries, "files": [fl(EA_CH, "written")]})
 
 def effect_area_sakhal():
@@ -356,6 +384,7 @@ def extensions_ignored():
 def run():
     extensions_ignored()
     effect_areas()
+    effect_area_above_ground()
     effect_area_sakhal()
     effect_area_broken()
     effect_area_refused()

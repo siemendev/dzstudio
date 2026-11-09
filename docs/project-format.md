@@ -142,6 +142,24 @@ Every kind declares its key; the patcher finds entries only through it.
 
 The fields of each kind and their value types are pinned by the conformance tests.
 
+### Effect areas above the ground
+
+An own `effectArea` can stand a number of metres above the ground instead of at a fixed height:
+
+```json
+{ "id": "gas", "kind": "effectArea", "data": { "AreaName": "Gas-1", "Type": "ContaminatedArea_Static", "TriggerType": "ContaminatedTrigger",
+  "aboveGround": 2.5, "Data": { "Pos": [4520.5, 10210.25], "Radius": 100, … }, "PlayerData": { … } } }
+```
+
+- `aboveGround` — metres above the ground, a number. It is part of the block's data, never of the file.
+- `Data.Pos` is `[x, z]`; a `[x, y, z]` is accepted and its `y` left aside.
+- The patcher writes `"Pos": [x, y, z]` with `y` = the ground height at x/z plus `aboveGround`. Where the ground comes
+  from is up to the program running it: dzStudio takes the game's terrain, dzbot its height map of the map. A run
+  without a ground writes `y` = `aboveGround` and reports the block `applied` with `detail` `no-ground`.
+- A value that is not a number is `invalid` (`bad-value`).
+
+The conformance runners use a flat ground at height 0 (case `effect-area-above-ground`).
+
 ## Applying a project
 
 1. The patcher reads every file the project touches from the base. A file that is missing or unreadable is reported;

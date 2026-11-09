@@ -5,6 +5,8 @@ class DZS_PatcherBase : Managed
 	ref DZS_PatchProject m_Project;
 	ref DZS_PatchFiles m_Files;
 	ref DZS_PatchReport m_Report = new DZS_PatchReport();
+	// The ground for positions given above it; null when the run knows none (they then stand on height 0).
+	ref DZS_PatchGround m_Ground;
 
 	// ---- values ----
 

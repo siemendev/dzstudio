@@ -1,0 +1,152 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-two",
+            "kind": "effectArea",
+            "parent": null,
+            "data": {
+                "AreaName": "Above-Two",
+                "Type": "ContaminatedArea_Static",
+                "TriggerType": "ContaminatedTrigger",
+                "aboveGround": 2.5,
+                "Data": {
+                    "Pos": [
+                        1000,
+                        2000
+                    ],
+                    "Radius": 50,
+                    "PosHeight": 20,
+                    "NegHeight": 5,
+                    "InnerRingCount": 1,
+                    "InnerPartDist": 50,
+                    "OuterRingToggle": true,
+                    "OuterPartDist": 40,
+                    "OuterOffset": 0,
+                    "VerticalLayers": 0,
+                    "VerticalOffset": 0,
+                    "ParticleName": "graphics/particles/contaminated_area_gas_bigass",
+                    "EffectInterval": 0,
+                    "EffectDuration": 0,
+                    "EffectModifier": false
+                },
+                "PlayerData": {
+                    "AroundPartName": "graphics/particles/contaminated_area_gas_around",
+                    "TinyPartName": "graphics/particles/contaminated_area_gas_around_tiny",
+                    "PPERequesterType": "PPERequester_ContaminatedAreaTint"
+                }
+            }
+        },
+        {
+            "id": "b-three",
+            "kind": "effectArea",
+            "parent": null,
+            "data": {
+                "AreaName": "Above-Three",
+                "Type": "ContaminatedArea_Static",
+                "TriggerType": "ContaminatedTrigger",
+                "aboveGround": 0,
+                "Data": {
+                    "Pos": [
+                        1000,
+                        312.5,
+                        2000
+                    ],
+                    "Radius": 50,
+                    "PosHeight": 20,
+                    "NegHeight": 5,
+                    "InnerRingCount": 1,
+                    "InnerPartDist": 50,
+                    "OuterRingToggle": true,
+                    "OuterPartDist": 40,
+                    "OuterOffset": 0,
+                    "VerticalLayers": 0,
+                    "VerticalOffset": 0,
+                    "ParticleName": "graphics/particles/contaminated_area_gas_bigass",
+                    "EffectInterval": 0,
+                    "EffectDuration": 0,
+                    "EffectModifier": false
+                },
+                "PlayerData": {
+                    "AroundPartName": "graphics/particles/contaminated_area_gas_around",
+                    "TinyPartName": "graphics/particles/contaminated_area_gas_around_tiny",
+                    "PPERequesterType": "PPERequester_ContaminatedAreaTint"
+                }
+            }
+        },
+        {
+            "id": "b-bad",
+            "kind": "effectArea",
+            "parent": null,
+            "data": {
+                "AreaName": "Above-Bad",
+                "Type": "ContaminatedArea_Static",
+                "TriggerType": "ContaminatedTrigger",
+                "aboveGround": "high",
+                "Data": {
+                    "Pos": [
+                        1000,
+                        2000
+                    ],
+                    "Radius": 50,
+                    "PosHeight": 20,
+                    "NegHeight": 5,
+                    "InnerRingCount": 1,
+                    "InnerPartDist": 50,
+                    "OuterRingToggle": true,
+                    "OuterPartDist": 40,
+                    "OuterOffset": 0,
+                    "VerticalLayers": 0,
+                    "VerticalOffset": 0,
+                    "ParticleName": "graphics/particles/contaminated_area_gas_bigass",
+                    "EffectInterval": 0,
+                    "EffectDuration": 0,
+                    "EffectModifier": false
+                },
+                "PlayerData": {
+                    "AroundPartName": "graphics/particles/contaminated_area_gas_around",
+                    "TinyPartName": "graphics/particles/contaminated_area_gas_around_tiny",
+                    "PPERequesterType": "PPERequester_ContaminatedAreaTint"
+                }
+            }
+        },
+        {
+            "id": "b-short",
+            "kind": "effectArea",
+            "parent": null,
+            "data": {
+                "AreaName": "Above-Short",
+                "Type": "ContaminatedArea_Static",
+                "TriggerType": "ContaminatedTrigger",
+                "aboveGround": 1,
+                "Data": {
+                    "Pos": [
+                        1000
+                    ],
+                    "Radius": 50,
+                    "PosHeight": 20,
+                    "NegHeight": 5,
+                    "InnerRingCount": 1,
+                    "InnerPartDist": 50,
+                    "OuterRingToggle": true,
+                    "OuterPartDist": 40,
+                    "OuterOffset": 0,
+                    "VerticalLayers": 0,
+                    "VerticalOffset": 0,
+                    "ParticleName": "graphics/particles/contaminated_area_gas_bigass",
+                    "EffectInterval": 0,
+                    "EffectDuration": 0,
+                    "EffectModifier": false
+                },
+                "PlayerData": {
+                    "AroundPartName": "graphics/particles/contaminated_area_gas_around",
+                    "TinyPartName": "graphics/particles/contaminated_area_gas_around_tiny",
+                    "PPERequesterType": "PPERequester_ContaminatedAreaTint"
+                }
+            }
+        }
+    ],
+    "changes": []
+}

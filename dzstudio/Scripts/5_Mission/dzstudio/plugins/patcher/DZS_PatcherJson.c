@@ -3,6 +3,8 @@
 class DZS_PatcherJson : DZS_PatcherXml
 {
 	static const string AREA_FILE = "cfgeffectarea.json";
+	// The member of an own effect area's data that puts it this many metres above the ground; never written.
+	static const string ABOVE_GROUND = "aboveGround";
 	static const string GAMEPLAY_FILE = "cfggameplay.json";
 	static const string SPAWNERS = "WorldsData.objectSpawnersArr";
 	static const string GEAR = "PlayerData.spawnGearPresetFiles";
@@ -466,10 +468,27 @@ class DZS_PatcherJson : DZS_PatcherXml
 		if (!Usable(e, f))
 			return;
 		DZS_Json obj = DZS_Json.Obj();
+		// an area above the ground: its height comes from the ground at its x/z, its y in Data.Pos is left aside
+		DZS_Json above = JsonPath(b.m_Data, ABOVE_GROUND);
+		DZS_Json groundPos = null;
+		bool noGround = false;
+		if (above)
+		{
+			DZS_Json givenPos = JsonPath(b.m_Data, "Data.Pos");
+			groundPos = GroundPos(above, givenPos, noGround);
+			if (!groundPos)
+			{
+				e.m_Status = "invalid";
+				e.m_Detail = "bad-value";
+				return;
+			}
+		}
 		array<ref DZS_PField> fields = AreaFields();
 		foreach (DZS_PField fld : fields)
 		{
 			DZS_Json given = JsonPath(b.m_Data, fld.m_Name);
+			if (groundPos && fld.m_Name == "Data.Pos")
+				given = groundPos;
 			string err;
 			DZS_Json v = JsonValue(fld, given, err);
 			if (err != "")
@@ -518,7 +537,48 @@ class DZS_PatcherJson : DZS_PatcherXml
 			f.AppendItem(root, "SafePositions", none);
 		}
 		e.m_Status = "applied";
+		if (noGround)
+			e.m_Detail = "no-ground";
 		Depends(e, f);
+	}
+
+	// The position of an area given above the ground: x and z from Data.Pos ([x, z], or [x, y, z] whose y is left
+	// aside), y the ground height there plus aboveGround metres — aboveGround alone when the run knows no ground
+	// (noGround). Null when a value is no number.
+	DZS_Json GroundPos(DZS_Json above, DZS_Json pos, out bool noGround)
+	{
+		noGround = false;
+		if (!above.IsNum() || !DZS_PatchNum.IsNumber(above.m_Str))
+			return null;
+		if (!pos)
+			return null;
+		if (!pos.IsArr())
+			return null;
+		int n = pos.Count();
+		if (n != 2 && n != 3)
+			return null;
+		DZS_Json px = pos.At(0);
+		DZS_Json pz = pos.At(n - 1);
+		if (!px.IsNum() || !DZS_PatchNum.IsNumber(px.m_Str) || !pz.IsNum() || !DZS_PatchNum.IsNumber(pz.m_Str))
+			return null;
+		string ytext = above.m_Str;
+		float h = 0;
+		bool known = false;
+		if (m_Ground)
+			known = m_Ground.Height(px.m_Str.ToFloat(), pz.m_Str.ToFloat(), h);
+		noGround = !known;
+		if (known && h != 0)
+		{
+			float sum = h + above.m_Str.ToFloat();
+			float mm = Math.Round(sum * 1000) / 1000;
+			ytext = mm.ToString();
+		}
+		DZS_Json r = DZS_Json.Arr();
+		r.Add(px);
+		DZS_Json yj = DZS_Json.Num(ytext);
+		r.Add(yj);
+		r.Add(pz);
+		return r;
 	}
 
 	// A value at a dotted path of a project object (nested objects or dotted member names), or null.
