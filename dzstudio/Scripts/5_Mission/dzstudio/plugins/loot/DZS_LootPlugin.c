@@ -2035,22 +2035,6 @@ class DZS_LootPlugin : DZS_Plugin
 		DZS_Log.Info("loot: save " + posPatches.Count() + " row patch(es), " + protoPatches.Count() + " entry patch(es), on " + on + ", written types " + m_SaveNames.Count() + ", mark '" + mark + "'");
 	}
 
-	// The written types after the save in progress (for a storage provider building deltas).
-	void SaveWritten(array<string> names, array<string> origs)
-	{
-		names.Clear();
-		origs.Clear();
-		if (!m_SaveNames)
-			return;
-		for (int i = 0; i < m_SaveNames.Count(); i++)
-		{
-			string n = m_SaveNames[i];
-			string o = m_SaveOrigs[i];
-			names.Insert(n);
-			origs.Insert(o);
-		}
-	}
-
 	protected void AddChange(string file, string kind, string key, string text)
 	{
 		DZS_LootChange c = new DZS_LootChange();

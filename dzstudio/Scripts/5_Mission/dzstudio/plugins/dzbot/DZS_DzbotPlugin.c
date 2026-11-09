@@ -323,6 +323,11 @@ class DZS_DzbotPlugin : DZS_Plugin
 	protected float m_SaveRetryIn;
 	protected float m_Now;
 	protected bool m_Asking;
+	// "Reload": dzbot's project file reopened through the normal open; the project it is for and the view kept
+	protected string m_ReloadRef;
+	protected string m_ReloadView;
+	// dzbot's project-file revision the poll already asked about (asked once per revision)
+	protected int m_AskedRev = -1;
 
 	override string GetName() { return "dzbot"; }
 
@@ -892,7 +897,9 @@ class DZS_DzbotPlugin : DZS_Plugin
 		else if (tag == "save")
 			OnSaved(r);
 		else if (tag == "reload")
-			OnReload(r);
+			OnReload(r, q);
+		else if (tag == "keep")
+			OnKeep(r);
 	}
 
 	// ---- device flow ----
@@ -1341,7 +1348,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		DZS_DzbotSection msec = r.Find("manifest", "manifest");
 		if (msec)
 			projectPart = ProjectPartOf(msec.m_Chunks);
-		// several maps and none remembered: ask once, the choice goes into the manifest (answers to section 11)
+		// several maps and none in the project file: ask once, the choice goes into the project file with the next save
 		array<string> maps = MapsOf(pj);
 		string fixedMap = DZS_DzbotCatalog.Text(pj, "map");
 		bool chose = false;
@@ -1391,28 +1398,12 @@ class DZS_DzbotPlugin : DZS_Plugin
 		{
 			m_PartChanged = FolderOf(dp.m_Ref);
 			string mn = DZS_LootPlugin.MapName(dp.m_MapKey);
-			Msg("info", "Karte " + mn + " gewählt — steht nach dem Speichern im Manifest", "Map " + mn + " chosen — kept in the manifest after saving", 6.0);
+			Msg("info", "Karte " + mn + " gewählt — steht nach dem Speichern in der Projektdatei", "Map " + mn + " chosen — kept in the project file after saving", 6.0);
 		}
 		string folder = FolderOf(dp.m_Ref);
 		DZS_Files.MakeDirs(DZS_LocalStore.Dir(folder));
-		dp.m_ProjectFile = null;
-		DZS_SrcNode files = r.m_Json.Get("files");
-		if (files && files.IsArr())
-		{
-			foreach (DZS_SrcNode f : files.m_Items)
-			{
-				if (DZS_DzbotCatalog.Text(f, "role") != "project")
-					continue;
-				DZS_DzbotFile df = new DZS_DzbotFile();
-				df.m_Key = DZS_DzbotCatalog.Text(f, "key");
-				df.m_Path = DZS_DzbotCatalog.Text(f, "path");
-				df.m_Role = "project";
-				DZS_SrcNode rev = f.Get("revision");
-				if (rev)
-					df.m_Rev = rev.m_Str.ToInt();
-				dp.m_ProjectFile = df;
-			}
-		}
+		DZS_DzbotFile loadedFile = ProjectFileOf(r);
+		dp.m_ProjectFile = loadedFile;
 		DZS_SrcNode man = r.m_Json.Get("manifest");
 		dp.m_ManifestRev = 0;
 		if (man && man.IsObj())
@@ -1427,13 +1418,58 @@ class DZS_DzbotPlugin : DZS_Plugin
 		string mapSet = "";
 		if (chose)
 			mapSet = dp.m_MapKey;
-		array<string> own = DZS_ProjectFile.RewriteV2(projectChunks, dp.m_Name, mapSet, "");
+		// a reload keeps the camera where the user is (on the same map), not where the last saver left it
+		bool reloading = m_ReloadRef != "" && m_ReloadRef == dp.m_Ref && pp.m_Open && pp.m_Open.m_Folder == folder;
+		string view = "";
+		if (reloading && pp.m_Open.m_MapKey == dp.m_MapKey)
+			view = m_ReloadView;
+		array<string> own = DZS_ProjectFile.RewriteV2(projectChunks, dp.m_Name, mapSet, view);
 		if (!own)
 			own = DZS_LocalStore.NewFile(dp.m_Name, dp.m_MapKey, "", "objects.json", DZS_Texts.Get("core.group.objects"));
 		DZS_Files.Write(DZS_LocalStore.Path(folder, DZS_ProjectFile.NAME), own);
 		string loadedHead = "dzbot: loaded project " + dp.m_Kind + " " + dp.m_Ref + " '" + dp.m_Name + "'";
-		DZS_Log.Info(loadedHead + " map " + dp.m_MapKey + ", project file " + (projectChunks != null));
+		DZS_Log.Info(loadedHead + " map " + dp.m_MapKey + ", project file " + (projectChunks != null) + ", reload " + reloading);
+		if (reloading)
+		{
+			// the local changes are given up for dzbot's state: no backup question at the reopen
+			m_ReloadRef = "";
+			m_ReloadView = "";
+			pp.DeleteBackup();
+		}
 		pp.Fetched(folder, true, "", "");
+	}
+
+	// dzbot's project file in a load or poll reply (key, path, revision), null when the mod or placement has none.
+	protected DZS_DzbotFile ProjectFileOf(DZS_DzbotReply r)
+	{
+		DZS_SrcNode files = r.m_Json.Get("files");
+		if (!files || !files.IsArr())
+			return null;
+		foreach (DZS_SrcNode f : files.m_Items)
+		{
+			if (DZS_DzbotCatalog.Text(f, "role") != "project")
+				continue;
+			DZS_DzbotFile df = new DZS_DzbotFile();
+			df.m_Key = DZS_DzbotCatalog.Text(f, "key");
+			df.m_Path = DZS_DzbotCatalog.Text(f, "path");
+			df.m_Role = "project";
+			DZS_SrcNode rev = f.Get("revision");
+			if (rev)
+				df.m_Rev = rev.m_Str.ToInt();
+			return df;
+		}
+		return null;
+	}
+
+	// dzbot holds a project file this editor has not opened: another one, or a newer revision of the same.
+	static bool IsNewer(DZS_DzbotProject dp, DZS_DzbotFile cur)
+	{
+		if (!cur)
+			return false;
+		DZS_DzbotFile held = dp.m_ProjectFile;
+		if (!held || held.m_Key != cur.m_Key)
+			return true;
+		return cur.m_Rev > held.m_Rev;
 	}
 
 	DZS_DzbotProject ProjectOf(string folder)
@@ -1441,7 +1477,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		return m_Projects.Get(RefOf(folder));
 	}
 
-	// mirror folder whose project part got the map choice (opens with 1 unsaved change so the choice can be saved)
+	// mirror folder whose project file got the map choice (opens with 1 unsaved change so the choice can be saved)
 	string m_PartChanged;
 	protected ref DZS_DzbotReply m_PendLoad;
 	protected ref DZS_DzbotAuthReq m_PendQ;
@@ -1496,8 +1532,8 @@ class DZS_DzbotPlugin : DZS_Plugin
 			loaded = pp.LoadedMapKey();
 		if (maps.Find(loaded) < 0)
 			loaded = maps[0];
-		string de = "„" + dp.m_Name + "“ gilt für mehrere Karten. Mit welcher Karte soll das Projekt öffnen? Die Wahl steht danach im Manifest der Mod (für alle Bearbeiter).";
-		string en = "\"" + dp.m_Name + "\" applies to several maps. Which map should the project open with? The choice is then kept in the mod’s manifest (for every editor).";
+		string de = "„" + dp.m_Name + "“ gilt für mehrere Karten. Mit welcher Karte soll das Projekt öffnen? Die Wahl steht nach dem Speichern in der Projektdatei (für alle Bearbeiter).";
+		string en = "\"" + dp.m_Name + "\" applies to several maps. Which map should the project open with? The choice is kept in the project file once saved (for every editor).";
 		string kick = "dzbot";
 		string ttl = DZS_Texts.Pick("Karte wählen", "Choose a map");
 		string txt = DZS_Texts.Pick(de, en);
@@ -1643,6 +1679,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 	{
 		m_OpenFolder = folder;
 		m_PollIn = POLL_EVERY;
+		m_AskedRev = -1;
 		PlateFor(folder);
 	}
 
@@ -1691,7 +1728,12 @@ class DZS_DzbotPlugin : DZS_Plugin
 		DZS_DzbotProject dp = m_Projects.Get(RefOf(m_OpenFolder));
 		if (!dp)
 			return;
-		string fields = "\"project\":" + DZS_DzbotFrame.Q(dp.m_Ref) + ",\"files\":[],\"manifest\":" + dp.m_ManifestRev;
+		// the project file held, so dzbot answers "changed" (with the content) only when it has a newer one
+		string held = "";
+		DZS_DzbotFile pf = dp.m_ProjectFile;
+		if (pf)
+			held = "{\"key\":" + DZS_DzbotFrame.Q(pf.m_Key) + ",\"revision\":" + pf.m_Rev + "}";
+		string fields = "\"project\":" + DZS_DzbotFrame.Q(dp.m_Ref) + ",\"files\":[" + held + "],\"manifest\":" + dp.m_ManifestRev;
 		m_Polling = true;
 		AuthPost("poll", "poll", "/editor/project/revisions", fields);
 	}
@@ -1720,7 +1762,37 @@ class DZS_DzbotPlugin : DZS_Plugin
 		PlateFor(m_OpenFolder);
 		if (IsProjectMod(dp))
 			TakeSettings(r.m_Json.Get("settings"), dp);
+		DZS_DzbotFile cur = ProjectFileOf(r);
+		if (IsNewer(dp, cur))
+			OnNewerInDzbot(dp, cur);
 		DZS_Log.Info("dzbot: poll done");
+	}
+
+	// dzbot has a newer project file: without local changes it is reopened at once; with them the conflict question
+	// (once per revision). Not in the middle of an open, a dialog, a gesture or a shared session — the next poll again.
+	protected void OnNewerInDzbot(DZS_DzbotProject dp, DZS_DzbotFile cur)
+	{
+		DZS_ProjectsPlugin pp = Projects();
+		DZS_Instance inst = m_Kernel.GetShown();
+		if (!pp || !inst || !pp.m_Open || pp.IsOpening() || m_Asking || m_ReloadRef != "")
+			return;
+		if (m_Kernel.GetScreen().HasDialog() || m_Kernel.IsGestureRunning())
+			return;
+		DZS_SaveRules rules = DZS_SaveRules.Get();
+		if (rules && rules.StateSeq(inst) >= 0)
+			return;
+		DZS_Log.Info("dzbot: poll: project file " + cur.m_Key + " revision " + cur.m_Rev + " in dzbot, unsaved here " + inst.IsUnsaved());
+		if (!inst.IsUnsaved())
+		{
+			StartReload(dp);
+			return;
+		}
+		if (m_AskedRev == cur.m_Rev)
+			return;
+		m_AskedRev = cur.m_Rev;
+		array<string> paths = new array<string>();
+		paths.Insert(cur.m_Path);
+		AskConflict(paths);
 	}
 
 	protected void AskConflict(array<string> paths)
@@ -1736,9 +1808,12 @@ class DZS_DzbotPlugin : DZS_Plugin
 			list += p;
 		}
 		string de = "In dzbot geändert, während hier ungespeicherte Änderungen offen sind: " + list;
+		de += ". Neu laden öffnet den Stand aus dzbot und verwirft die Änderungen hier; mit Meine behalten ersetzt das nächste Speichern den Stand in dzbot.";
 		string en = "Changed in dzbot while there are unsaved changes here: " + list;
+		en += ". Reload opens dzbot's state and discards the changes here; with Keep mine the next save replaces dzbot's state.";
 		DZS_ConfirmDialog c = new DZS_ConfirmDialog("dzbot", DZS_Texts.Pick("In dzbot geändert", "Changed in dzbot"), DZS_Texts.Pick(de, en));
 		c.AddFootButton("copy", DZS_Texts.Pick("Als Konfliktkopie speichern", "Save as conflict copy"), "side");
+		c.AddFootButton("keep", DZS_Texts.Pick("Meine behalten", "Keep mine"), "side");
 		c.AddFootButton("reload", DZS_Texts.Pick("Neu laden", "Reload"), "danger");
 		c.m_OnResult.Insert(OnConflictAnswer);
 		c.Open();
@@ -1750,13 +1825,14 @@ class DZS_DzbotPlugin : DZS_Plugin
 		m_Asking = false;
 		DZS_Log.Info("dzbot: conflict answer " + result);
 		DZS_ProjectsPlugin pp = Projects();
-		if (result == "reload")
+		DZS_DzbotProject dp = m_Projects.Get(RefOf(m_OpenFolder));
+		if (result == "reload" && dp)
+			StartReload(dp);
+		else if (result == "keep" && dp)
 		{
-			DZS_DzbotProject dp = m_Projects.Get(RefOf(m_OpenFolder));
-			if (!dp)
-				return;
+			// dzbot's current revision becomes the base: the next save replaces dzbot's state with this one
 			string fields = "\"project\":" + DZS_DzbotFrame.Q(dp.m_Ref);
-			AuthPost("main", "reload", "/editor/project/load", fields);
+			AuthPost("main", "keep", "/editor/project/load", fields);
 		}
 		else if (result == "copy" && pp && pp.m_Open)
 		{
@@ -1765,33 +1841,83 @@ class DZS_DzbotPlugin : DZS_Plugin
 		}
 	}
 
-	protected void OnReload(DZS_DzbotReply r)
+	// "Reload": dzbot's project file is fetched and the project reopened from it through the normal open (working
+	// folder, sliced, with progress); the local changes are given up, the camera stays where the user is.
+	protected void StartReload(DZS_DzbotProject dp)
 	{
-		if (!r.Ok() || m_OpenFolder == "")
+		DZS_ProjectsPlugin pp = Projects();
+		DZS_Instance inst = m_Kernel.GetShown();
+		DZS_SaveRules rules = DZS_SaveRules.Get();
+		if (inst && rules && rules.StateSeq(inst) >= 0)
 		{
-			Msg("danger", "Neu laden fehlgeschlagen: " + r.Message(), "Reloading failed: " + r.Message());
+			Msg("danger", "Neu laden geht nicht während einer gemeinsamen Sitzung", "Reloading is not possible during a shared session", 6.0);
+			return;
+		}
+		m_ReloadRef = dp.m_Ref;
+		m_ReloadView = "";
+		if (pp && pp.m_Open && pp.m_Open.m_MapKey == dp.m_MapKey)
+			m_ReloadView = pp.CameraView();
+		DZS_Log.Info("dzbot: reloading " + dp.m_Ref + " from dzbot");
+		m_Kernel.GetScreen().ShowMessage("dzbot", "info", DZS_W.Literal(DZS_Texts.Pick("Lädt aus dzbot …", "Loading from dzbot …")), 10.0);
+		string fields = "\"project\":" + DZS_DzbotFrame.Q(dp.m_Ref);
+		AuthPost("main", "reload", "/editor/project/load", fields);
+	}
+
+	protected void OnReload(DZS_DzbotReply r, DZS_DzbotAuthReq q)
+	{
+		string pref = m_ReloadRef;
+		if (pref == "" || m_OpenFolder != FolderOf(pref))
+		{
+			// the project was closed meanwhile: nothing to reopen
+			m_ReloadRef = "";
+			m_ReloadView = "";
+			m_Kernel.GetScreen().HideMessage("dzbot");
+			return;
+		}
+		if (!r.m_Framed || !r.Ok())
+		{
+			m_ReloadRef = "";
+			m_ReloadView = "";
+			m_Kernel.GetScreen().HideMessage("dzbot");
+			string why = r.Message();
+			if (why == "")
+				why = r.Error();
+			if (why == "")
+				why = r.m_Fail;
+			Msg("danger", "Neu laden fehlgeschlagen: " + why, "Reloading failed: " + why, 6.0);
+			return;
+		}
+		// the same steps as opening; a refusal there (file mod, shared session …) leaves the project open as it is
+		OnLoad(r, q);
+		if (m_ReloadRef == "")
+			Msg("info", "Aus dzbot neu geladen", "Reloaded from dzbot");
+		m_ReloadRef = "";
+		m_ReloadView = "";
+	}
+
+	// "Keep mine": the revision of dzbot's project file becomes the base of the next save, the local state stays.
+	protected void OnKeep(DZS_DzbotReply r)
+	{
+		if (!r.m_Framed || !r.Ok() || m_OpenFolder == "")
+		{
+			string why = r.Message();
+			if (why == "")
+				why = r.m_Fail;
+			Msg("danger", "dzbot nicht erreichbar: " + why, "dzbot not reachable: " + why, 6.0);
 			return;
 		}
 		DZS_DzbotProject dp = m_Projects.Get(RefOf(m_OpenFolder));
 		if (!dp)
 			return;
-		DZS_SrcNode files = r.m_Json.Get("files");
-		if (files && files.IsArr())
+		DZS_DzbotFile cur = ProjectFileOf(r);
+		if (cur)
 		{
-			foreach (DZS_SrcNode f : files.m_Items)
-			{
-				DZS_DzbotFile df = dp.FileByKey(DZS_DzbotCatalog.Text(f, "key"));
-				DZS_SrcNode rn = f.Get("revision");
-				if (df && rn)
-					df.m_Rev = rn.m_Str.ToInt();
-			}
+			dp.m_ProjectFile = cur;
+			m_AskedRev = cur.m_Rev;
 		}
-		DZS_Instance inst = m_Kernel.GetShown();
-		if (inst)
-			inst.MarkSavedNow();
 		PlateFor(m_OpenFolder);
-		DZS_Log.Info("dzbot: reloaded the revisions from dzbot");
-		Msg("info", "Aus dzbot neu geladen", "Reloaded from dzbot");
+		DZS_Log.Info("dzbot: keeping the local state on dzbot's revision " + dp.Revision());
+		Msg("info", "Deine Fassung bleibt — das nächste Speichern ersetzt den Stand in dzbot", "Your version stays — the next save replaces dzbot's state", 6.0);
 	}
 
 	// ---- save ----
@@ -2025,15 +2151,10 @@ class DZS_DzbotPlugin : DZS_Plugin
 		if (m_Now - m_Save.m_Started > SAVE_GIVE_UP)
 		{
 			DZS_Log.Warn("dzbot: save " + m_Save.m_SaveId + " unclear after " + m_Save.m_Tries + " tries");
-			string folder = m_Save.m_Folder;
 			EndSave();
-			Projects().ProviderSaved("Speichern unklar — der Stand wird aus dzbot neu geladen", "Saving unclear — the state is loaded from dzbot again");
-			DZS_DzbotProject dp = m_Projects.Get(RefOf(folder));
-			if (dp)
-			{
-				string fields = "\"project\":" + DZS_DzbotFrame.Q(dp.m_Ref);
-				AuthPost("main", "reload", "/editor/project/load", fields);
-			}
+			Projects().ProviderSaved("Speichern unklar — der Stand in dzbot wird geprüft", "Saving unclear — checking dzbot's state");
+			// a poll at once: a newer project file in dzbot asks (local changes) or reopens; none keeps the local state
+			m_PollIn = 0;
 			return;
 		}
 		DZS_Log.Info("dzbot: asking again for save " + m_Save.m_SaveId);
