@@ -455,7 +455,7 @@ class DZS_Json : Managed
 		string result = "";
 		while (true)
 		{
-			result += r.ReadRun("\"\\");
+			result += r.ReadStringRun();
 			if (r.AtEnd())
 			{
 				error = "unterminated string";

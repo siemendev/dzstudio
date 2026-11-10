@@ -426,6 +426,52 @@ class DZS_ProjectFile
 		}
 	}
 
+	// Status (missing, unreadable, newer, ok), version 2 and map of a project file from the fields at its top, where
+	// dzStudio writes format, version and map: opening checks them without reading a large file whole. The rest of
+	// the file is not looked at.
+	static DZS_PFData ReadHead(array<string> chunks)
+	{
+		DZS_PFData d = new DZS_PFData();
+		if (!chunks)
+		{
+			d.m_Status = "missing";
+			return d;
+		}
+		array<string> keys = {"format", "version", "map"};
+		DZS_SrcJsonSteps steps = new DZS_SrcJsonSteps(chunks, 1);
+		DZS_SrcNode root = steps.Head(keys);
+		d.m_Status = "unreadable";
+		if (!root)
+			return d;
+		DZS_SrcNode fmt = root.Get("format");
+		if (!fmt || !fmt.IsStr() || fmt.m_Str != "dzstudio-project")
+			return d;
+		DZS_SrcNode ver = root.Get("version");
+		if (!ver || !ver.IsNum() || ver.m_Str.Contains(".") || ver.m_Str.Contains("e") || ver.m_Str.Contains("-") || ver.m_Str.ToInt() < 1)
+			return d;
+		if (ver.m_Str.Length() > 6 || ver.m_Str.ToInt() > VERSION2)
+		{
+			d.m_Status = "newer";
+			return d;
+		}
+		d.m_Status = "ok";
+		d.m_V2 = ver.m_Str.ToInt() == VERSION2;
+		DZS_SrcNode mp = root.Get("map");
+		if (!d.m_V2)
+		{
+			mp = null;
+			DZS_SrcNode prov = root.Get("provider");
+			if (prov && prov.IsObj())
+				mp = prov.Get("map");
+		}
+		if (mp && mp.IsStr())
+		{
+			d.m_MapRaw = mp.m_Str;
+			d.m_MapKey = DZS_Maps.FromFormat(mp.m_Str);
+		}
+		return d;
+	}
+
 	// Whether the text is a project file of version 2.
 	static bool IsV2(array<string> chunks)
 	{

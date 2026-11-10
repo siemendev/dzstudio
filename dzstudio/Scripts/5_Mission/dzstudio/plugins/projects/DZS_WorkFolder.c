@@ -564,7 +564,12 @@ class DZS_WorkBuild : DZS_Job
 					break;
 			}
 			else if (m_Phase == LOOT)
+			{
+				// copying the base's loot files takes a frame of its own
+				if (TickCount(0) - t0 > 10000)
+					break;
 				PrepareLoot();
+			}
 			else if (m_Phase == PATCH)
 			{
 				SetStep("Loot der Basis", "the base's loot");

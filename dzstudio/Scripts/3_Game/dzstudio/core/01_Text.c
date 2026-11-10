@@ -66,6 +66,10 @@ class DZS_TextReader : Managed
 	protected ref array<string> m_Chunks;
 	protected int m_Chunk;
 	protected int m_Pos;
+	// next quote and backslash of chunk m_SeenChunk at or after m_Pos (the chunk's length when there is none)
+	protected int m_SeenChunk = -1;
+	protected int m_NextQuote;
+	protected int m_NextSlash;
 
 	void DZS_TextReader(array<string> chunks)
 	{
@@ -137,6 +141,43 @@ class DZS_TextReader : Managed
 				result += DZS_Utf8.Part(chunk, m_Pos, i - m_Pos);
 			int taken = i - m_Pos;
 			Advance(taken);
+			if (i < len)
+				return result;
+		}
+		return result;
+	}
+
+	// ReadRun("\"\\") with the game's string search instead of a test per character: a JSON string's text up to
+	// its closing quote or next escape. Each position is searched once per chunk, so long strings stay linear.
+	string ReadStringRun()
+	{
+		string result = "";
+		while (!AtEnd())
+		{
+			string chunk = m_Chunks[m_Chunk];
+			int len = chunk.Length();
+			if (m_SeenChunk != m_Chunk)
+			{
+				m_SeenChunk = m_Chunk;
+				m_NextQuote = -1;
+				m_NextSlash = -1;
+			}
+			if (m_NextQuote < m_Pos)
+			{
+				m_NextQuote = chunk.IndexOfFrom(m_Pos, "\"");
+				if (m_NextQuote < 0)
+					m_NextQuote = len;
+			}
+			if (m_NextSlash < m_Pos)
+			{
+				m_NextSlash = chunk.IndexOfFrom(m_Pos, "\\");
+				if (m_NextSlash < 0)
+					m_NextSlash = len;
+			}
+			int i = Math.Min(m_NextQuote, m_NextSlash);
+			if (i > m_Pos)
+				result += DZS_Utf8.Part(chunk, m_Pos, i - m_Pos);
+			Advance(i - m_Pos);
 			if (i < len)
 				return result;
 		}

@@ -984,6 +984,36 @@ class DZS_SrcJsonSteps : DZS_SrcJson
 		return true;
 	}
 
+	// Reads the root object's fields one at a time until each of 'keys' is there or the document ends (construct with
+	// deep 1): the head of a large file without reading the rest. The root so far, or null when the text is no
+	// object or breaks before the keys.
+	DZS_SrcNode Head(array<string> keys)
+	{
+		while (!m_Done)
+		{
+			if (m_Stack.Count() > 0 && m_Stack[0].IsObj())
+			{
+				DZS_SrcNode top = m_Stack[0];
+				bool all = true;
+				foreach (string k : keys)
+				{
+					if (!top.Get(k))
+						all = false;
+				}
+				if (all)
+					return top;
+			}
+			if (!Item())
+			{
+				Finish(null);
+				return null;
+			}
+		}
+		if (m_Doc.m_Root && m_Doc.m_Root.IsObj())
+			return m_Doc.m_Root;
+		return null;
+	}
+
 	// Reads until about ms milliseconds are used; true when the document is complete (or failed).
 	bool Step(float ms)
 	{

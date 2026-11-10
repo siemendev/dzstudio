@@ -82,19 +82,35 @@ class DZS_ProjectSections
 		return DZS_SpawnerFormat.Join(chunks);
 	}
 
+	// the entries last read by Stored and their texts by section name: the layers and the kept blocks each ask for
+	// their part of the same entries when a project opens
+	protected static string s_Entries;
+	protected static ref map<string, string> s_Texts;
+
 	// The stored text of one section from the companion entries, or "".
 	static string Stored(string entries, string name)
 	{
-		string err;
-		DZS_Json list = DZS_Json.ParseText(entries, err);
-		if (!list || !list.IsArr())
-			return "";
-		for (int i = 0; i < list.Count(); i++)
+		if (!s_Texts || entries != s_Entries)
 		{
-			DZS_Json e = list.At(i);
-			if (e.At(0).m_Str == name)
-				return e.At(2).m_Str;
+			s_Entries = entries;
+			s_Texts = new map<string, string>();
+			string err;
+			DZS_Json list = DZS_Json.ParseText(entries, err);
+			if (list && list.IsArr())
+			{
+				for (int i = 0; i < list.Count(); i++)
+				{
+					DZS_Json e = list.At(i);
+					if (!e || !e.IsArr() || e.Count() < 3)
+						continue;
+					string key = e.At(0).m_Str;
+					if (!s_Texts.Contains(key))
+						s_Texts.Set(key, e.At(2).m_Str);
+				}
+			}
 		}
-		return "";
+		string text;
+		s_Texts.Find(name, text);
+		return text;
 	}
 }

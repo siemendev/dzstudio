@@ -58,6 +58,9 @@ class DZS_OpenJob : Managed
 	bool m_GLocked;
 	ref array<string> m_Chunks;
 	ref DZS_FileSum m_Sum;
+	// the project file's checksum, taken over the first frames of a sliced opening
+	ref array<string> m_PChunks;
+	ref DZS_FileSum m_PSum;
 	DZS_Format m_Fmt;
 	ref DZS_FormatReader m_Reader;
 	ref DZS_ReadResult m_RR;
@@ -85,8 +88,10 @@ class DZS_OpenJob : Managed
 	bool m_WorkBuilt;
 	// the loot files read ahead while the groups are read
 	ref DZS_LootPrefetch m_LootRead;
-	// the index for the file's entity extensions, built while the scene shows the objects
+	// the index for the file's entity extensions, built while the scene shows the objects (started in the frame after
+	// the load while m_IndexDue)
 	ref DZS_ProjectBuild m_Index;
+	bool m_IndexDue;
 	bool m_Sliced;
 	// the share of the progress the working folder takes
 	float m_From;
@@ -1331,7 +1336,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	// Map available and loaded? Otherwise load its world first.
 	protected void OpenChecked(string folder)
 	{
-		DZS_PFData pf = DZS_ProjectFile.Read(DZS_Files.Read(DZS_LocalStore.File(folder)));
+		DZS_PFData pf = DZS_ProjectFile.ReadHead(DZS_Files.Read(DZS_LocalStore.File(folder)));
 		if (pf.m_Status == "newer")
 		{
 			Message("projects.open", "danger", "Diese Projektdatei stammt aus einer neueren Version des Editors. Aktualisiere den Editor, um das Projekt zu öffnen.", "This project file comes from a newer version of the editor. Update the editor to open the project.", 5.0);
@@ -1387,7 +1392,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	{
 		DZS_Log.Info("open project " + folder);
 		array<string> pchunks = DZS_Files.Read(DZS_LocalStore.File(folder));
-		bool v2 = DZS_ProjectFile.IsV2(pchunks);
+		bool v2 = DZS_ProjectFile.ReadHead(pchunks).m_V2;
 		DZS_OpenJob j = new DZS_OpenJob();
 		j.m_BackupHead = backupHead;
 		j.m_T0 = TickCount(0);
@@ -1405,7 +1410,12 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		j.m_Lp = lp;
 		if (lp)
 			op.m_Provider = lp.Id();
-		if (pchunks)
+		if (pchunks && sliced)
+		{
+			j.m_PChunks = pchunks;
+			j.m_PSum = new DZS_FileSum();
+		}
+		else if (pchunks)
 			op.Remember(DZS_ProjectFile.NAME, DZS_Files.Checksum(pchunks));
 		else
 			op.Remember(DZS_ProjectFile.NAME, "");
@@ -1700,7 +1710,17 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		if (!j)
 			return;
 		int t0 = TickCount(0);
-		if (j.m_Phase == DZS_OpenJob.WORK)
+		if (j.m_PSum)
+		{
+			int sumMs = OPEN_SLICE_MS;
+			if (j.m_PSum.Feed(j.m_PChunks, sumMs))
+			{
+				j.m_Op.Remember(DZS_ProjectFile.NAME, j.m_PSum.Result());
+				j.m_PSum = null;
+				j.m_PChunks = null;
+			}
+		}
+		else if (j.m_Phase == DZS_OpenJob.WORK)
 		{
 			// the working folder's result is taken in a frame of its own
 			if (j.m_WorkBuilt)
@@ -1774,6 +1794,16 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			DZS_SceneApi scene = DZS_SceneApi.Get();
 			if (scene)
 				j.m_ShowTotal = scene.PendingObjects();
+		}
+		else if (j.m_IndexDue)
+		{
+			// the index starts in a frame of its own, not in the one that showed the project
+			j.m_IndexDue = false;
+			if (j.m_Inst && j.m_Inst == Shown())
+			{
+				j.m_Index = DZS_ProjectV2.Start(m_Kernel, j.m_Inst, "", "");
+				j.m_Index.m_Quiet = true;
+			}
 		}
 		else
 		{
@@ -2030,10 +2060,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		// the file's entity extensions go to the model by the index of the loaded state: a big project's is built over
 		// the next frames while the scene shows its objects, and the extensions follow when it is there
 		if (j.m_Sliced && DZS_EntityExts.Pending() > 0)
-		{
-			j.m_Index = DZS_ProjectV2.Start(m_Kernel, inst, "", "");
-			j.m_Index.m_Quiet = true;
-		}
+			j.m_IndexDue = true;
 		else
 			DZS_ProjectExtensions.Opened(inst);
 		int tShow = TickCount(0) - tk;
