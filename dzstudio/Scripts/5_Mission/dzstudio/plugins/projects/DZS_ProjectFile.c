@@ -884,7 +884,12 @@ class DZS_ProjectFile
 	// (name, map, base, project part, view part; view "" = none) as the editor extension (EDITOR_EXT).
 	static array<string> ComposeV2(DZS_Json blocks, string name, string mapKey, string base, string projectPart, string viewPart, DZS_Json extensions = null)
 	{
-		DZS_Json root = blocks.Clone();
+		return Text(ComposeV2Root(blocks.Clone(), name, mapKey, base, projectPart, viewPart, extensions));
+	}
+
+	// ComposeV2 without the text, on root itself (a copy of the blocks, or ShareTop of them).
+	static DZS_Json ComposeV2Root(DZS_Json root, string name, string mapKey, string base, string projectPart, string viewPart, DZS_Json extensions = null)
+	{
 		DZS_Json slug = DZS_Json.Str(DZS_ProjectV2.Slug(name));
 		root.Set("slug", slug);
 		DZS_Json ed = DZS_Json.Obj();
@@ -917,7 +922,22 @@ class DZS_ProjectFile
 		if (extensions)
 			root.Set("extensions", extensions);
 		SetEditor(root, ed);
-		return Text(root);
+		return root;
+	}
+
+	// A root sharing the members of blocks; only the top level and the extensions are copies, so ComposeV2Root on it
+	// leaves blocks unchanged without copying every object.
+	static DZS_Json ShareTop(DZS_Json blocks)
+	{
+		DZS_Json top = DZS_Json.Obj();
+		foreach (string key : blocks.m_Keys)
+		{
+			DZS_Json member = blocks.Get(key);
+			if (key == "extensions")
+				member = member.Clone();
+			top.Set(key, member);
+		}
+		return top;
 	}
 
 	static array<string> Text(DZS_Json root)

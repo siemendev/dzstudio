@@ -155,6 +155,9 @@ class DZS_PlanBuild : Managed
 	string m_ProjectPart;
 	// the generation of the state the freeze holds
 	int m_Gen;
+	// the project file's text, written over several slices after the building blocks
+	ref DZS_JsonWriteSteps m_Text;
+	int m_TextFrames;
 
 	// How far the plan is, 0 … 1: the groups through their formats, then the building blocks.
 	float Share()
@@ -162,6 +165,8 @@ class DZS_PlanBuild : Managed
 		float groups = 0;
 		if (m_Groups && m_Groups.Count() > 0)
 			groups = Math.Min(m_Next, m_Groups.Count()) / (m_Groups.Count() * 1.0);
+		if (m_Text)
+			return 0.99;
 		if (!m_Build)
 			return 0.5 * groups;
 		return 0.5 + 0.5 * m_Build.m_Share;
@@ -2591,9 +2596,6 @@ class DZS_ProjectsPlugin : DZS_Plugin
 					plan.m_Files.Remove(di);
 			}
 			folder = DZS_LocalStore.FolderFor(plan.m_Name);
-			// the project file carries the new name
-			DZS_SaveFile pfile = plan.m_Files[plan.m_Files.Count() - 1];
-			pfile.m_Chunks = DZS_ProjectFile.ComposeV2(plan.m_Blocks, plan.m_Name, m_Open.m_MapKey, plan.m_Base, plan.m_ProjectPart, CameraView(), DZS_ProjectExtensions.Save());
 		}
 		m_Busy = true;
 		if (plan.m_Copy)
@@ -2981,10 +2983,18 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			b.m_GPlugins = gplugins;
 			b.m_Writer = m_Kernel.GetFormat(fmtId).BeginWrite(inst, gid);
 		}
-		if (!b.m_Build)
+		if (!b.m_Build && !b.m_Text)
 			BeginFinish(b);
-		float rest = ms - (TickCount(0) - t0) / 10000.0;
-		if (rest <= 0 || !b.m_Build.Step(rest))
+		if (!b.m_Text)
+		{
+			float rest = ms - (TickCount(0) - t0) / 10000.0;
+			if (rest <= 0 || !b.m_Build.Step(rest))
+				return false;
+			BeginProjectText(b);
+		}
+		b.m_TextFrames++;
+		float textLeft = ms - (TickCount(0) - t0) / 10000.0;
+		if (textLeft <= 0 || !b.m_Text.Step(textLeft))
 			return false;
 		FinishPlan(b);
 		return true;
@@ -3060,18 +3070,31 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		b.m_Build.StampGen(b.m_Gen);
 	}
 
-	protected void FinishPlan(DZS_PlanBuild b)
+	// The project file of a big project takes hundreds of milliseconds as one text, so it is written in slices too.
+	protected void BeginProjectText(DZS_PlanBuild b)
 	{
 		DZS_SavePlan plan = b.m_Plan;
-		string proj = b.m_ProjectPart;
-		plan.m_ProjectPart = proj;
+		plan.m_ProjectPart = b.m_ProjectPart;
 		plan.m_Blocks = b.m_Build.m_Root;
 		b.m_Build = null;
 		plan.m_Base = m_Open.m_Base;
+		string name = m_Open.m_Name;
+		if (plan.m_SaveAs)
+			name = plan.m_Name;
+		DZS_Json shared = DZS_ProjectFile.ShareTop(plan.m_Blocks);
+		DZS_Json root = DZS_ProjectFile.ComposeV2Root(shared, name, m_Open.m_MapKey, plan.m_Base, plan.m_ProjectPart, CameraView(), DZS_ProjectExtensions.Save());
+		b.m_Text = new DZS_JsonWriteSteps(root, true, 5);
+	}
+
+	protected void FinishPlan(DZS_PlanBuild b)
+	{
+		DZS_SavePlan plan = b.m_Plan;
 		DZS_SaveFile pf = new DZS_SaveFile();
 		pf.m_Rel = DZS_ProjectFile.NAME;
-		pf.m_Chunks = DZS_ProjectFile.ComposeV2(plan.m_Blocks, m_Open.m_Name, m_Open.m_MapKey, plan.m_Base, proj, CameraView(), DZS_ProjectExtensions.Save());
+		pf.m_Chunks = b.m_Text.Result();
+		b.m_Text = null;
 		plan.m_Files.Insert(pf);
+		DZS_Log.Info("save plan: project file written in " + b.m_TextFrames + " frames");
 	}
 
 	// The base chosen for the open project goes into its project file at once (a provider's project at its next save).

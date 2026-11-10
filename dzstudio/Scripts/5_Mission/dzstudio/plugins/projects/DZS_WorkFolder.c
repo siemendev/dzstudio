@@ -201,14 +201,14 @@ class DZS_WorkFolder
 
 	// The spawner file of a group as the editor reads and writes it: the block's objects as they stand (the spawner
 	// format's own entries, enableCEPersistency 0 or 1), not the server's form the patcher writes.
-	static array<string> GroupText(DZS_PatchBlock b)
+	static DZS_Json GroupRoot(DZS_PatchBlock b)
 	{
 		DZS_Json root = DZS_Json.Obj();
 		DZS_Json objs = b.m_Data.Get("objects");
 		if (!objs || !objs.IsArr())
 			objs = DZS_Json.Arr();
 		root.Set("Objects", objs);
-		return DZS_ProjectFile.Text(root);
+		return root;
 	}
 
 	// The project file of version 1 for the open path: the editor part with every group's block as its file
@@ -496,6 +496,7 @@ class DZS_WorkBuild : DZS_Job
 	protected ref map<string, string> m_Originals;
 	protected ref array<string> m_Types = new array<string>();
 	protected ref DZS_Patcher m_Run;
+	protected ref DZS_JsonWriteSteps m_GroupText;
 	protected int m_T0;
 
 	void DZS_WorkBuild(string folder, array<string> chunks, string loadedMap, DZS_Issues issues)
@@ -539,7 +540,11 @@ class DZS_WorkBuild : DZS_Job
 			else if (m_Phase == ROOT)
 				TakeRoot();
 			else if (m_Phase == GROUPS)
-				OneGroup();
+			{
+				float gleft = ms - (TickCount(0) - t0) / 10000.0;
+				if (!OneGroup(Math.Max(gleft, 0.5)))
+					break;
+			}
 			else if (m_Phase == LOOT)
 				PrepareLoot();
 			else if (m_Phase == PATCH)
@@ -611,21 +616,34 @@ class DZS_WorkBuild : DZS_Job
 		m_Phase = GROUPS;
 	}
 
-	protected void OneGroup()
+	// One group's file, its text over several slices (a group of thousands of objects takes hundreds of milliseconds);
+	// false while the text is not complete.
+	protected bool OneGroup(float ms)
 	{
 		SetStep("Gruppen", "groups");
-		if (m_At >= m_Project.m_Blocks.Count())
+		if (!m_GroupText)
 		{
-			m_Result.m_Manifest = DZS_WorkFolder.Manifest(m_Root, m_MapKey, m_Paths);
-			m_Phase = LOOT;
-			return;
+			if (m_At >= m_Project.m_Blocks.Count())
+			{
+				m_Result.m_Manifest = DZS_WorkFolder.Manifest(m_Root, m_MapKey, m_Paths);
+				m_Phase = LOOT;
+				return true;
+			}
+			DZS_PatchBlock next = m_Project.m_Blocks[m_At];
+			if (next.m_Kind != "spawnerGroup")
+			{
+				m_At++;
+				return true;
+			}
+			m_GroupText = new DZS_JsonWriteSteps(DZS_WorkFolder.GroupRoot(next), true, 2);
 		}
+		if (!m_GroupText.Step(ms))
+			return false;
+		array<string> text = m_GroupText.Result();
+		m_GroupText = null;
 		DZS_PatchBlock b = m_Project.m_Blocks[m_At];
 		m_At++;
 		m_Share = 0.3 + 0.2 * m_At / Math.Max(1, m_Project.m_Blocks.Count());
-		if (b.m_Kind != "spawnerGroup")
-			return;
-		array<string> text = DZS_WorkFolder.GroupText(b);
 		string rel = DZS_WorkFolder.SpawnerPath(m_Slug, b.m_Id);
 		string full = m_Dir + "\\" + rel;
 		full.Replace("/", "\\");
@@ -633,6 +651,7 @@ class DZS_WorkBuild : DZS_Job
 		DZS_Files.Write(full, text);
 		m_Paths.Set(b.m_Id, rel);
 		m_GroupFiles++;
+		return true;
 	}
 
 	// The base's loot files into the working folder and the patcher run on them for the project's loot.
