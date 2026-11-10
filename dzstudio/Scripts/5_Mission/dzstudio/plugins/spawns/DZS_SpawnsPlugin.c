@@ -243,17 +243,9 @@ class DZS_SpawnsPlugin : DZS_Plugin
 	protected string BaseDir()
 	{
 		DZS_PatchPlugin pp = DZS_PatchPlugin.Cast(m_Kernel.GetPlugin("patcher"));
-		DZS_ProjectsPlugin pr = DZS_ProjectsPlugin.Cast(m_Kernel.GetPlugin("projects"));
-		if (!pp || !pr || !pr.m_Open)
+		if (!pp)
 			return "";
-		DZS_PatchApply a = pp.Applier();
-		string mapKey = a.MapKey();
-		string key = a.Remembered(pr.m_Open.m_Folder);
-		if (key.IndexOf("mission:") == 0)
-			return DZS_PatchApply.MISSIONS + "\\" + key.Substring(8, key.Length() - 8);
-		if (DZS_LootVanilla.HaveMission(mapKey))
-			return DZS_LootVanilla.MissionDir(mapKey);
-		return "";
+		return pp.Applier().LayerBase();
 	}
 
 	void View(DZS_Instance inst)

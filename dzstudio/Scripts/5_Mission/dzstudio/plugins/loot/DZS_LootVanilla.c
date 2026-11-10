@@ -45,6 +45,9 @@ class DZS_LootVanilla : Managed
 	bool m_Ok = true;
 	string m_Why;
 	float m_Started;
+	// the env files named by cfgenvironment.xml are fetched in a second round, once that file is there
+	bool m_EnvRound;
+	protected RestContext m_Ctx;
 	ref ScriptInvoker m_OnDone = new ScriptInvoker();
 
 	static string MissionOf(string mapKey)
@@ -119,7 +122,31 @@ class DZS_LootVanilla : Managed
 		string area = "cfgeffectarea.json";
 		if (mapKey == "chernarus" || mapKey == "livonia")
 			area = "cfgEffectArea.json";
-		array<string> r = {"db/events.xml", "db/types.xml", "cfgeventspawns.xml", "cfgeventgroups.xml", area, "cfgweather.xml", "cfggameplay.json", "mapgroupproto.xml", "mapgrouppos.xml", "cfglimitsdefinition.xml"};
+		array<string> r = {"db/events.xml", "db/types.xml", "cfgeventspawns.xml", "cfgeventgroups.xml", area, "cfgweather.xml", "cfggameplay.json", "mapgroupproto.xml", "mapgrouppos.xml", "cfglimitsdefinition.xml", "cfgenvironment.xml"};
+		return r;
+	}
+
+	// The territory files cfgenvironment.xml in 'dir' names (env/..._territories.xml), each once.
+	static array<string> EnvFiles(string dir)
+	{
+		array<string> r = new array<string>();
+		DZS_PatchFiles files = new DZS_PatchFiles(dir);
+		DZS_PatchFile env = files.Get("cfgenvironment.xml");
+		if (!env.Ok())
+			return r;
+		foreach (DZS_XmlNode t0 : env.m_Xml.m_Root.m_Children)
+		{
+			if (t0.m_Name != "territories")
+				continue;
+			foreach (DZS_XmlNode t : t0.m_Children)
+			{
+				if (t.m_Name != "file")
+					continue;
+				string path = DZS_PKind.EnvFile(t.Get("path"));
+				if (path != "" && r.Find(path) < 0)
+					r.Insert(path);
+			}
+		}
 		return r;
 	}
 
@@ -129,7 +156,22 @@ class DZS_LootVanilla : Managed
 		return NewDir(mapKey) + "\\mission";
 	}
 
+	// HaveMission per map key; the layers ask every frame. Dropped when a fetch of that map ends.
+	protected static ref map<string, bool> s_Have;
+
 	static bool HaveMission(string mapKey)
+	{
+		if (!s_Have)
+			s_Have = new map<string, bool>();
+		bool known;
+		if (s_Have.Find(mapKey, known))
+			return known;
+		bool have = CheckMission(mapKey);
+		s_Have.Set(mapKey, have);
+		return have;
+	}
+
+	protected static bool CheckMission(string mapKey)
 	{
 		string dir = MissionDir(mapKey);
 		if (!ValidSource(dir + "\\" + SOURCE_FILE))
@@ -140,6 +182,14 @@ class DZS_LootVanilla : Managed
 			string full = dir + "\\" + f;
 			full.Replace("/", "\\");
 			if (!FileExist(full))
+				return false;
+		}
+		array<string> envs = EnvFiles(dir);
+		foreach (string ef : envs)
+		{
+			string efull = dir + "\\" + ef;
+			efull.Replace("/", "\\");
+			if (!FileExist(efull))
 				return false;
 		}
 		return true;
@@ -195,6 +245,7 @@ class DZS_LootVanilla : Managed
 		RestContext ctx = api.GetRestContext(HOST);
 		if (!ctx)
 			return false;
+		m_Ctx = ctx;
 		if (m_Files.Count() == 0)
 		{
 			m_Files.Insert(DZS_LootFiles.PROTO);
@@ -208,15 +259,46 @@ class DZS_LootVanilla : Managed
 		m_Left = m_Files.Count();
 		m_Started = GetGame().GetTickTime();
 		foreach (string f : m_Files)
+			Request(f);
+		return true;
+	}
+
+	protected void Request(string f)
+	{
+		DZS_LootVanillaCall c = new DZS_LootVanillaCall();
+		c.m_V = this;
+		c.m_File = f;
+		m_Calls.Insert(c);
+		string req = REPO + MissionOf(m_Map) + "/" + f;
+		int r = m_Ctx.GET(c, req);
+		DZS_Log.Info("loot: vanilla request " + req + " -> " + r);
+	}
+
+	// After the mission files: the env files cfgenvironment.xml names; true when a second round started.
+	protected bool StartEnvRound()
+	{
+		if (m_Sub != "mission" || m_EnvRound || !m_Ctx)
+			return false;
+		m_EnvRound = true;
+		array<string> envs = EnvFiles(NewDir(m_Map) + "\\" + m_Sub);
+		array<string> fresh = new array<string>();
+		foreach (string ef : envs)
 		{
-			DZS_LootVanillaCall c = new DZS_LootVanillaCall();
-			c.m_V = this;
-			c.m_File = f;
-			m_Calls.Insert(c);
-			string req = REPO + mission + "/" + f;
-			int r = ctx.GET(c, req);
-			DZS_Log.Info("loot: vanilla request " + req + " -> " + r);
+			if (m_Files.Find(ef) < 0)
+				fresh.Insert(ef);
 		}
+		if (fresh.Count() == 0)
+			return false;
+		foreach (string ff : fresh)
+		{
+			m_Files.Insert(ff);
+			string tf = Target(ff);
+			DZS_Files.MakeDirs(tf.Substring(0, tf.LastIndexOf("\\")));
+		}
+		m_Left = fresh.Count();
+		DZS_Log.Info("loot: vanilla env files " + fresh.Count());
+		foreach (string rf : fresh)
+			Request(rf);
 		return true;
 	}
 
@@ -271,8 +353,12 @@ class DZS_LootVanilla : Managed
 		m_Left--;
 		if (m_Left > 0)
 			return;
+		if (m_Ok && StartEnvRound())
+			return;
 		if (m_Ok)
 			WriteSource();
+		if (s_Have)
+			s_Have.Remove(m_Map);
 		m_OnDone.Invoke(this);
 	}
 

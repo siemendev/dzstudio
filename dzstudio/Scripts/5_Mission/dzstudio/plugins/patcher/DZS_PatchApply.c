@@ -567,6 +567,8 @@ class DZS_PatchApply : Managed
 	DZS_Kernel m_Kernel;
 	ref DZS_LootVanilla m_Fetch;
 	ref DZS_PatchBase m_Pending;
+	// the map whose vanilla mission could not be fetched for the layers (not tried again in this session)
+	protected string m_LayerFetchFailed;
 	ref DZS_PatchBase m_UndoBase;
 	DZS_ApplyDialog m_UndoFrom;
 	// applying or undoing over several frames
@@ -795,14 +797,53 @@ class DZS_PatchApply : Managed
 		bool ok = v.m_Ok;
 		string why = v.m_Why;
 		m_Fetch = null;
+		DZS_PatchBase b = m_Pending;
+		m_Pending = null;
+		if (!b)
+		{
+			// fetched for the layers: they pick the base up in their next frame
+			if (!ok)
+			{
+				m_LayerFetchFailed = v.m_Map;
+				m_Kernel.GetScreen().ShowMessage("patcher.fetch", "warning", DZS_Texts.Pick("Vanilla-Mission nicht geladen: ", "Vanilla mission not fetched: ") + why, 10.0);
+			}
+			DZS_Log.Info("patch: vanilla mission for the layers fetched: " + DZS_Str.Bool(ok) + " " + why);
+			return;
+		}
 		if (!ok)
 		{
 			Failed(why);
 			return;
 		}
-		DZS_PatchBase b = m_Pending;
-		m_Pending = null;
 		Run(b);
+	}
+
+	// The folder the layers (spawns, effects, territories) show as the base: the mission folder remembered for the open
+	// project, else the map's vanilla mission, fetched once when it is not here yet ("" until then).
+	string LayerBase()
+	{
+		DZS_ProjectsPlugin pp = Projects();
+		if (!pp || !pp.m_Open)
+			return "";
+		string key = Remembered(pp.m_Open.m_Folder);
+		if (key.IndexOf("mission:") == 0)
+			return MISSIONS + "\\" + key.Substring(8, key.Length() - 8);
+		string mk = MapKey();
+		if (DZS_LootVanilla.HaveMission(mk))
+			return DZS_LootVanilla.MissionDir(mk);
+		if (!m_Fetch && mk != "" && m_LayerFetchFailed != mk)
+		{
+			m_Fetch = new DZS_LootVanilla();
+			m_Fetch.m_OnDone.Insert(OnFetched);
+			if (!m_Fetch.StartMission(mk))
+			{
+				m_Fetch = null;
+				m_LayerFetchFailed = mk;
+				return "";
+			}
+			m_Kernel.GetScreen().ShowBanner("patcher.fetch", 20, "info", DZS_Texts.Pick("Vanilla-Mission wird geladen …", "Loading the vanilla mission …"));
+		}
+		return "";
 	}
 
 	protected void Failed(string why)
