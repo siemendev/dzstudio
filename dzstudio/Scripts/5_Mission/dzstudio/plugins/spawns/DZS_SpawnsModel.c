@@ -135,7 +135,7 @@ class DZS_SpawnsModel
 		return k;
 	}
 
-	static DZS_Json Pos(string x, string z, string a)
+	static DZS_Json PosJson(string x, string z, string a)
 	{
 		DZS_Json p = DZS_Json.Obj();
 		Num(p, "x", x);
@@ -198,16 +198,16 @@ class DZS_SpawnsModel
 					ch.Set("key", key);
 					DZS_Json fj = DZS_Json.Str("pos");
 					ch.Set("field", fj);
-					DZS_Json was = Pos(Field(inst, pid, "bx"), Field(inst, pid, "bz"), Field(inst, pid, "ba"));
+					DZS_Json was = PosJson(Field(inst, pid, "bx"), Field(inst, pid, "bz"), Field(inst, pid, "ba"));
 					ch.Set("from", was);
-					DZS_Json now = Pos(x, z, a);
+					DZS_Json now = PosJson(x, z, a);
 					ch.Set("to", now);
 				}
 				DZS_EntityExts.Attach(ch, inst, pid, DZS_EntityExts.ChangeSlot(ch));
 				changes.Add(ch);
 				continue;
 			}
-			DZS_Json pd = Pos(x, z, a);
+			DZS_Json pd = PosJson(x, z, a);
 			string own = OwnEvent(inst, ev);
 			if (own != "")
 			{

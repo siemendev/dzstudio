@@ -385,7 +385,7 @@ class DZS_SpawnsPlugin : DZS_Plugin
 			m_Kernel.GetUi().SetSceneState("selection");
 		else
 			m_Kernel.GetUi().SetSceneState("none");
-		Input(inst, scr);
+		LayerInput(inst, scr);
 		m_GhostWait -= dt;
 		if (m_GhostWait <= 0)
 		{
@@ -462,7 +462,7 @@ class DZS_SpawnsPlugin : DZS_Plugin
 		return false;
 	}
 
-	protected void Input(DZS_Instance inst, DZS_Screen scr)
+	protected void LayerInput(DZS_Instance inst, DZS_Screen scr)
 	{
 		bool blocked = scr.HasDialog() || scr.HasKeyboardOwner("map") || scr.HasKeyboardOwner("menu") || scr.HasKeyboardOwner("fullsearch");
 		bool over = !blocked && (!scr.IsCursorVisible() || scr.IsPointerOverScene());

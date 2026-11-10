@@ -1619,7 +1619,7 @@ class DZS_SettingDialog : DZS_RulesBase
 	protected ref DZS_Json m_Work;
 	protected ref array<string> m_Errors = new array<string>();
 	protected DZS_TextField m_Id;
-	protected DZS_TextField m_Title;
+	protected DZS_TextField m_TitleField;
 	protected DZS_TextField m_Options;
 	protected DZS_TextField m_Default;
 	protected DZS_TextField m_Help;
@@ -1715,7 +1715,7 @@ class DZS_SettingDialog : DZS_RulesBase
 		m_Id = Field(il, DZS_DzbotRules.SettingId(m_Work), "boost", 0);
 		DZS_RLine tl = Line(6, 30);
 		Label(tl, DZS_Texts.Pick("Titel", "Title"), 170, "text", 13);
-		m_Title = Field(tl, m_Work.GetStr("title"), DZS_Texts.Pick("Wie Server-Admins sie sehen", "As server admins see it"), 0);
+		m_TitleField = Field(tl, m_Work.GetStr("title"), DZS_Texts.Pick("Wie Server-Admins sie sehen", "As server admins see it"), 0);
 		if (section)
 		{
 			Note(DZS_Texts.Pick("Ein Abschnitt ist eine Überschrift über den Einstellungen darunter; seine Sichtbarkeit bearbeitest du in dzbot.", "A section is a heading over the settings below it; its visibility is edited in dzbot."));
@@ -1833,7 +1833,7 @@ class DZS_SettingDialog : DZS_RulesBase
 			DZS_Json sel = DZS_Json.Str(type);
 			m_Work.Set("type", sel);
 		}
-		SetText("title", m_Title.GetText());
+		SetText("title", m_TitleField.GetText());
 		if (m_Help)
 			SetText("help", m_Help.GetText());
 		if (m_Options)

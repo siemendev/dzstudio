@@ -336,7 +336,7 @@ class DZS_TerrPlugin : DZS_Plugin
 			m_Kernel.GetUi().SetSceneState("selection");
 		else
 			m_Kernel.GetUi().SetSceneState("none");
-		Input(inst, scr);
+		LayerInput(inst, scr);
 		Draw();
 		string hint;
 		if (m_Sel == "")
@@ -406,7 +406,7 @@ class DZS_TerrPlugin : DZS_Plugin
 		return Math.AbsFloat(d - z.m_R) <= Math.Max(2, z.m_R * 0.06);
 	}
 
-	protected void Input(DZS_Instance inst, DZS_Screen scr)
+	protected void LayerInput(DZS_Instance inst, DZS_Screen scr)
 	{
 		bool blocked = scr.HasDialog() || scr.HasKeyboardOwner("map") || scr.HasKeyboardOwner("menu") || scr.HasKeyboardOwner("fullsearch");
 		bool over = !blocked && (!scr.IsCursorVisible() || scr.IsPointerOverScene());
