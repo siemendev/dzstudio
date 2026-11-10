@@ -239,9 +239,13 @@ class DZS_LocalStore
 
 	protected static bool s_Converted;
 
+	// marks an older project folder that is converted (it stays for the user, but never comes back as a project)
+	static const string CONVERTED = "converted-to-file.txt";
+
 	// A folder in ROOT with a project file becomes the file <folder>.dzstudio.json; an older project (version 1) also
-	// takes its other files along into Dir, where it reads them until its first save. The old folder stays as it is
-	// unless it is empty by then.
+	// takes its other files along into Dir, where it reads them until its first save. Once the copy is complete and
+	// reads back the same, the old folder is marked (or removed when nothing else is in it), so a converted project
+	// that is renamed or deleted later does not come back. A conversion that failed is tried again at the next start.
 	static void Convert()
 	{
 		if (s_Converted)
@@ -256,6 +260,8 @@ class DZS_LocalStore
 			if (!folders[i] || id.IndexOf("@") == 0 || FileExist(File(id)))
 				continue;
 			string old = ROOT + "\\" + id;
+			if (FileExist(old + "\\" + CONVERTED))
+				continue;
 			string pfile = old + "\\" + DZS_ProjectFile.NAME;
 			if (!FileExist(pfile))
 				pfile = old + "\\" + DZS_LegacyNames.PROJECT_FILE;
@@ -265,6 +271,7 @@ class DZS_LocalStore
 			if (!chunks)
 				continue;
 			bool v2 = DZS_ProjectFile.IsV2(chunks);
+			bool copied = true;
 			if (!v2)
 			{
 				array<string> rels = DZS_Files.ListTree(old);
@@ -272,21 +279,34 @@ class DZS_LocalStore
 				{
 					string low = rel;
 					low.ToLower();
-					if (low == DZS_ProjectFile.NAME || low == DZS_LegacyNames.PROJECT_FILE)
+					if (low == DZS_ProjectFile.NAME || low == DZS_LegacyNames.PROJECT_FILE || low == CONVERTED)
 						continue;
 					string dst = Path(id, rel);
 					DZS_Files.MakeDirs(dst.Substring(0, dst.LastIndexOf("\\")));
 					string src = old + "\\" + rel;
 					src.Replace("/", "\\");
-					DZS_Files.Copy(src, dst);
+					if (!DZS_Files.Copy(src, dst) || !FileExist(dst))
+						copied = false;
 				}
 			}
-			if (!DZS_Files.Write(File(id), chunks))
-				continue;
-			if (v2)
+			if (!copied)
 			{
+				DZS_Log.Warn("projects: folder " + id + " not converted, a file could not be copied (tried again at the next start)");
+				continue;
+			}
+			if (!DZS_Files.Write(File(id), chunks) || !DZS_Files.SameContent(DZS_Files.Read(File(id)), chunks))
+			{
+				DZS_Files.Delete(File(id));
+				DZS_Log.Warn("projects: folder " + id + " not converted, " + id + EXT + " could not be written");
+				continue;
+			}
+			if (v2)
 				DZS_Files.Delete(pfile);
-				DZS_Files.Delete(old);
+			if (!DZS_Files.Delete(old))
+			{
+				string note = "dzStudio: this project now lives in " + id + EXT + " beside this folder; the folder is kept as it was.\n";
+				array<string> mark = DZS_Files.Chunk(note);
+				DZS_Files.Write(old + "\\" + CONVERTED, mark);
 			}
 			DZS_Log.Info("projects: folder " + id + " converted into " + id + EXT + " (version 2 " + v2 + ")");
 		}
