@@ -469,11 +469,13 @@ class DZS_WorkBuild : DZS_Job
 {
 	static const int PARSE = 0;
 	static const int ROOT = 1;
-	static const int GROUPS = 2;
-	static const int LOOT = 3;
-	static const int PATCH = 4;
-	static const int ORIGIN = 5;
-	static const int DONE = 6;
+	static const int CONVERT = 2;
+	static const int PROJECT = 3;
+	static const int GROUPS = 4;
+	static const int LOOT = 5;
+	static const int PATCH = 6;
+	static const int ORIGIN = 7;
+	static const int DONE = 8;
 
 	string m_Folder;
 	string m_LoadedMap;
@@ -486,6 +488,8 @@ class DZS_WorkBuild : DZS_Job
 	bool m_Wait = true;
 	protected ref array<string> m_Chunks;
 	protected ref DZS_SrcJsonSteps m_Parse;
+	protected ref DZS_SrcToJsonSteps m_Convert;
+	protected int m_Entry;
 	protected ref DZS_PatchProject m_Project;
 	protected int m_Phase;
 	protected int m_At;
@@ -534,13 +538,25 @@ class DZS_WorkBuild : DZS_Job
 				float left = ms - (TickCount(0) - t0) / 10000.0;
 				if (!m_Parse.Step(Math.Max(left, 0.5)))
 				{
-					m_Share = 0.3 * m_Parse.Progress();
+					m_Share = 0.2 * m_Parse.Progress();
 					break;
 				}
 				m_Phase = ROOT;
 			}
 			else if (m_Phase == ROOT)
 				TakeRoot();
+			else if (m_Phase == CONVERT)
+			{
+				float cleft = ms - (TickCount(0) - t0) / 10000.0;
+				if (!m_Convert.Step(Math.Max(cleft, 0.5)))
+				{
+					m_Share = 0.2 + 0.05 * m_Convert.Progress();
+					break;
+				}
+				TakeProject();
+			}
+			else if (m_Phase == PROJECT)
+				Entries(t0, ms);
 			else if (m_Phase == GROUPS)
 			{
 				float gleft = ms - (TickCount(0) - t0) / 10000.0;
@@ -588,14 +604,57 @@ class DZS_WorkBuild : DZS_Job
 			m_Result.m_Error = "unreadable";
 			return;
 		}
-		m_Root = doc.m_Root.ToJson();
+		m_Convert = new DZS_SrcToJsonSteps(doc.m_Root);
+		m_Share = 0.2;
+		m_Phase = CONVERT;
+	}
+
+	protected void TakeProject()
+	{
+		m_Phase = DONE;
+		m_Root = m_Convert.Result();
+		m_Convert = null;
 		string err;
-		m_Project = DZS_PatchProject.FromJson(m_Root, err);
+		m_Project = DZS_PatchProject.HeadOf(m_Root, err);
 		if (!m_Project)
 		{
 			m_Result.m_Error = err;
 			return;
 		}
+		m_Entry = 0;
+		m_Phase = PROJECT;
+	}
+
+	// The project's blocks and changes, a few per slice (a block's data is copied without its extensions).
+	protected void Entries(int t0, float ms)
+	{
+		DZS_Json blocks = m_Root.Get("blocks");
+		DZS_Json changes = m_Root.Get("changes");
+		int nb = 0;
+		int nc = 0;
+		if (blocks && blocks.IsArr())
+			nb = blocks.Count();
+		if (changes && changes.IsArr())
+			nc = changes.Count();
+		while (m_Entry < nb + nc)
+		{
+			if (DZS_Job.Over(t0, ms))
+			{
+				m_Share = 0.25 + 0.05 * m_Entry / Math.Max(1, nb + nc);
+				return;
+			}
+			if (m_Entry < nb)
+				m_Project.AddBlock(blocks.At(m_Entry));
+			else
+				m_Project.AddChange(changes.At(m_Entry - nb));
+			m_Entry++;
+		}
+		Opened();
+	}
+
+	protected void Opened()
+	{
+		m_Phase = DONE;
 		m_MapKey = DZS_WorkFolder.MapOf(m_Root);
 		if (DZS_Maps.WorldOf(m_MapKey) == "")
 			m_MapKey = m_LoadedMap;

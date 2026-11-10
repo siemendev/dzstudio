@@ -102,6 +102,94 @@ class DZS_SrcNode : Managed
 	}
 }
 
+// SrcNode.ToJson over several slices: the tree of a project of thousands of objects takes tens of milliseconds.
+class DZS_SrcToJsonSteps : Managed
+{
+	protected ref array<ref DZS_SrcNode> m_Src = new array<ref DZS_SrcNode>();
+	protected ref array<ref DZS_Json> m_Dst = new array<ref DZS_Json>();
+	protected ref array<int> m_At = new array<int>();
+	protected ref DZS_Json m_Result;
+	protected int m_Total = 1;
+	protected int m_Made;
+
+	void DZS_SrcToJsonSteps(DZS_SrcNode root)
+	{
+		if (!root.IsObj() && !root.IsArr())
+		{
+			m_Result = root.ToJson();
+			return;
+		}
+		m_Result = Empty(root);
+		Push(root, m_Result);
+	}
+
+	protected static DZS_Json Empty(DZS_SrcNode n)
+	{
+		if (n.IsArr())
+			return DZS_Json.Arr();
+		return DZS_Json.Obj();
+	}
+
+	protected void Push(DZS_SrcNode n, DZS_Json into)
+	{
+		m_Src.Insert(n);
+		m_Dst.Insert(into);
+		m_At.Insert(0);
+		m_Total += n.Count();
+	}
+
+	// True when the tree is complete.
+	bool Step(float ms)
+	{
+		int t0 = TickCount(0);
+		int n = 0;
+		while (m_Src.Count() > 0)
+		{
+			n++;
+			if (n % 64 == 0 && DZS_Job.Over(t0, ms))
+				return false;
+			int top = m_Src.Count() - 1;
+			DZS_SrcNode src = m_Src[top];
+			int at = m_At[top];
+			if (at >= src.Count())
+			{
+				m_Src.Remove(top);
+				m_Dst.Remove(top);
+				m_At.Remove(top);
+				continue;
+			}
+			m_At[top] = at + 1;
+			m_Made++;
+			DZS_SrcNode item = src.m_Items[at];
+			DZS_Json dst = m_Dst[top];
+			DZS_Json made;
+			bool deep = item.IsObj() || item.IsArr();
+			if (deep)
+				made = Empty(item);
+			else
+				made = item.ToJson();
+			if (src.IsArr())
+				dst.Add(made);
+			else
+				dst.Set(src.m_Keys[at], made);
+			if (deep)
+				Push(item, made);
+		}
+		return true;
+	}
+
+	float Progress()
+	{
+		float done = m_Made;
+		return Math.Clamp(done / Math.Max(1, m_Total), 0, 1);
+	}
+
+	DZS_Json Result()
+	{
+		return m_Result;
+	}
+}
+
 class DZS_SrcDoc : Managed
 {
 	ref array<string> m_Chunks;

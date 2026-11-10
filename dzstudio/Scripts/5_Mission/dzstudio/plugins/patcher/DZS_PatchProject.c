@@ -87,53 +87,67 @@ class DZS_PatchProject : Managed
 
 	static DZS_PatchProject FromJson(DZS_Json root, out string error)
 	{
-		if (!Readable(root, error))
+		DZS_PatchProject p = HeadOf(root, error);
+		if (!p)
 			return null;
-		DZS_PatchProject p = new DZS_PatchProject();
-		p.m_Map = root.GetStr("map");
-		p.m_Slug = root.GetStr("slug");
 		DZS_Json blocks = root.Get("blocks");
 		if (blocks && blocks.IsArr())
 		{
 			for (int i = 0; i < blocks.Count(); i++)
-			{
-				DZS_Json bj = blocks.At(i);
-				DZS_PatchBlock b = new DZS_PatchBlock();
-				b.m_Id = bj.GetStr("id");
-				b.m_Kind = bj.GetStr("kind");
-				DZS_Json par = bj.Get("parent");
-				if (par && par.IsStr())
-					b.m_ParentId = par.m_Str;
-				else if (par && par.IsObj())
-					b.m_Parent = par;
-				// extensions of the block and of anything inside its data are not the game's: never written into a file
-				b.m_Data = WithoutExtensions(bj.Get("data"));
-				if (!b.m_Data)
-					b.m_Data = DZS_Json.Obj();
-				p.m_Blocks.Insert(b);
-			}
+				p.AddBlock(blocks.At(i));
 		}
 		DZS_Json changes = root.Get("changes");
 		if (changes && changes.IsArr())
 		{
 			for (int k = 0; k < changes.Count(); k++)
-			{
-				DZS_Json cj = changes.At(k);
-				DZS_PatchChange c = new DZS_PatchChange();
-				c.m_Op = cj.GetStr("op");
-				c.m_Block = cj.GetStr("block");
-				c.m_Key = cj.Get("key");
-				if (!c.m_Key)
-					c.m_Key = DZS_Json.Obj();
-				c.m_Field = cj.GetStr("field");
-				c.m_HasFrom = cj.Has("from");
-				// a value set into a file (an object, a list) never takes "extensions" members along either
-				c.m_From = WithoutExtensions(cj.Get("from"));
-				c.m_To = WithoutExtensions(cj.Get("to"));
-				p.m_Changes.Insert(c);
-			}
+				p.AddChange(changes.At(k));
 		}
 		return p;
+	}
+
+	// The project without its blocks and changes (AddBlock, AddChange take them one by one); null and 'error' set
+	// when FromJson would not read it.
+	static DZS_PatchProject HeadOf(DZS_Json root, out string error)
+	{
+		if (!Readable(root, error))
+			return null;
+		DZS_PatchProject p = new DZS_PatchProject();
+		p.m_Map = root.GetStr("map");
+		p.m_Slug = root.GetStr("slug");
+		return p;
+	}
+
+	void AddBlock(DZS_Json bj)
+	{
+		DZS_PatchBlock b = new DZS_PatchBlock();
+		b.m_Id = bj.GetStr("id");
+		b.m_Kind = bj.GetStr("kind");
+		DZS_Json par = bj.Get("parent");
+		if (par && par.IsStr())
+			b.m_ParentId = par.m_Str;
+		else if (par && par.IsObj())
+			b.m_Parent = par;
+		// extensions of the block and of anything inside its data are not the game's: never written into a file
+		b.m_Data = WithoutExtensions(bj.Get("data"));
+		if (!b.m_Data)
+			b.m_Data = DZS_Json.Obj();
+		m_Blocks.Insert(b);
+	}
+
+	void AddChange(DZS_Json cj)
+	{
+		DZS_PatchChange c = new DZS_PatchChange();
+		c.m_Op = cj.GetStr("op");
+		c.m_Block = cj.GetStr("block");
+		c.m_Key = cj.Get("key");
+		if (!c.m_Key)
+			c.m_Key = DZS_Json.Obj();
+		c.m_Field = cj.GetStr("field");
+		c.m_HasFrom = cj.Has("from");
+		// a value set into a file (an object, a list) never takes "extensions" members along either
+		c.m_From = WithoutExtensions(cj.Get("from"));
+		c.m_To = WithoutExtensions(cj.Get("to"));
+		m_Changes.Insert(c);
 	}
 
 	// A value without "extensions" members at any depth: the same value when it has none, else a copy.

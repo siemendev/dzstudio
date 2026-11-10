@@ -82,6 +82,7 @@ class DZS_OpenJob : Managed
 	ref DZS_SrcJsonSteps m_Parse;
 	ref DZS_SrcDoc m_Doc;
 	ref DZS_WorkBuild m_Work;
+	bool m_WorkBuilt;
 	// the loot files read ahead while the groups are read
 	ref DZS_LootPrefetch m_LootRead;
 	// the index for the file's entity extensions, built while the scene shows the objects
@@ -1701,10 +1702,14 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		int t0 = TickCount(0);
 		if (j.m_Phase == DZS_OpenJob.WORK)
 		{
-			bool built = j.m_Work.Step(OPEN_SLICE_MS);
-			j.m_Progress.SetShare(j.m_From * j.m_Work.m_Share);
-			if (built)
+			// the working folder's result is taken in a frame of its own
+			if (j.m_WorkBuilt)
 				AfterWork(j);
+			else
+			{
+				j.m_WorkBuilt = j.m_Work.Step(OPEN_SLICE_MS);
+				j.m_Progress.SetShare(j.m_From * j.m_Work.m_Share);
+			}
 		}
 		else if (j.m_Restore && j.m_Phase == DZS_OpenJob.GROUPS)
 		{
@@ -1735,6 +1740,8 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		}
 		else if (j.m_Phase == DZS_OpenJob.LOAD)
 		{
+			// the last slice of the load and the finish of the opening go into frames of their own
+			bool loadedBefore = j.m_Loaded;
 			string lerr;
 			if (!StepLoad(j, OPEN_SLICE_MS, lerr))
 			{
@@ -1750,7 +1757,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				j.m_Progress.Close();
 				return;
 			}
-			if (!j.m_Loaded)
+			if (!j.m_Loaded || !loadedBefore)
 			{
 				j.m_Progress.SetShare(j.Scaled(0.9 + 0.05 * j.LoadShare()));
 				return;
@@ -2094,7 +2101,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		int n = j.m_LoadOp.CountChanges();
 		while (j.m_LoadAt < n)
 		{
-			int to = Math.Min(j.m_LoadAt + 250, n);
+			int to = Math.Min(j.m_LoadAt + 100, n);
 			if (!j.m_Inst.LoadPart(j.m_LoadOp, j.m_LoadAt, to, error))
 				return false;
 			j.m_LoadAt = to;
