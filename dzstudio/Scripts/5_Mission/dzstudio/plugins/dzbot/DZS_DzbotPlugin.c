@@ -1412,8 +1412,6 @@ class DZS_DzbotPlugin : DZS_Plugin
 			if (mrev)
 				dp.m_ManifestRev = mrev.m_Str.ToInt();
 		}
-		array<string> keep = new array<string>();
-		RemoveStale(folder, keep);
 		// the project file of the mod or placement opens like a local one (through its working folder)
 		string mapSet = "";
 		if (chose)
@@ -1424,8 +1422,19 @@ class DZS_DzbotPlugin : DZS_Plugin
 		if (reloading && pp.m_Open.m_MapKey == dp.m_MapKey)
 			view = m_ReloadView;
 		array<string> own = DZS_ProjectFile.RewriteV2(projectChunks, dp.m_Name, mapSet, view, "", true);
+		if (!own && projectChunks)
+		{
+			// an empty project in its place would replace dzbot's project file at the next save
+			DZS_Log.Warn("dzbot: project file of " + dp.m_Ref + " is no readable version 2 — not opened");
+			m_ReloadRef = "";
+			m_ReloadView = "";
+			pp.Fetched("", false, "Die Projektdatei in dzbot ist für dieses dzStudio nicht lesbar (Format oder Version) — nicht geöffnet", "dzbot's project file is not readable for this dzStudio (format or version) — not opened");
+			return;
+		}
 		if (!own)
 			own = DZS_LocalStore.NewFile(dp.m_Name, dp.m_MapKey, "", "objects.json", DZS_Texts.Get("core.group.objects"));
+		array<string> keep = new array<string>();
+		RemoveStale(folder, keep);
 		DZS_Files.Write(DZS_LocalStore.Path(folder, DZS_ProjectFile.NAME), own);
 		string loadedHead = "dzbot: loaded project " + dp.m_Kind + " " + dp.m_Ref + " '" + dp.m_Name + "'";
 		DZS_Log.Info(loadedHead + " map " + dp.m_MapKey + ", project file " + (projectChunks != null) + ", reload " + reloading);
@@ -1808,9 +1817,9 @@ class DZS_DzbotPlugin : DZS_Plugin
 			list += p;
 		}
 		string de = "In dzbot geändert, während hier ungespeicherte Änderungen offen sind: " + list;
-		de += ". Neu laden öffnet den Stand aus dzbot und verwirft die Änderungen hier; mit Meine behalten ersetzt das nächste Speichern den Stand in dzbot.";
+		de += ". Neu laden öffnet den Stand aus dzbot und verwirft die Änderungen hier; mit Meine behalten ersetzt das nächste Speichern den Stand in dzbot, auch dort geänderte Teile, die dzStudio nur anzeigt (außerhalb von dzStudio angelegt).";
 		string en = "Changed in dzbot while there are unsaved changes here: " + list;
-		en += ". Reload opens dzbot's state and discards the changes here; with Keep mine the next save replaces dzbot's state.";
+		en += ". Reload opens dzbot's state and discards the changes here; with Keep mine the next save replaces dzbot's state, including changes made there to parts dzStudio only shows (made outside dzStudio).";
 		DZS_ConfirmDialog c = new DZS_ConfirmDialog("dzbot", DZS_Texts.Pick("In dzbot geändert", "Changed in dzbot"), DZS_Texts.Pick(de, en));
 		c.AddFootButton("copy", DZS_Texts.Pick("Als Konfliktkopie speichern", "Save as conflict copy"), "side");
 		c.AddFootButton("keep", DZS_Texts.Pick("Meine behalten", "Keep mine"), "side");
@@ -2256,7 +2265,9 @@ class DZS_DzbotPlugin : DZS_Plugin
 					foreach (DZS_SrcNode cn : cs.m_Items)
 					{
 						string ck = DZS_DzbotCatalog.Text(cn, "key");
-						DZS_DzbotFile cf = dp.FileByKey(ck);
+						DZS_DzbotFile cf = null;
+						if (dp)
+							cf = dp.FileByKey(ck);
 						if (cf)
 							paths.Insert(cf.m_Path);
 						else
@@ -2293,6 +2304,14 @@ class DZS_DzbotPlugin : DZS_Plugin
 			}
 			string m = r.Message();
 			pp.ProviderSaved("dzbot: " + m, "dzbot: " + m);
+			return;
+		}
+		if (!dp)
+		{
+			DZS_Log.Warn("dzbot: saved " + sv.m_SaveId + ", but its project is no longer listed");
+			EndSave();
+			PlateFor(sv.m_Folder);
+			pp.ProviderSaved("", "");
 			return;
 		}
 		if (sv.m_NewProjectKey != "")
