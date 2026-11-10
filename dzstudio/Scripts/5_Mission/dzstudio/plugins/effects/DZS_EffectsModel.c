@@ -438,6 +438,8 @@ class DZS_EffectsBase : Managed
 		if (dir == "")
 			return b;
 		DZS_PatchFiles files = new DZS_PatchFiles(dir);
+		// a folder projects were applied to shows its originals, as the patcher reads them
+		files.m_Over.Copy(DZS_ApplyStore.Originals(dir));
 		DZS_PatchFile f = files.Get("cfgeffectarea.json");
 		if (!f.Ok() || !f.m_Json.m_Root.IsObj())
 			return b;

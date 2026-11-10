@@ -356,6 +356,8 @@ class DZS_TerrBase : Managed
 		if (dir == "")
 			return b;
 		DZS_PatchFiles files = new DZS_PatchFiles(dir);
+		// a folder projects were applied to shows its originals, as the patcher reads them
+		files.m_Over.Copy(DZS_ApplyStore.Originals(dir));
 		DZS_PatchFile ev = files.Get("db/events.xml");
 		map<string, ref array<string>> classes = new map<string, ref array<string>>();
 		map<string, string> nominals = new map<string, string>();

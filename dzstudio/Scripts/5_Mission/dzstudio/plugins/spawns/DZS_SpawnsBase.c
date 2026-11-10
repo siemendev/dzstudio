@@ -61,6 +61,8 @@ class DZS_SpawnsBase : Managed
 		if (dir == "")
 			return b;
 		DZS_PatchFiles files = new DZS_PatchFiles(dir);
+		// a folder projects were applied to shows its originals, as the patcher reads them
+		files.m_Over.Copy(DZS_ApplyStore.Originals(dir));
 		DZS_PatchFile ev = files.Get("db/events.xml");
 		DZS_PatchFile sp = files.Get("cfgeventspawns.xml");
 		if (!ev.Ok() || !sp.Ok())
