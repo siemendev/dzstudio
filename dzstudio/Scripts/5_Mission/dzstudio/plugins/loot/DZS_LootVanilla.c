@@ -122,7 +122,12 @@ class DZS_LootVanilla : Managed
 		string area = "cfgeffectarea.json";
 		if (mapKey == "chernarus" || mapKey == "livonia")
 			area = "cfgEffectArea.json";
-		array<string> r = {"db/events.xml", "db/types.xml", "cfgeventspawns.xml", "cfgeventgroups.xml", area, "cfgweather.xml", "cfggameplay.json", "mapgroupproto.xml", "mapgrouppos.xml", "cfglimitsdefinition.xml", "cfgenvironment.xml"};
+		array<string> r = {"db/events.xml", "db/types.xml", "db/globals.xml", "db/economy.xml", "cfgeventspawns.xml", "cfgeventgroups.xml", area, "cfgweather.xml", "cfggameplay.json", "mapgroupproto.xml", "mapgrouppos.xml", "cfglimitsdefinition.xml", "cfgenvironment.xml", "cfgspawnabletypes.xml", "cfgrandompresets.xml", "cfgplayerspawnpoints.xml", "cfgeconomycore.xml"};
+		// what one vanilla mission lacks: Chernarus has no ignore list, Sakhal no messages
+		if (mapKey != "chernarus")
+			r.Insert("cfgignorelist.xml");
+		if (mapKey != "sakhal")
+			r.Insert("db/messages.xml");
 		return r;
 	}
 
