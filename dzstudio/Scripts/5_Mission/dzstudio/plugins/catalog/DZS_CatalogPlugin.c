@@ -327,7 +327,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 
 	array<string> ChipKeys()
 	{
-		array<string> r = {"all", "favorites", "buildings", "military", "walls", "furniture", "wrecks", "items", "lights", "plants", "rocks", "other"};
+		array<string> r = {"all", "favorites", "buildings", "military", "walls", "furniture", "wrecks", "items", "lights", "plants", "rocks", "spawns", "other"};
 		if (m_Store.m_Templates.Count() > 0)
 			r.Insert("templates");
 		return r;
@@ -335,7 +335,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 
 	static array<string> Categories()
 	{
-		array<string> r = {"buildings", "military", "walls", "furniture", "wrecks", "items", "lights", "plants", "rocks", "other", "templates"};
+		array<string> r = {"buildings", "military", "walls", "furniture", "wrecks", "items", "lights", "plants", "rocks", "spawns", "other", "templates"};
 		return r;
 	}
 
@@ -355,6 +355,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 		if (key == "lights") return "lamp";
 		if (key == "plants") return "tree-pine";
 		if (key == "rocks") return "mountain";
+		if (key == "spawns") return "car";
 		if (key == "templates") return "layout-template";
 		return "shapes";
 	}
@@ -920,6 +921,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 		DZS_Texts.Add("catalog.cat.lights", "Licht", "Light");
 		DZS_Texts.Add("catalog.cat.plants", "Pflanzen", "Plants");
 		DZS_Texts.Add("catalog.cat.rocks", "Felsen", "Rocks");
+		DZS_Texts.Add("catalog.cat.spawns", "Fahrzeuge und KI", "Vehicles and AI");
 		DZS_Texts.Add("catalog.cat.other", "Sonstiges", "Other");
 		DZS_Texts.Add("catalog.cat.templates", "Vorlagen", "Templates");
 		DZS_Texts.Add("catalog.objects", "%1 Objekte", "%1 objects");

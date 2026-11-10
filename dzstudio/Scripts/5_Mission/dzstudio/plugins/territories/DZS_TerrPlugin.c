@@ -78,7 +78,14 @@ class DZS_TerrDivert : DZS_PlaceDivert
 
 	override bool Place(DZS_Instance inst, string name, vector pos, vector ypr)
 	{
-		return m_P.ZoneForClass(inst, name, pos);
+		if (m_P.ZoneForClass(inst, name, pos))
+			return true;
+		if (!GetGame().IsKindOf(name, "DZ_LightAI"))
+			return false;
+		// an animal or infected is never a spawner object; without a territory of its kind nothing is placed
+		DZS_Log.Info("territories: no zone kind spawns " + name + ", nothing placed");
+		m_P.Kernel().GetScreen().ShowMessage("territories.class", "warning", DZS_Texts.Pick("Kein Gebiet der Basis lässt " + name + " spawnen — nichts platziert", "No territory of the base spawns " + name + " — nothing placed"), 6.0);
+		return true;
 	}
 }
 
