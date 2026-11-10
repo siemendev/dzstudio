@@ -1000,6 +1000,12 @@ class DZS_ProjectsPlugin : DZS_Plugin
 
 	void Leave(string what, string arg, string arg2)
 	{
+		// a mission folder half rebuilt would stay so
+		if (DZS_Jobs.Writing())
+		{
+			Message("projects.leave", "warning", "Der Missionsordner wird gerade geschrieben — gleich noch einmal versuchen", "The mission folder is being written — try again in a moment", 5.0);
+			return;
+		}
 		m_After = what;
 		m_AfterArg = arg;
 		m_AfterArg2 = arg2;
@@ -3286,8 +3292,9 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			Message("projects.rename", "warning", "Für das Projekt gibt es eine Sicherung — erst öffnen", "The project has a backup — open it first", 5.0);
 			return false;
 		}
-		// Applied projects are found by their slug; a new one would leave the old files applied with no way to remove them.
-		if (DZS_ProjectV2.Slug(ProjectNameOf(folder)) != DZS_ProjectV2.Slug(newName) && RefuseApplied(folder, "projects.rename"))
+		// A mission folder lists an applied project by its id, which follows the name: the renamed project would no longer
+		// find its changes there to take them back.
+		if (RefuseApplied(folder, "projects.rename"))
 			return false;
 		string sum;
 		string newId;
@@ -3355,7 +3362,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	// True (with a message) while the project is applied to a mission folder: only its open project can remove it there.
 	bool RefuseApplied(string folder, string messageId)
 	{
-		string appliedIn = DZS_PatchApply.AppliedIn(DZS_ProjectV2.Slug(ProjectNameOf(folder)));
+		string appliedIn = DZS_PatchApply.AppliedIn(folder, DZS_ProjectV2.Slug(ProjectNameOf(folder)));
 		if (appliedIn == "")
 			return false;
 		string inDe = "Angewendet auf den Missionsordner " + appliedIn + " — dort erst entfernen (Auf Missionsordner anwenden › Entfernen)";

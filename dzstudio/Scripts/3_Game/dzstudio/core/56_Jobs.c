@@ -39,6 +39,12 @@ class DZS_Job : Managed
 		return m_Cancelable;
 	}
 
+	// Whether stopping it now would leave files half written: such a job runs to its end when the session ends.
+	bool MustFinish()
+	{
+		return false;
+	}
+
 	string Label()
 	{
 		string t = DZS_Texts.Pick(m_De, m_En);
@@ -150,10 +156,35 @@ class DZS_Jobs
 		}
 	}
 
-	// Every job gone without its callbacks (the session ends).
+	// Whether a job runs that must not stop now (it writes files).
+	static bool Writing()
+	{
+		if (!s_Jobs)
+			return false;
+		foreach (DZS_Job j : s_Jobs)
+		{
+			if (!j.m_Done && j.MustFinish())
+				return true;
+		}
+		return false;
+	}
+
+	// Every job gone without its callbacks (the session ends); one that writes files runs to its end first.
 	static void Clear()
 	{
+		if (!s_Jobs)
+			return;
+		array<ref DZS_Job> left = s_Jobs;
 		s_Jobs = null;
+		foreach (DZS_Job j : left)
+		{
+			if (j.m_Done || !j.MustFinish())
+				continue;
+			DZS_Log.Info("job " + j.m_Id + " finished at the session end: " + j.m_En);
+			while (!j.Step(1000000))
+			{
+			}
+		}
 	}
 
 	// From the kernel, once per frame.

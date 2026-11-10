@@ -15,10 +15,15 @@ class DZS_PatchBase : Managed
 	string m_Target;
 	string m_TargetShown;
 	string m_Applied;
+	// .original files of the folder that dzStudio did not write (a server dzbot manages)
+	int m_Foreign;
 }
 
 class DZS_AppliedProject : Managed
 {
+	// the project's id (its file name, "@…" for a provider's project); "" in a list written before ids
+	string m_Id;
+	// the slug its own files lie under (dzstudio/<slug>/), unique in the folder
 	string m_Slug;
 	string m_Name;
 	string m_Stamp;
@@ -28,14 +33,17 @@ class DZS_AppliedProject : Managed
 // changed lies <file>.original with the file as it was before (an empty one: the file did not exist), and a rebuild
 // puts every original back and applies all listed projects in their order, each on the result of the ones before.
 // A folder that already has .original files (copied from a server dzbot manages) counts them as the originals.
-// <folder>\.dzstudio\applied.json lists the projects, the files the last rebuild touched and the .original files
-// dzStudio wrote; projects\<slug>.dzstudio.json is the copy of each project that was applied, so the folder stays
-// complete when it is moved or uploaded. Relative paths use "/" like the patcher's output.
+// <folder>\.dzstudio\applied.json lists the projects (by id), the files the last rebuild touched with the checksum of
+// what it wrote, and the .original files dzStudio wrote; projects\<slug>.dzstudio.json is the copy of each project
+// that was applied, so the folder stays complete when it is moved or uploaded. Relative paths use "/" like the
+// patcher's output. A touched file that differs from what dzStudio wrote was changed outside dzStudio (edited, fresh
+// server files pasted over it): its current content becomes its original instead of being reverted.
 class DZS_ApplyStore : Managed
 {
 	static const string ROOT = ".dzstudio";
 	static const string STATE = "applied.json";
 	static const string ORIGINAL = ".original";
+	static const string PENDING = ".pending";
 	// marks a folder made from the vanilla mission: it holds only projects' files and is no base of its own
 	static const string VANILLA_MARK = "vanilla-copy.txt";
 
@@ -45,6 +53,15 @@ class DZS_ApplyStore : Managed
 	ref array<ref DZS_AppliedProject> m_Projects = new array<ref DZS_AppliedProject>();
 	ref array<string> m_Touched = new array<string>();
 	ref array<string> m_Own = new array<string>();
+	// lower-case path -> checksum of the file as the last rebuild wrote it (none in a list written before checksums)
+	ref map<string, string> m_Sums = new map<string, string>();
+	// the list as it is on disk until a rebuild is complete
+	protected ref array<ref DZS_AppliedProject> m_Saved = new array<ref DZS_AppliedProject>();
+	// the project put in or taken out by this rebuild: its new copy lies at CopyPath + PENDING until the rebuild is done
+	protected string m_PendSlug;
+	protected ref array<string> m_DropSlugs = new array<string>();
+	// files changed outside dzStudio whose current content became their original in this rebuild
+	ref array<string> m_Adopted = new array<string>();
 
 	void DZS_ApplyStore(string target, string baseDir)
 	{
@@ -62,14 +79,26 @@ class DZS_ApplyStore : Managed
 				if (!one.IsObj() || one.GetStr("slug") == "")
 					continue;
 				DZS_AppliedProject ap = new DZS_AppliedProject();
+				ap.m_Id = one.GetStr("id");
 				ap.m_Slug = one.GetStr("slug");
 				ap.m_Name = one.GetStr("name");
 				ap.m_Stamp = one.GetStr("applied");
 				m_Projects.Insert(ap);
+				m_Saved.Insert(ap);
 			}
 		}
 		Strings(root.Get("touched"), m_Touched);
 		Strings(root.Get("originals"), m_Own);
+		DZS_Json sums = root.Get("sums");
+		if (sums && sums.IsObj())
+		{
+			for (int k = 0; k < sums.m_Keys.Count(); k++)
+			{
+				string sum = sums.GetStr(sums.m_Keys[k]);
+				if (sum != "")
+					m_Sums.Set(DZS_PatchText.Lower(sums.m_Keys[k]), sum);
+			}
+		}
 	}
 
 	protected static void Strings(DZS_Json list, array<string> into)
@@ -165,6 +194,22 @@ class DZS_ApplyStore : Managed
 		return n <= 0;
 	}
 
+	// A file's checksum for telling whether it changed (length and a hash of its blocks); "" when it does not exist.
+	static string SumOf(string path)
+	{
+		array<string> chunks = DZS_Files.Read(path);
+		if (!chunks)
+			return "";
+		int h = 17;
+		int len = 0;
+		foreach (string c : chunks)
+		{
+			h = h * 31 + c.Hash();
+			len += c.Length();
+		}
+		return len.ToString() + ":" + h.ToString();
+	}
+
 	// What the patcher reads instead of a folder's files: every <file>.original (an empty one hides the file). Also
 	// what the editor takes as a mission folder's own state when it is a project's base.
 	static map<string, string> Originals(string dir)
@@ -187,44 +232,95 @@ class DZS_ApplyStore : Managed
 		return r;
 	}
 
-	DZS_AppliedProject Find(string slug)
+	// How many .original files of the folder dzStudio did not write (dzbot's, from the server it manages).
+	int ForeignOriginals()
+	{
+		map<string, string> all = Originals(m_Target);
+		int n = 0;
+		for (int i = 0; i < all.Count(); i++)
+		{
+			if (IndexLow(m_Own, all.GetKey(i)) < 0)
+				n++;
+		}
+		return n;
+	}
+
+	// The entry of a project: by its id, else (a list written before ids) by the slug its name gave then.
+	DZS_AppliedProject Find(string id, string legacySlug)
 	{
 		foreach (DZS_AppliedProject ap : m_Projects)
 		{
-			if (ap.m_Slug == slug)
+			if (ap.m_Id != "" && ap.m_Id == id)
 				return ap;
+		}
+		foreach (DZS_AppliedProject old : m_Projects)
+		{
+			if (old.m_Id == "" && old.m_Slug == legacySlug)
+				return old;
 		}
 		return null;
 	}
 
-	// Adds a project or replaces it in its place, with the project file it is applied with.
-	bool Put(string slug, string name, array<string> project)
+	// The slug a project's files go under here: its own, or with "-2", "-3" … when another project of the folder has it.
+	string SlugFor(string id, string legacySlug, string want)
 	{
-		string copy = CopyPath(slug);
-		MakeParent(copy);
-		if (!DZS_Files.Write(copy, project))
-			return false;
-		DZS_AppliedProject ap = Find(slug);
-		if (!ap)
+		if (want == "")
+			want = "project";
+		DZS_AppliedProject mine = Find(id, legacySlug);
+		string cand = want;
+		int n = 2;
+		while (true)
 		{
-			ap = new DZS_AppliedProject();
-			ap.m_Slug = slug;
-			m_Projects.Insert(ap);
+			bool taken = false;
+			string low = DZS_PatchText.Lower(cand);
+			foreach (DZS_AppliedProject ap : m_Projects)
+			{
+				if (ap != mine && DZS_PatchText.Lower(ap.m_Slug) == low)
+					taken = true;
+			}
+			if (!taken)
+				return cand;
+			cand = want + "-" + n;
+			n++;
 		}
+		return cand;
+	}
+
+	// Adds a project or replaces it in its place. Its file is written beside its copy and takes the copy's place only
+	// once the rebuild is complete; the list on disk stays as it was until then.
+	bool Put(string id, string legacySlug, string slug, string name, array<string> project)
+	{
+		string pending = CopyPath(slug) + PENDING;
+		MakeParent(pending);
+		if (!DZS_Files.Write(pending, project))
+			return false;
+		m_PendSlug = slug;
+		DZS_AppliedProject ap = new DZS_AppliedProject();
+		ap.m_Id = id;
+		ap.m_Slug = slug;
 		ap.m_Name = name;
 		ap.m_Stamp = DZS_ProjectsPlugin.Stamp();
+		DZS_AppliedProject had = Find(id, legacySlug);
+		if (!had)
+		{
+			m_Projects.Insert(ap);
+			return true;
+		}
+		if (had.m_Slug != slug)
+			m_DropSlugs.Insert(had.m_Slug);
+		m_Projects.Set(m_Projects.Find(had), ap);
 		return true;
 	}
 
-	void Take(string slug)
+	// Takes a project out of the list; its copy goes once the rebuild is complete. False when it is not listed.
+	bool Take(string id, string legacySlug)
 	{
-		for (int i = m_Projects.Count() - 1; i >= 0; i--)
-		{
-			if (m_Projects[i].m_Slug == slug)
-				m_Projects.RemoveOrdered(i);
-		}
-		DZS_Files.Delete(CopyPath(slug));
-		DZS_Files.Delete(ReportPath(slug));
+		DZS_AppliedProject had = Find(id, legacySlug);
+		if (!had)
+			return false;
+		m_DropSlugs.Insert(had.m_Slug);
+		m_Projects.RemoveOrdered(m_Projects.Find(had));
+		return true;
 	}
 
 	// A file back to its original: the copy of it, or gone when the original is empty.
@@ -244,33 +340,50 @@ class DZS_ApplyStore : Managed
 		DZS_Files.Copy(orig, full);
 	}
 
-	// Before a file is changed or created for the first time: its .original, unless one is there already.
-	protected bool KeepOriginal(string rel, array<string> own)
+	// A file changed outside dzStudio: what is there now becomes its original (an empty one when it is gone).
+	protected void Adopt(string rel)
 	{
 		string full = m_Target + "\\" + Win(rel);
 		string orig = full + ORIGINAL;
-		if (FileExist(orig))
-		{
-			if (IndexLow(m_Own, rel) >= 0)
-				own.Insert(rel);
-			return true;
-		}
 		MakeParent(orig);
-		bool ok;
 		if (FileExist(full))
-			ok = DZS_Files.Copy(full, orig);
+			DZS_Files.Copy(full, orig);
 		else
 		{
 			array<string> none = new array<string>();
-			ok = DZS_Files.Write(orig, none);
+			DZS_Files.Write(orig, none);
 		}
-		if (!ok || !FileExist(orig))
-			return false;
-		own.Insert(rel);
-		return true;
+		if (IndexLow(m_Own, rel) < 0)
+			m_Own.Insert(rel);
+		m_Adopted.Insert(rel);
+		DZS_Log.Info("patch: " + rel + " in " + m_Target + " was changed outside dzStudio, its current content is the original now");
 	}
 
-	protected void SaveState(array<string> touched, array<string> own)
+	// Before the folder changes: a touched file without its .original cannot go back (refused), one that is not what
+	// the last rebuild wrote is adopted as its original — unless the original is dzbot's, from which the folder is
+	// rebuilt as a server dzbot manages would be. A vanilla copy holds only the projects' files and is not checked.
+	protected void Check(string rel)
+	{
+		if (m_Base != m_Target)
+			return;
+		string full = m_Target + "\\" + Win(rel);
+		string orig = full + ORIGINAL;
+		bool hasOrig = FileExist(orig);
+		string want;
+		bool known = m_Sums.Find(DZS_PatchText.Lower(rel), want);
+		bool same = known && SumOf(full) == want;
+		if (!known || same)
+		{
+			if (!hasOrig)
+				m_Err = "original missing: " + rel + ORIGINAL;
+			return;
+		}
+		if (hasOrig && IndexLow(m_Own, rel) < 0)
+			return;
+		m_RAdopt.Insert(rel);
+	}
+
+	protected void SaveState(array<string> touched, array<string> own, array<ref DZS_AppliedProject> projects, map<string, string> sums)
 	{
 		DZS_Json root = DZS_Json.Obj();
 		DZS_Json fj = DZS_Json.Str("dzstudio-applied");
@@ -278,9 +391,11 @@ class DZS_ApplyStore : Managed
 		DZS_Json vj = DZS_Json.Int(1);
 		root.Set("version", vj);
 		DZS_Json list = DZS_Json.Arr();
-		foreach (DZS_AppliedProject ap : m_Projects)
+		foreach (DZS_AppliedProject ap : projects)
 		{
 			DZS_Json one = DZS_Json.Obj();
+			DZS_Json ij = DZS_Json.Str(ap.m_Id);
+			one.Set("id", ij);
 			DZS_Json sj = DZS_Json.Str(ap.m_Slug);
 			one.Set("slug", sj);
 			DZS_Json nj = DZS_Json.Str(ap.m_Name);
@@ -307,6 +422,19 @@ class DZS_ApplyStore : Managed
 			oj.Add(os);
 		}
 		root.Set("originals", oj);
+		if (sums)
+		{
+			DZS_Json mj = DZS_Json.Obj();
+			foreach (string st : touched)
+			{
+				string sum;
+				if (!sums.Find(DZS_PatchText.Lower(st), sum))
+					continue;
+				DZS_Json one2 = DZS_Json.Str(sum);
+				mj.Set(st, one2);
+			}
+			root.Set("sums", mj);
+		}
 		string path = StatePath();
 		MakeParent(path);
 		array<string> chunks = root.ToChunks(true);
@@ -314,7 +442,7 @@ class DZS_ApplyStore : Managed
 	}
 
 	// Every touched file back to its original, then every listed project in order. focusRun: the run of the project
-	// 'focus'; others: the names of the other projects applied again (unreadable ones are left out and named in
+	// 'focus' (slug); others: the names of the other projects applied again (unreadable ones are left out and named in
 	// 'skipped'). An empty list leaves the folder as it was before the first project. At once; over several frames with
 	// BeginRebuild and StepRebuild.
 	bool Rebuild(string focus, string baseName, out DZS_Patcher focusRun, array<string> others, array<string> skipped, out string err)
@@ -330,14 +458,17 @@ class DZS_ApplyStore : Managed
 		return m_Ok;
 	}
 
-	// a rebuild over several frames: the step (0 originals back, 1 a project's file read, 2 its patcher run, 3 its files
-	// written, 4 the end), the project at hand
+	// a rebuild over several frames: the step (0 the touched files checked, then back to their originals; 1 a project's
+	// file read, 2 its patcher run, 3 its files written, 4 the end), the project at hand
 	protected int m_RStep;
 	protected int m_RAt;
+	protected int m_RCheck;
 	protected string m_RFocus;
 	protected string m_RBaseName;
 	protected ref array<string> m_RTouched;
 	protected ref array<string> m_ROwn;
+	protected ref array<string> m_RAdopt = new array<string>();
+	protected ref map<string, string> m_RSums;
 	protected ref map<string, string> m_ROver;
 	protected ref DZS_SrcJsonSteps m_RParse;
 	protected bool m_RParsed;
@@ -358,6 +489,9 @@ class DZS_ApplyStore : Managed
 		m_RBaseName = baseName;
 		m_RStep = 0;
 		m_RAt = 0;
+		m_RCheck = 0;
+		m_RAdopt.Clear();
+		m_Adopted.Clear();
 		m_RParsed = false;
 		m_RWPart = 0;
 		m_RW = 0;
@@ -367,6 +501,12 @@ class DZS_ApplyStore : Managed
 		m_FocusRun = null;
 		m_Others.Clear();
 		m_Skipped.Clear();
+	}
+
+	// Whether the folder's files may have changed: false until the checks before the first change are through.
+	bool Changing()
+	{
+		return m_RStep > 0 || m_RDone;
 	}
 
 	// How far the rebuild is, 0 … 1.
@@ -385,7 +525,16 @@ class DZS_ApplyStore : Managed
 		return (m_RAt + inProject) / n;
 	}
 
-	// One slice; true when the rebuild is complete (m_Ok, m_Err). The folder's files change from the first slice on.
+	// The rebuild ends without a result (m_Err): the new copy of the project goes, the list on disk stays.
+	protected void Fail()
+	{
+		m_RDone = true;
+		if (m_PendSlug != "")
+			DZS_Files.Delete(CopyPath(m_PendSlug) + PENDING);
+		DZS_Log.Warn("patch: rebuild of " + m_Target + " stopped: " + m_Err);
+	}
+
+	// One slice; true when the rebuild is complete (m_Ok, m_Err). The folder's files change once the checks are through.
 	bool StepRebuild(float ms)
 	{
 		int t0 = TickCount(0);
@@ -395,16 +544,34 @@ class DZS_ApplyStore : Managed
 				return false;
 			if (m_RStep == 0)
 			{
-				if (m_Projects.Count() > 0 && !DZS_Files.IsFolder(m_Base))
+				if (m_RCheck == 0 && m_Projects.Count() > 0 && !DZS_Files.IsFolder(m_Base))
 				{
 					m_Err = "base missing: " + m_Base;
-					m_RDone = true;
+					Fail();
 					return true;
 				}
+				// one touched file checked per piece: a large file takes a moment to read
+				if (m_RCheck < m_Touched.Count())
+				{
+					Check(m_Touched[m_RCheck]);
+					m_RCheck++;
+					if (m_Err != "")
+					{
+						Fail();
+						return true;
+					}
+					continue;
+				}
 				foreach (string back : m_Touched)
-					Restore(back);
+				{
+					if (IndexLow(m_RAdopt, back) >= 0)
+						Adopt(back);
+					else
+						Restore(back);
+				}
 				m_RTouched = new array<string>();
 				m_ROwn = new array<string>();
+				m_RSums = new map<string, string>();
 				m_ROver = new map<string, string>();
 				if (m_Base == m_Target)
 					m_ROver = Originals(m_Target);
@@ -428,7 +595,11 @@ class DZS_ApplyStore : Managed
 				}
 				if (!m_RParse)
 				{
-					array<string> copy = DZS_Files.Read(CopyPath(m_Projects[m_RAt].m_Slug));
+					string slug = m_Projects[m_RAt].m_Slug;
+					string from = CopyPath(slug);
+					if (slug == m_PendSlug)
+						from += PENDING;
+					array<string> copy = DZS_Files.Read(from);
 					if (!copy)
 						copy = new array<string>();
 					m_RParse = new DZS_SrcJsonSteps(copy, 5);
@@ -452,7 +623,7 @@ class DZS_ApplyStore : Managed
 				int w = WriteStep();
 				if (w < 0)
 				{
-					m_RDone = true;
+					Fail();
 					return true;
 				}
 				if (w == 0)
@@ -487,6 +658,8 @@ class DZS_ApplyStore : Managed
 			m_RAt++;
 			return;
 		}
+		// the files go where the list says, whatever slug the copy names
+		pj.m_Slug = ap.m_Slug;
 		m_RRun = DZS_Patcher.Begin(pj, m_Base, m_ROver);
 		m_RStep = 2;
 	}
@@ -525,6 +698,7 @@ class DZS_ApplyStore : Managed
 		}
 		if (m_RWPart == 1)
 		{
+			// the list on disk stays the one before this rebuild (no checksums: files are about to change)
 			array<string> pending = new array<string>();
 			pending.Copy(m_Touched);
 			foreach (string tr : m_RTouched)
@@ -539,7 +713,7 @@ class DZS_ApplyStore : Managed
 				if (IndexLow(pendingOwn, orr) < 0)
 					pendingOwn.Insert(orr);
 			}
-			SaveState(pending, pendingOwn);
+			SaveState(pending, pendingOwn, m_Saved, null);
 			m_RWPart = 2;
 			m_RW = 0;
 			return 0;
@@ -562,6 +736,7 @@ class DZS_ApplyStore : Managed
 				return -1;
 			}
 			m_ROver.Set(DZS_PatchText.Lower(w), full);
+			m_RSums.Set(DZS_PatchText.Lower(w), SumOf(full));
 			return 0;
 		}
 		array<string> lines = DZS_ApplyResult.Lines(run.m_Report, m_RBaseName);
@@ -573,7 +748,34 @@ class DZS_ApplyStore : Managed
 		return 1;
 	}
 
-	// files no project changes any more are back to their original already; dzStudio's .original goes
+	// Before a file is changed or created for the first time: its .original, unless one is there already.
+	protected bool KeepOriginal(string rel, array<string> own)
+	{
+		string full = m_Target + "\\" + Win(rel);
+		string orig = full + ORIGINAL;
+		if (FileExist(orig))
+		{
+			if (IndexLow(m_Own, rel) >= 0)
+				own.Insert(rel);
+			return true;
+		}
+		MakeParent(orig);
+		bool ok;
+		if (FileExist(full))
+			ok = DZS_Files.Copy(full, orig);
+		else
+		{
+			array<string> none = new array<string>();
+			ok = DZS_Files.Write(orig, none);
+		}
+		if (!ok || !FileExist(orig))
+			return false;
+		own.Insert(rel);
+		return true;
+	}
+
+	// files no project changes any more are back to their original already; dzStudio's .original goes; the copy of the
+	// project put in takes its place, the copies of the ones taken out go
 	protected void EndRebuild()
 	{
 		m_RDone = true;
@@ -586,13 +788,34 @@ class DZS_ApplyStore : Managed
 		}
 		m_Touched = m_RTouched;
 		m_Own = m_ROwn;
+		m_Sums = m_RSums;
 		m_Ok = true;
+		if (m_PendSlug != "")
+		{
+			string pending = CopyPath(m_PendSlug) + PENDING;
+			if (!DZS_Files.Copy(pending, CopyPath(m_PendSlug)))
+				DZS_Log.Warn("patch: copy of project " + m_PendSlug + " not written in " + m_Target);
+			DZS_Files.Delete(pending);
+		}
+		foreach (string drop : m_DropSlugs)
+		{
+			bool used = false;
+			foreach (DZS_AppliedProject ap : m_Projects)
+			{
+				if (ap.m_Slug == drop)
+					used = true;
+			}
+			if (used)
+				continue;
+			DZS_Files.Delete(CopyPath(drop));
+			DZS_Files.Delete(ReportPath(drop));
+		}
 		if (m_Projects.Count() == 0)
 		{
 			Drop();
 			return;
 		}
-		SaveState(m_Touched, m_Own);
+		SaveState(m_Touched, m_Own, m_Projects, m_Sums);
 	}
 
 	// No project left: .dzstudio goes, and a vanilla copy that holds nothing else by then.
@@ -651,6 +874,15 @@ class DZS_PatchApply : Managed
 		return pp.m_Open.m_Name;
 	}
 
+	// The open project's id, by which a mission folder lists it.
+	string ProjectId()
+	{
+		DZS_ProjectsPlugin pp = Projects();
+		if (!pp || !pp.m_Open)
+			return "";
+		return pp.m_Open.m_Folder;
+	}
+
 	bool CanApply(out string reasonDe, out string reasonEn)
 	{
 		DZS_ProjectsPlugin pp = Projects();
@@ -707,19 +939,21 @@ class DZS_PatchApply : Managed
 	}
 
 	// Where a base's changes go: the mission folder itself, or for vanilla "<project> (Vanilla <map>)".
-	void Describe(DZS_PatchBase b, string projectName, string mapKey)
+	void Describe(DZS_PatchBase b, string projectId, string projectName, string mapKey)
 	{
 		string leaf = b.m_Name;
 		if (b.m_Vanilla)
 			leaf = FolderName(projectName) + " (Vanilla " + DZS_LootPlugin.MapName(mapKey) + ")";
 		b.m_Target = MISSIONS + "\\" + leaf;
 		b.m_TargetShown = Shown("Missions\\" + leaf);
-		string slug = DZS_ProjectV2.Slug(projectName);
 		DZS_ApplyStore st = new DZS_ApplyStore(b.m_Target, b.m_Dir);
-		DZS_AppliedProject mine = st.Find(slug);
+		DZS_AppliedProject mine = st.Find(projectId, DZS_ProjectV2.Slug(projectName));
 		b.m_Applied = "";
 		if (mine)
 			b.m_Applied = mine.m_Stamp;
+		b.m_Foreign = 0;
+		if (!b.m_Vanilla)
+			b.m_Foreign = st.ForeignOriginals();
 		int others = st.m_Projects.Count();
 		if (mine)
 			others--;
@@ -737,8 +971,9 @@ class DZS_PatchApply : Managed
 		b.m_Meta = meta;
 	}
 
-	// The first folder in dzstudio\Missions a project of this slug is applied to ("" = none).
-	static string AppliedIn(string slug)
+	// The first folder in dzstudio\Missions the project is applied to ("" = none); legacySlug: the slug of its name, by
+	// which folder lists written before project ids name it.
+	static string AppliedIn(string projectId, string legacySlug)
 	{
 		array<string> names;
 		array<bool> folders;
@@ -749,14 +984,14 @@ class DZS_PatchApply : Managed
 				continue;
 			string dir = MISSIONS + "\\" + names[i];
 			DZS_ApplyStore st = new DZS_ApplyStore(dir, dir);
-			if (st.Find(slug))
+			if (st.Find(projectId, legacySlug))
 				return names[i];
 		}
 		return "";
 	}
 
 	// The vanilla mission of the map first, then every folder in dzstudio\Missions (not the vanilla copies).
-	array<ref DZS_PatchBase> Bases(string mapKey, string projectName)
+	array<ref DZS_PatchBase> Bases(string mapKey, string projectId, string projectName)
 	{
 		array<ref DZS_PatchBase> r = new array<ref DZS_PatchBase>();
 		DZS_PatchBase v = new DZS_PatchBase();
@@ -764,7 +999,7 @@ class DZS_PatchApply : Managed
 		v.m_Vanilla = true;
 		v.m_Name = "Vanilla " + DZS_LootPlugin.MapName(mapKey);
 		v.m_Dir = DZS_LootVanilla.MissionDir(mapKey);
-		Describe(v, projectName, mapKey);
+		Describe(v, projectId, projectName, mapKey);
 		r.Insert(v);
 		DZS_Files.MakeDirs(MISSIONS);
 		array<string> names;
@@ -781,7 +1016,7 @@ class DZS_PatchApply : Managed
 			b.m_Key = "mission:" + names[i];
 			b.m_Name = names[i];
 			b.m_Dir = dir;
-			Describe(b, projectName, mapKey);
+			Describe(b, projectId, projectName, mapKey);
 			r.Insert(b);
 		}
 		return r;
@@ -821,7 +1056,7 @@ class DZS_PatchApply : Managed
 	{
 		DZS_ProjectsPlugin pp = Projects();
 		string mapKey = MapKey();
-		array<ref DZS_PatchBase> bases = Bases(mapKey, pp.m_Open.m_Name);
+		array<ref DZS_PatchBase> bases = Bases(mapKey, pp.m_Open.m_Folder, pp.m_Open.m_Name);
 		string want = Remembered(pp.m_Open.m_Folder);
 		int pick = 0;
 		for (int i = 0; i < bases.Count(); i++)
@@ -938,16 +1173,19 @@ class DZS_PatchApply : Managed
 		}
 		string name = pp.m_Open.m_Name;
 		string mapKey = MapKey();
-		Describe(b, name, mapKey);
+		Describe(b, pp.m_Open.m_Folder, name, mapKey);
 		DZS_ApplyJob j = new DZS_ApplyJob();
 		j.m_De = "Projekt wird angewendet";
 		j.m_En = "Applying the project";
 		j.m_Cancelable = true;
 		j.m_Base = b;
 		j.m_Name = name;
+		j.m_ProjectId = pp.m_Open.m_Folder;
 		j.m_MapKey = mapKey;
 		j.m_T0 = TickCount(0);
 		j.m_Build = DZS_ProjectBuild.Make(m_Kernel, inst, name, mapKey, false, true);
+		// a provider's project keeps its slug (dzbot's mod-<id>, placement-<id>), as its save does
+		j.m_Build.m_KeepSlug = pp.m_Open.m_Folder.IndexOf("@") == 0 || pp.m_Open.m_Provider == "shared";
 		j.m_Prepare = this;
 		j.m_OnDone.Insert(OnApplied);
 		m_Job = j;
@@ -971,6 +1209,11 @@ class DZS_PatchApply : Managed
 			j.m_Err = err;
 			return false;
 		}
+		// its own files go under a slug no other project of the folder has
+		DZS_ApplyStore st = new DZS_ApplyStore(j.m_Base.m_Target, j.m_Base.m_Dir);
+		j.m_Slug = st.SlugFor(j.m_ProjectId, DZS_ProjectV2.Slug(j.m_Name), project.GetStr("slug"));
+		DZS_Json sj = DZS_Json.Str(j.m_Slug);
+		project.Set("slug", sj);
 		// deep enough that a spawner group's objects are written one by one
 		j.m_Text = new DZS_JsonWriteSteps(project, true, 5);
 		return true;
@@ -982,14 +1225,13 @@ class DZS_PatchApply : Managed
 		DZS_PatchBase b = j.m_Base;
 		if (b.m_Vanilla)
 			DZS_ApplyStore.MarkVanillaCopy(b.m_Target);
-		string slug = DZS_ProjectV2.Slug(j.m_Name);
+		string slug = j.m_Slug;
 		DZS_ApplyStore st = new DZS_ApplyStore(b.m_Target, b.m_Dir);
-		if (!st.Put(slug, j.m_Name, text))
+		if (!st.Put(j.m_ProjectId, DZS_ProjectV2.Slug(j.m_Name), slug, j.m_Name, text))
 		{
 			j.m_Err = "cannot write " + st.CopyPath(slug);
 			return false;
 		}
-		j.m_Slug = slug;
 		st.BeginRebuild(slug, b.m_Name);
 		j.m_Store = st;
 		return true;
@@ -1024,13 +1266,13 @@ class DZS_PatchApply : Managed
 			return;
 		}
 		DZS_PatchBase b = j.m_Base;
-		Describe(b, j.m_Name, j.m_MapKey);
+		Describe(b, j.m_ProjectId, j.m_Name, j.m_MapKey);
 		int ms = (TickCount(0) - j.m_T0) / 10000;
 		string done = "patch: applied '" + j.m_Name + "' to " + b.m_Dir + " in " + ms + " ms";
 		done += " (" + j.m_Frames + " frames, slowest " + DZS_Num.Fixed(j.m_Slowest, 1) + " ms) -> " + b.m_Target;
 		done += ", " + p.m_OutPaths.Count() + " file(s), " + st.m_Touched.Count() + " touched in all, " + st.m_Others.Count() + " other project(s) again";
 		DZS_Log.Info(done);
-		DZS_ApplyResultDialog d = new DZS_ApplyResultDialog(this, p.m_Report, b, p.m_OutPaths.Count(), st.m_Others, st.m_Skipped, j.m_Slug);
+		DZS_ApplyResultDialog d = new DZS_ApplyResultDialog(this, p.m_Report, b, p.m_OutPaths.Count(), st.m_Others, st.m_Skipped, j.m_Slug, st.m_Adopted);
 		d.Open();
 	}
 
@@ -1044,6 +1286,8 @@ class DZS_PatchApply : Managed
 		string text = DZS_Texts.Pick("Alle Änderungen von „", "Take back every change of '") + ProjectName();
 		text += DZS_Texts.Pick("“ in ", "' in ") + b.m_TargetShown;
 		text += DZS_Texts.Pick(" zurücknehmen? Der Ordner wird aus den Originalen neu aufgebaut, andere dort angewendete Projekte bleiben.", "? The folder is rebuilt from the originals; other projects applied there stay.");
+		if (b.m_Foreign > 0)
+			text += DZS_Texts.Pick(" Die .original-Dateien von dzbot gelten dabei als Originale des Servers.", " dzbot's .original files count as the server's originals.");
 		DZS_ConfirmDialog c = new DZS_ConfirmDialog(kicker, title, DZS_W.Literal(text));
 		c.AddFootButton("cancel", DZS_Texts.Get("core.dialog.cancel"), "side");
 		DZS_Button yes = c.AddFootButton("undo", DZS_Texts.Pick("Rückgängig", "Undo"), "danger");
@@ -1065,7 +1309,6 @@ class DZS_PatchApply : Managed
 			Failed(DZS_Texts.Pick("es wird gerade angewendet", "applying is in progress"));
 			return;
 		}
-		string slug = DZS_ProjectV2.Slug(ProjectName());
 		DZS_ApplyStore st = new DZS_ApplyStore(b.m_Target, b.m_Dir);
 		if (st.m_Projects.Count() > 1 && !DZS_Files.IsFolder(b.m_Dir))
 		{
@@ -1077,11 +1320,12 @@ class DZS_PatchApply : Managed
 		j.m_En = "Undoing";
 		j.m_Base = b;
 		j.m_Name = ProjectName();
+		j.m_ProjectId = ProjectId();
 		j.m_MapKey = MapKey();
 		j.m_T0 = TickCount(0);
 		j.m_Before = st.m_Touched.Count();
 		j.m_Source = source;
-		st.Take(slug);
+		st.Take(j.m_ProjectId, DZS_ProjectV2.Slug(j.m_Name));
 		st.BeginRebuild("", b.m_Name);
 		j.m_Store = st;
 		j.m_OnDone.Insert(OnUndone);
@@ -1103,12 +1347,14 @@ class DZS_PatchApply : Managed
 			Failed(st.m_Err);
 			return;
 		}
+		if (st.m_Adopted.Count() > 0)
+			m_Kernel.GetScreen().ShowMessage("patcher.outside", "warning", DZS_Texts.Pick("Außerhalb von dzStudio geändert, so behalten: ", "Changed outside dzStudio, kept as they are: ") + Joined(st.m_Adopted), 12.0);
 		DZS_Log.Info("patch: undone '" + j.m_Name + "' in " + b.m_Target + ": " + j.m_Before + " file(s) back to the original, " + st.m_Others.Count() + " other project(s) again, " + st.m_Touched.Count() + " touched now");
 		string msg = DZS_Texts.Pick("Rückgängig gemacht: Originale zurück", "Undone: originals back");
 		if (st.m_Others.Count() > 0)
 			msg += DZS_Texts.Pick(", erneut angewendet: ", ", applied again: ") + Joined(st.m_Others);
 		m_Kernel.GetScreen().ShowMessage("patcher.apply", "success", msg, 8.0);
-		Describe(b, j.m_Name, j.m_MapKey);
+		Describe(b, j.m_ProjectId, j.m_Name, j.m_MapKey);
 		if (j.m_Source)
 			j.m_Source.Refresh();
 	}
@@ -1132,6 +1378,8 @@ class DZS_ApplyJob : DZS_Job
 {
 	ref DZS_PatchBase m_Base;
 	string m_Name;
+	// the project's id (its file name), by which the folder lists it
+	string m_ProjectId;
 	string m_MapKey;
 	string m_Slug;
 	string m_Err;
@@ -1146,6 +1394,12 @@ class DZS_ApplyJob : DZS_Job
 	override bool CanCancelNow()
 	{
 		return m_Cancelable && (m_Build != null || m_Text != null);
+	}
+
+	// once the folder's files change, the rebuild must come to its end (also when the game is left)
+	override bool MustFinish()
+	{
+		return m_Store != null && m_Store.Changing() && !m_Store.m_RDone;
 	}
 
 	override void OnCancel()
@@ -1429,7 +1683,13 @@ class DZS_ApplyDialog : DZS_Dialog
 		if (b.m_Vanilla)
 			m_ChgNote.SetText(DZS_Texts.Pick("Neuer Ordner, nur die Dateien des Projekts – auf einen Server mit Vanilla-Mission kopieren", "A new folder with only the project's files – copy it onto a server that runs the vanilla mission"));
 		else
-			m_ChgNote.SetText(DZS_Texts.Pick("Originale bleiben als .original daneben – Rückgängig jederzeit", "The originals stay beside them as .original – undo any time"));
+		{
+			string note = DZS_Texts.Pick("Originale bleiben als .original daneben – Rückgängig jederzeit", "The originals stay beside them as .original – undo any time");
+			// a server dzbot manages: the files are built from the owner's originals, not from what the folder holds now
+			if (b.m_Foreign > 0)
+				note = DZS_Texts.Pick("Hat .original-Dateien von dzbot: die Dateien werden aus diesen Originalen des Servers neu aufgebaut, nicht aus dem jetzigen Stand", "Has .original files from dzbot: the files are rebuilt from these server originals, not from what they hold now");
+			m_ChgNote.SetText(DZS_W.Literal(note));
+		}
 	}
 
 	// After a remove: the rows show the new state.
@@ -1519,11 +1779,13 @@ class DZS_ApplyResultDialog : DZS_Dialog
 	protected ref array<string> m_Tones = new array<string>();
 	protected ref array<TextWidget> m_Widgets = new array<TextWidget>();
 
-	void DZS_ApplyResultDialog(DZS_PatchApply a, DZS_PatchReport r, DZS_PatchBase b, int fileCount, array<string> others, array<string> skipped, string slug)
+	void DZS_ApplyResultDialog(DZS_PatchApply a, DZS_PatchReport r, DZS_PatchBase b, int fileCount, array<string> others, array<string> skipped, string slug, array<string> adopted)
 	{
 		m_A = a;
 		m_Base = b;
 		Add(CountLine(r), "text");
+		if (adopted.Count() > 0)
+			Add(DZS_Texts.Pick("Außerhalb von dzStudio geändert, jetzt das Original (nicht zurückgesetzt): ", "Changed outside dzStudio, now the original (not reverted): ") + DZS_PatchApply.Joined(adopted), "warning");
 		if (others.Count() > 0)
 			Add(DZS_Texts.Pick("Erneut angewendet, weil sie im selben Ordner liegen: ", "Applied again, as they are in the same folder: ") + DZS_PatchApply.Joined(others), "textQuiet");
 		if (skipped.Count() > 0)
