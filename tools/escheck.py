@@ -9,7 +9,9 @@ without the game's own scripts:
   dzStudio classes; a protected or private member used from outside its class line
 - a call with too many or too few arguments for such a method
 - a variable declared twice in one function (Enforce allows a name only once per function, any block)
-- a variable named like a type (map, set, out …)
+- a variable, parameter or field named like a type (map, set, out, a DZS_ class …)
+- a field declared again in a subclass, a method named like a field of its class line (or the other way round), and
+  a method named like a type (a DZS_ class or one of the engine's in ENGINE_TYPES)
 - `override` without a method of that name in the (known) bases
 - a DZS_ class that does not exist, or one of a later script module used from an earlier one
 - unbalanced brackets
@@ -32,6 +34,9 @@ KEYWORDS = {"if", "else", "for", "foreach", "while", "do", "return", "break", "c
             "thread", "goto", "typename", "and", "or", "not", "volatile"}
 RESERVED_VAR = {"map", "set", "array", "out", "inout", "string", "int", "float", "bool", "vector", "class", "typename",
                 "func", "ref", "auto", "const", "static", "new", "this", "super", "null", "Class", "Object"}
+# engine classes whose names dzStudio's own members must not take (the compiler rejects a method named like a type)
+ENGINE_TYPES = {"Input", "Pos", "Widget", "Object", "Math", "Shape", "Param", "Timer", "Game", "CGame", "DayZGame",
+                "Managed", "Class", "TextWidget", "UIManager", "ScriptCallQueue", "EntityAI", "Man"}
 # what every class has (Class / Managed in the engine)
 BUILTIN_MEMBERS = {"Cast", "CastTo", "ClassName", "Type", "IsInherited", "ToString", "GetDebugName", "IsInstanceOf"}
 MODULES = {"1_Core": 1, "2_GameLib": 2, "3_Game": 3, "4_World": 4, "5_Mission": 5}
@@ -347,6 +352,11 @@ class Checker:
                 if j < b and toks[j].t == "=":
                     depth = 0
                     while j < b:
+                        if toks[j].t == "new":
+                            _, nj = self.read_type(toks, j + 1)
+                            if nj > j + 1:
+                                j = nj
+                                continue
                         if toks[j].t in ("(", "{", "["):
                             depth += 1
                         elif toks[j].t in (")", "}", "]"):
@@ -427,6 +437,7 @@ class Checker:
             for m0 in k.methods.values():
                 all_methods.append(m0)
                 all_methods.extend(m0.alts)
+            self.clashes(k, ch)
             for m in all_methods:
                 if "override" in m.mods and full and m.name != k.name:
                     found = any(m.name in b.methods for b in ch[1:]) or m.name in BUILTIN_MEMBERS
@@ -436,7 +447,35 @@ class Checker:
                     self.body(m.file, self.tokens_of(m.file), m, k)
         for g in self.globals.values():
             if isinstance(g, Method) and g.body and (not only or os.path.abspath(g.file) in only):
+                if self.type_name(g.name):
+                    self.report(g.file, g.line, "function named like a type: %s" % g.name)
                 self.body(g.file, self.tokens_of(g.file), g, None)
+
+    def type_name(self, name):
+        return name in RESERVED_VAR or name in ENGINE_TYPES or name in self.classes or name in self.enums \
+            or name in self.typedefs
+
+    def clashes(self, k, ch):
+        bases = ch[1:]
+        for f in k.fields.values():
+            if self.type_name(f.name):
+                self.report(k.file, f.line, "field named like a type: %s.%s" % (k.name, f.name))
+            for b in bases:
+                if f.name in b.fields:
+                    self.report(k.file, f.line, "%s.%s shadows the field of %s" % (k.name, f.name, b.name))
+                    break
+                if f.name in b.methods:
+                    self.report(k.file, f.line, "field %s.%s is named like a method of %s" % (k.name, f.name, b.name))
+                    break
+        for m in k.methods.values():
+            if m.name == k.name:
+                continue
+            if self.type_name(m.name):
+                self.report(m.file, m.line, "method named like a type or engine name: %s.%s" % (k.name, m.name))
+            for c in ch:
+                if m.name in c.fields:
+                    self.report(m.file, m.line, "method %s.%s is named like a field of %s" % (k.name, m.name, c.name))
+                    break
 
     def tokens_of(self, path):
         for p, t in self.files:
@@ -465,7 +504,7 @@ class Checker:
             if p["name"] in locals_:
                 self.report(path, p["line"], "parameter %s twice" % p["name"])
             locals_[p["name"]] = p["type"]
-            if p["name"] in RESERVED_VAR:
+            if self.type_name(p["name"]):
                 self.report(path, p["line"], "parameter named like a type: %s" % p["name"])
         module = self.module_of(path)
         i = a + 1
@@ -589,7 +628,7 @@ class Checker:
         name = toks[j].t
         if name in locals_:
             self.report(path, toks[j].line, "variable %s declared twice in one function" % name)
-        if name in RESERVED_VAR:
+        if self.type_name(name):
             self.report(path, toks[j].line, "variable named like a type: %s" % name)
         locals_[name] = typ
 
