@@ -12,11 +12,31 @@ class DZS_WorkResult : Managed
 	string m_Error;
 }
 
+// Loot entries of a project file the loot editor does not take over at opening, so a save carries them over unchanged
+// (DZS_KeptBlocks): the ones that do not fit the base (orphaned, refused …) by their index in the file, or every one
+// when the base's loot files are not there.
+class DZS_LootKeep : Managed
+{
+	bool m_All;
+	ref map<int, bool> m_Blocks = new map<int, bool>();
+	ref map<int, bool> m_Changes = new map<int, bool>();
+
+	bool Keeps(bool block, int index)
+	{
+		if (m_All)
+			return true;
+		if (block)
+			return m_Blocks.Contains(index);
+		return m_Changes.Contains(index);
+	}
+}
+
 class DZS_WorkFolder
 {
 	static const string ROOT = "$profile:dzstudio\\Work";
 
-	// One folder per project id (a project's backup folder gets its own).
+	// One folder per project id (a project's backup folder gets its own): '_' doubled, every character a folder name
+	// cannot hold as '_' and its byte in hex, so two ids never share a folder.
 	static string DirOf(string folder)
 	{
 		string safe = "";
@@ -24,8 +44,10 @@ class DZS_WorkFolder
 		for (int i = 0; i < folder.Length(); i++)
 		{
 			string c = folder.Get(i);
-			if (bad.Contains(c))
-				safe += "_";
+			if (c == "_")
+				safe += "__";
+			else if (bad.Contains(c))
+				safe += "_" + DZS_Json.HexByte(DZS_Utf8.Byte(folder, i));
 			else
 				safe += c;
 		}
@@ -213,7 +235,7 @@ class DZS_WorkFolder
 
 	// The project file of version 1 for the open path: the editor part with every group's block as its file
 	// ('paths': block id -> relative file; a block without a path keeps "<id>.json").
-	static array<string> Manifest(DZS_Json root, string mapKey, map<string, string> paths)
+	static array<string> Manifest(DZS_Json root, string mapKey, map<string, string> paths, DZS_LootKeep lootKeep = null)
 	{
 		string name = "";
 		string viewText = "";
@@ -239,7 +261,7 @@ class DZS_WorkFolder
 		DZS_Json part = PartV1(proj, paths);
 		Unlisted(root, part, paths);
 		DZS_LayerTake.Put(root, part);
-		DZS_KeptBlocks.Put(root, part);
+		DZS_KeptBlocks.Put(root, part, lootKeep);
 		string projText = TextOf(part, 1);
 		return DZS_ProjectFile.Compose(name, mapKey, projText, viewText);
 	}
@@ -362,17 +384,21 @@ class DZS_WorkFolder
 		return DZS_Files.Join(chunks);
 	}
 
-	// The loot blocks and changes of a project (the types they name into 'types', own rows into the origin).
-	static DZS_PatchProject LootPart(DZS_PatchProject pp, array<string> types, DZS_LootOrigin origin)
+	// The loot blocks and changes of a project (the types they name into 'types', own rows into the origin; the index of
+	// each in the project into 'blockAt' and 'changeAt').
+	static DZS_PatchProject LootPart(DZS_PatchProject pp, array<string> types, DZS_LootOrigin origin, array<int> blockAt = null, array<int> changeAt = null)
 	{
 		DZS_PatchProject lp = new DZS_PatchProject();
 		lp.m_Map = pp.m_Map;
 		lp.m_Slug = pp.m_Slug;
-		foreach (DZS_PatchBlock b : pp.m_Blocks)
+		for (int bi = 0; bi < pp.m_Blocks.Count(); bi++)
 		{
+			DZS_PatchBlock b = pp.m_Blocks[bi];
 			if (b.m_Kind.IndexOf("loot") != 0)
 				continue;
 			lp.m_Blocks.Insert(b);
+			if (blockAt)
+				blockAt.Insert(bi);
 			if (b.m_Kind == "lootType")
 				AddType(types, b.m_Data.GetStr("name"));
 			else if (b.m_Kind == "lootRow")
@@ -380,11 +406,14 @@ class DZS_WorkFolder
 			else if (b.m_Parent)
 				AddType(types, b.m_Parent.GetStr("group"));
 		}
-		foreach (DZS_PatchChange c : pp.m_Changes)
+		for (int ci = 0; ci < pp.m_Changes.Count(); ci++)
 		{
+			DZS_PatchChange c = pp.m_Changes[ci];
 			if (c.m_Block.IndexOf("loot") != 0)
 				continue;
 			lp.m_Changes.Insert(c);
+			if (changeAt)
+				changeAt.Insert(ci);
 			if (c.m_Block == "lootType")
 				AddType(types, c.m_Key.GetStr("name"));
 			else if (c.m_Block != "lootRow")
@@ -393,8 +422,9 @@ class DZS_WorkFolder
 		return lp;
 	}
 
-	// The patched loot files into the working folder; changes that do not fit the base are noted in 'issues'.
-	static void WriteLoot(DZS_Patcher p, string dir, DZS_Issues issues)
+	// The patched loot files into the working folder; changes that do not fit the base are noted in 'issues' and kept
+	// ('keep', by the project indices 'blockAt' and 'changeAt' of the run's entries).
+	static void WriteLoot(DZS_Patcher p, string dir, DZS_Issues issues, DZS_LootKeep keep = null, array<int> blockAt = null, array<int> changeAt = null)
 	{
 		foreach (string rel : p.m_OutPaths)
 		{
@@ -407,13 +437,20 @@ class DZS_WorkFolder
 		int bad = 0;
 		foreach (DZS_PatchEntry e : p.m_Report.m_Entries)
 		{
-			if (e.m_Status == "invalid" || e.m_Status == "ambiguous" || e.m_Status == "collision" || e.m_Status == "orphaned")
-				bad++;
+			if (e.m_Status != "invalid" && e.m_Status != "ambiguous" && e.m_Status != "collision" && e.m_Status != "orphaned")
+				continue;
+			bad++;
+			if (!keep)
+				continue;
+			if (e.m_What == "block" && blockAt && e.m_Index >= 0 && e.m_Index < blockAt.Count())
+				keep.m_Blocks.Set(blockAt[e.m_Index], true);
+			else if (e.m_What == "change" && changeAt && e.m_Index >= 0 && e.m_Index < changeAt.Count())
+				keep.m_Changes.Set(changeAt[e.m_Index], true);
 		}
 		if (bad > 0)
 		{
-			string de = bad.ToString() + DZS_Issues.Plural(bad, " Loot-Änderung passt", " Loot-Änderungen passen") + " nicht zur Basis und gilt nicht";
-			string en = bad.ToString() + DZS_Issues.Plural(bad, " loot change does", " loot changes do") + " not fit the base and do not apply";
+			string de = bad.ToString() + DZS_Issues.Plural(bad, " Loot-Änderung passt nicht zur Basis und gilt nicht", " Loot-Änderungen passen nicht zur Basis und gelten nicht") + " (bleibt im Projekt)";
+			string en = bad.ToString() + DZS_Issues.Plural(bad, " loot change does not fit the base and does not apply", " loot changes do not fit the base and do not apply") + " (kept in the project)";
 			issues.Add(DZS_Issue.WARNING, de, en);
 		}
 	}
@@ -501,6 +538,9 @@ class DZS_WorkBuild : DZS_Job
 	protected string m_BaseDir;
 	protected ref map<string, string> m_Originals;
 	protected ref array<string> m_Types = new array<string>();
+	protected ref DZS_LootKeep m_LootKeep = new DZS_LootKeep();
+	protected ref array<int> m_LootBlockAt = new array<int>();
+	protected ref array<int> m_LootChangeAt = new array<int>();
 	protected ref DZS_Patcher m_Run;
 	protected ref DZS_JsonWriteSteps m_GroupText;
 	protected int m_T0;
@@ -591,6 +631,9 @@ class DZS_WorkBuild : DZS_Job
 		if (m_Phase != DONE)
 			return false;
 		m_Share = 1;
+		// after the loot: the entries that do not fit the base stay in the project file's kept part
+		if (m_Result.m_Error == "" && !m_NeedBase && m_Root && !m_Result.m_Manifest)
+			m_Result.m_Manifest = DZS_WorkFolder.Manifest(m_Root, m_MapKey, m_Paths, m_LootKeep);
 		if (m_Result.m_Error == "" && !m_NeedBase)
 		{
 			DZS_WorkResult res = m_Result;
@@ -691,7 +734,6 @@ class DZS_WorkBuild : DZS_Job
 		{
 			if (m_At >= m_Project.m_Blocks.Count())
 			{
-				m_Result.m_Manifest = DZS_WorkFolder.Manifest(m_Root, m_MapKey, m_Paths);
 				m_Phase = LOOT;
 				return true;
 			}
@@ -726,19 +768,22 @@ class DZS_WorkBuild : DZS_Job
 		m_Phase = DONE;
 		m_Share = 0.5;
 		m_BaseDir = DZS_WorkFolder.UsableBase(m_Result.m_Base, m_MapKey, m_Issues);
+		// without the base's loot files the loot editor shows nothing: the project's loot is kept as it is
 		if (m_BaseDir == "")
 		{
+			m_LootKeep.m_All = true;
 			if (DZS_WorkFolder.NeedsBase(m_Root))
 				m_Issues.Add(DZS_Issue.WARNING, "Basis des Projekts fehlt — Loot lässt sich erst nach dem Laden der Vanilla-Mission bearbeiten", "The project's base is missing — loot can be edited only after the vanilla mission is fetched");
 			return;
 		}
 		if (!DZS_WorkFolder.CopyLoot(m_BaseDir, m_MapKey, m_Dir))
 		{
+			m_LootKeep.m_All = true;
 			if (DZS_WorkFolder.NeedsBase(m_Root))
 				m_Issues.Add(DZS_Issue.WARNING, "Die Basis hat keine Loot-Dateien (mapgroupproto.xml, mapgrouppos.xml)", "The base has no loot files (mapgroupproto.xml, mapgrouppos.xml)");
 			return;
 		}
-		DZS_PatchProject lp = DZS_WorkFolder.LootPart(m_Project, m_Types, m_Result.m_Origin);
+		DZS_PatchProject lp = DZS_WorkFolder.LootPart(m_Project, m_Types, m_Result.m_Origin, m_LootBlockAt, m_LootChangeAt);
 		if (lp.m_Blocks.Count() + lp.m_Changes.Count() == 0)
 			return;
 		m_Originals = DZS_ApplyStore.Originals(m_BaseDir);
@@ -749,7 +794,7 @@ class DZS_WorkBuild : DZS_Job
 	protected void WriteLoot()
 	{
 		SetStep("Loot-Dateien", "loot files");
-		DZS_WorkFolder.WriteLoot(m_Run, m_Dir, m_Issues);
+		DZS_WorkFolder.WriteLoot(m_Run, m_Dir, m_Issues, m_LootKeep, m_LootBlockAt, m_LootChangeAt);
 	}
 
 	// The project's own loot types with their text in the base: from the base's mapgroupproto.xml as the patcher read

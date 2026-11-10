@@ -414,7 +414,8 @@ class DZS_ProjectBuild : DZS_Job
 		if (!m_NoLoot)
 		{
 			m_Lp = DZS_LootPlugin.Cast(m_Kernel.GetPlugin("loot"));
-			if (m_Lp && m_Lp.IsOn())
+			// without the base's loot files the open kept the project's loot as it is (DZS_LootKeep)
+			if (m_Lp && m_Lp.IsOn() && m_Lp.m_Files)
 			{
 				m_Types.Copy(m_Lp.EditedTypes(m_Inst));
 				m_LootObjs.Copy(m_Lp.ClassObjects(m_Inst));

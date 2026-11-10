@@ -1,7 +1,8 @@
 // Blocks and changes of a project file that no part of the editor takes over when it opens — kinds it has no editor
 // for (events without positions, items, globals, presets, restricted areas …, written by dzbot's workbench, its AI or
 // another program), loot entries while the loot editor is off for the project, layer entries a layer would not write
-// back as they are (DZS_LayerTake). They are carried over unchanged, extensions included, and written back at every
+// back as they are (DZS_LayerTake), loot entries the loot editor does not take over (DZS_LootKeep: not fitting the base,
+// or no loot files of the base). They are carried over unchanged, extensions included, and written back at every
 // save, so a save never drops what the editor cannot show.
 //
 // Opening puts them into the project's plugin entries under NAME (the working folder's project part, then the
@@ -12,8 +13,8 @@ class DZS_KeptBlocks
 	static const string NAME = "kept";
 
 	// {blocks, changes, slug?} of the root that the open leaves to nobody, null when there are none. part: the editor
-	// part the open goes on with (its "loot" and "plugins").
-	static DZS_Json Of(DZS_Json root, DZS_Json part)
+	// part the open goes on with (its "loot" and "plugins"); lootKeep: loot entries kept although loot is on.
+	static DZS_Json Of(DZS_Json root, DZS_Json part, DZS_LootKeep lootKeep = null)
 	{
 		bool lootOn = false;
 		DZS_Json loot = part.Get("loot");
@@ -64,7 +65,8 @@ class DZS_KeptBlocks
 				if (!block.IsObj())
 					continue;
 				string kind = block.GetStr("kind");
-				if (kind == "spawnerGroup" || (lootOn && kind.IndexOf("loot") == 0) || layerBlocks.Contains(block.GetStr("id")))
+				bool lootTaken = lootOn && kind.IndexOf("loot") == 0 && !(lootKeep && lootKeep.Keeps(true, b));
+				if (kind == "spawnerGroup" || lootTaken || layerBlocks.Contains(block.GetStr("id")))
 					continue;
 				blocks.Add(block);
 			}
@@ -77,7 +79,8 @@ class DZS_KeptBlocks
 				DZS_Json change = rc.At(c);
 				if (!change.IsObj())
 					continue;
-				if ((lootOn && change.GetStr("block").IndexOf("loot") == 0) || layerChanges.Contains(DZS_ProjectRefs.ChangeRef(change)))
+				bool lootChanged = lootOn && change.GetStr("block").IndexOf("loot") == 0 && !(lootKeep && lootKeep.Keeps(false, c));
+				if (lootChanged || layerChanges.Contains(DZS_ProjectRefs.ChangeRef(change)))
 					continue;
 				changes.Add(change);
 			}
@@ -97,12 +100,12 @@ class DZS_KeptBlocks
 	}
 
 	// The part the open goes on with, with the kept entries of the root under plugins.kept (an older one replaced).
-	static void Put(DZS_Json root, DZS_Json part)
+	static void Put(DZS_Json root, DZS_Json part, DZS_LootKeep lootKeep = null)
 	{
 		DZS_Json plugins = part.Get("plugins");
 		if (plugins && plugins.IsObj())
 			plugins.Remove(NAME);
-		DZS_Json kept = Of(root, part);
+		DZS_Json kept = Of(root, part, lootKeep);
 		if (!kept)
 			return;
 		if (!plugins || !plugins.IsObj())
@@ -215,14 +218,42 @@ class DZS_KeptBlocks
 		return (a >= 97 && a <= 122) || (a >= 65 && a <= 90) || (a >= 48 && a <= 57) || a == 95;
 	}
 
-	// The kept entries after the editor's own in the project file. keepSlug: the file's slug stays (a project saved to
-	// a provider — dzbot, a hosted session: the files of its own blocks stay in dzstudio/<slug>/ on the server); a
-	// local project's slug follows its name.
+	// The kept entries after the editor's own in the project file; one the editor writes itself now (the same block id
+	// or change ref — loot turned on after opening, a loot type made after all) is not written twice. keepSlug: the
+	// file's slug stays (a project saved to a provider — dzbot, a hosted session: the files of its own blocks stay in
+	// dzstudio/<slug>/ on the server); a local project's slug follows its name.
 	static void AddTo(DZS_Json kept, DZS_Json root, bool keepSlug)
 	{
 		if (!kept)
 			return;
-		DZS_ProjectV2.AddFragment(kept, root.Get("blocks"), root.Get("changes"));
+		DZS_Json blocks = root.Get("blocks");
+		DZS_Json changes = root.Get("changes");
+		map<string, bool> ids = new map<string, bool>();
+		map<string, bool> refs = new map<string, bool>();
+		for (int i = 0; i < blocks.Count(); i++)
+			ids.Set(blocks.At(i).GetStr("id"), true);
+		for (int k = 0; k < changes.Count(); k++)
+			refs.Set(DZS_ProjectRefs.ChangeRef(changes.At(k)), true);
+		DZS_Json kb = kept.Get("blocks");
+		if (kb && kb.IsArr())
+		{
+			for (int b = 0; b < kb.Count(); b++)
+			{
+				DZS_Json one = kb.At(b);
+				if (one.IsObj() && !ids.Contains(one.GetStr("id")))
+					blocks.Add(one);
+			}
+		}
+		DZS_Json kc = kept.Get("changes");
+		if (kc && kc.IsArr())
+		{
+			for (int c = 0; c < kc.Count(); c++)
+			{
+				DZS_Json two = kc.At(c);
+				if (two.IsObj() && !refs.Contains(DZS_ProjectRefs.ChangeRef(two)))
+					changes.Add(two);
+			}
+		}
 		string slug = kept.GetStr("slug");
 		if (slug != "" && keepSlug)
 		{
