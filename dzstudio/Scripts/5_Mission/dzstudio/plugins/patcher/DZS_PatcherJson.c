@@ -75,15 +75,7 @@ class DZS_PatcherJson : DZS_PatcherXml
 		return false;
 	}
 
-	// Engine check of a JSON text: strict syntax, no decimal in an integer field. "" when it loads.
-	static string EngineCheck(string file, array<string> chunks)
-	{
-		DZS_SrcDoc doc = DZS_SrcJson.Parse(chunks);
-		if (doc.m_Error != "")
-			return "parse";
-		return IntCheck(file, doc.m_Root);
-	}
-
+	// The engine's check of a parsed JSON file beyond strict syntax: no decimal in an integer field. "" when it loads.
 	static string IntCheck(string file, DZS_SrcNode root)
 	{
 		if (!root.IsObj())
@@ -814,93 +806,89 @@ class DZS_PatcherJson : DZS_PatcherXml
 		return "dzstudio/" + m_Project.m_Slug + "/" + b.m_Id + ".json";
 	}
 
-	// The file text of an own spawner group, or null with 'err' set.
+	// The file text of an own spawner group, or null with 'err' set (DZS_PSpawnerText at once).
 	static array<string> SpawnerText(DZS_PatchBlock b, out string err)
 	{
+		DZS_PSpawnerText t = new DZS_PSpawnerText(b);
+		while (!t.Step(1000000))
+		{
+		}
+		err = t.m_Err;
+		return t.m_Result;
+	}
+
+	// One object of an own spawner group as the engine reads it, or null with 'err' set.
+	static DZS_Json SpawnerObject(DZS_Json o, out string err)
+	{
 		err = "";
-		DZS_Json objs = b.m_Data.Get("objects");
-		if (!objs || !objs.IsArr())
+		if (!o.IsObj())
+		{
+			err = "bad-value";
+			return null;
+		}
+		DZS_Json name = o.Get("name");
+		if (!name || !name.IsStr() || name.m_Str == "")
 		{
 			err = "incomplete";
 			return null;
 		}
-		DZS_Json list = DZS_Json.Arr();
-		for (int i = 0; i < objs.Count(); i++)
+		DZS_PField vec = new DZS_PField("pos", DZS_PField.VEC3, true);
+		DZS_Json pos = JsonValue(vec, o.Get("pos"), err);
+		if (err != "")
+			return null;
+		DZS_Json yprIn = o.Get("ypr");
+		DZS_Json ypr;
+		if (yprIn)
+			ypr = JsonValue(vec, yprIn, err);
+		else
+			ypr = DZS_Json.ParseText("[0.000000, 0.000000, 0.000000]", err);
+		if (err != "")
+			return null;
+		DZS_Json scale = DZS_Json.Num("1");
+		DZS_Json scaleIn = o.Get("scale");
+		if (scaleIn)
 		{
-			DZS_Json o = objs.At(i);
-			if (!o.IsObj())
+			if (!scaleIn.IsNum() || !DZS_PatchNum.IsNumber(scaleIn.m_Str))
 			{
 				err = "bad-value";
 				return null;
 			}
-			DZS_Json name = o.Get("name");
-			if (!name || !name.IsStr() || name.m_Str == "")
-			{
-				err = "incomplete";
-				return null;
-			}
-			DZS_PField vec = new DZS_PField("pos", DZS_PField.VEC3, true);
-			DZS_Json pos = JsonValue(vec, o.Get("pos"), err);
-			if (err != "")
-				return null;
-			DZS_Json yprIn = o.Get("ypr");
-			DZS_Json ypr;
-			if (yprIn)
-				ypr = JsonValue(vec, yprIn, err);
-			else
-				ypr = DZS_Json.ParseText("[0.000000, 0.000000, 0.000000]", err);
-			if (err != "")
-				return null;
-			DZS_Json scale = DZS_Json.Num("1");
-			DZS_Json scaleIn = o.Get("scale");
-			if (scaleIn)
-			{
-				if (!scaleIn.IsNum() || !DZS_PatchNum.IsNumber(scaleIn.m_Str))
-				{
-					err = "bad-value";
-					return null;
-				}
-				scale = DZS_Json.Num(DZS_PatchNum.Canon(scaleIn.m_Str));
-			}
-			bool persist = false;
-			DZS_Json persistIn = o.Get("enableCEPersistency");
-			if (persistIn)
-			{
-				int pb = BoolOf(persistIn);
-				if (pb < 0)
-				{
-					err = "bad-value";
-					return null;
-				}
-				persist = pb == 1;
-			}
-			string custom = "";
-			DZS_Json customIn = o.Get("customString");
-			if (customIn)
-			{
-				if (!customIn.IsStr())
-				{
-					err = "bad-value";
-					return null;
-				}
-				custom = customIn.m_Str;
-			}
-			DZS_Json e = DZS_Json.Obj();
-			DZS_Json nameOut = DZS_Json.Str(name.m_Str);
-			e.Set("name", nameOut);
-			e.Set("pos", pos);
-			e.Set("ypr", ypr);
-			e.Set("scale", scale);
-			DZS_Json persistOut = DZS_Json.Boolean(persist);
-			e.Set("enableCEPersistency", persistOut);
-			DZS_Json customOut = DZS_Json.Str(custom);
-			e.Set("customString", customOut);
-			list.Add(e);
+			scale = DZS_Json.Num(DZS_PatchNum.Canon(scaleIn.m_Str));
 		}
-		DZS_Json root = DZS_Json.Obj();
-		root.Set("Objects", list);
-		string text = DZS_PatchText.JsonText(root, "", "    ", "\n") + "\n";
-		return DZS_Files.Chunk(text);
+		bool persist = false;
+		DZS_Json persistIn = o.Get("enableCEPersistency");
+		if (persistIn)
+		{
+			int pb = BoolOf(persistIn);
+			if (pb < 0)
+			{
+				err = "bad-value";
+				return null;
+			}
+			persist = pb == 1;
+		}
+		string custom = "";
+		DZS_Json customIn = o.Get("customString");
+		if (customIn)
+		{
+			if (!customIn.IsStr())
+			{
+				err = "bad-value";
+				return null;
+			}
+			custom = customIn.m_Str;
+		}
+		DZS_Json e = DZS_Json.Obj();
+		DZS_Json nameOut = DZS_Json.Str(name.m_Str);
+		e.Set("name", nameOut);
+		e.Set("pos", pos);
+		e.Set("ypr", ypr);
+		e.Set("scale", scale);
+		DZS_Json persistOut = DZS_Json.Boolean(persist);
+		e.Set("enableCEPersistency", persistOut);
+		DZS_Json customOut = DZS_Json.Str(custom);
+		e.Set("customString", customOut);
+		return e;
 	}
 
 	// ---- own spawn gear presets ----
@@ -1293,5 +1281,66 @@ class DZS_PatcherJson : DZS_PatcherXml
 				f.m_Error = bad;
 		}
 		return f;
+	}
+}
+
+// The text of an own spawner group over several steps, object by object: the same bytes as the whole group written
+// with DZS_PatchText.JsonText.
+class DZS_PSpawnerText : Managed
+{
+	protected ref DZS_Json m_Objs;
+	protected int m_At;
+	protected ref DZS_TextWriter m_W;
+	string m_Err;
+	// the chunks, or null with m_Err set
+	ref array<string> m_Result;
+	protected bool m_Done;
+
+	void DZS_PSpawnerText(DZS_PatchBlock b)
+	{
+		m_Objs = b.m_Data.Get("objects");
+		if (!m_Objs || !m_Objs.IsArr())
+		{
+			m_Err = "incomplete";
+			m_Done = true;
+			return;
+		}
+		m_W = new DZS_TextWriter(DZS_Files.BLOCK);
+		m_W.Append("{\n    " + DZS_TextForm.Str("Objects") + ": ");
+		if (m_Objs.Count() == 0)
+			m_W.Append("[]");
+		else
+			m_W.Append("[");
+	}
+
+	// Objects until about ms milliseconds are used; true when the text is complete (or refused).
+	bool Step(float ms)
+	{
+		if (m_Done)
+			return true;
+		int t0 = TickCount(0);
+		while (m_At < m_Objs.Count())
+		{
+			if (DZS_Job.Over(t0, ms))
+				return false;
+			string err;
+			DZS_Json e = DZS_PatcherJson.SpawnerObject(m_Objs.At(m_At), err);
+			if (err != "")
+			{
+				m_Err = err;
+				m_Done = true;
+				return true;
+			}
+			if (m_At > 0)
+				m_W.Append(",");
+			m_W.Append("\n        " + DZS_PatchText.JsonText(e, "        ", "    ", "\n"));
+			m_At++;
+		}
+		if (m_Objs.Count() > 0)
+			m_W.Append("\n    ]");
+		m_W.Append("\n}\n");
+		m_Result = m_W.Finish();
+		m_Done = true;
+		return true;
 	}
 }

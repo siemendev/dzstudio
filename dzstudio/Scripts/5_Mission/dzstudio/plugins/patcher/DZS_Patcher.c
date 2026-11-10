@@ -35,6 +35,9 @@ class DZS_Patcher : DZS_PatcherJson
 	protected ref array<DZS_PatchFile> m_FAll;
 	protected int m_FPass;
 	protected bool m_FGameplayOk;
+	// an own spawner group's text and a written JSON file's engine check, each over several steps
+	protected ref DZS_PSpawnerText m_OText;
+	protected ref DZS_SrcJsonSteps m_FParse;
 
 	// 'ground' defaults to the game's terrain; the conformance runner passes a flat one. The whole run at once.
 	static DZS_Patcher Run(DZS_PatchProject project, string baseDir, map<string, string> over = null, DZS_PatchGround ground = null)
@@ -71,8 +74,8 @@ class DZS_Patcher : DZS_PatcherJson
 		{
 			float reads = Math.Max(1, m_Reads.Count());
 			float inFile = 0;
-			if (m_Reading && m_Reading.m_Parse)
-				inFile = m_Reading.m_Parse.Progress();
+			if (m_Reading)
+				inFile = m_Reading.Progress();
 			return 0.6 * (m_At + inFile) / reads;
 		}
 		if (m_Phase == CHANGES)
@@ -131,7 +134,7 @@ class DZS_Patcher : DZS_PatcherJson
 			}
 			else if (m_Phase == OWN)
 			{
-				if (OwnStep())
+				if (OwnStep(t0, ms))
 				{
 					m_Phase = REGISTER;
 					m_At = 0;
@@ -147,26 +150,37 @@ class DZS_Patcher : DZS_PatcherJson
 			}
 			else if (m_Phase == FILES)
 			{
-				if (FinishStep())
+				if (FinishStep(t0, ms))
 					m_Phase = DONE;
 			}
 		}
 		return true;
 	}
 
-	// The base's XML files the changes and own blocks name, read ahead in steps (a file the run then does not ask for
+	// The base's files the changes and own blocks name, read ahead in steps (a file the run then does not ask for
 	// changes nothing; one it asks for that is not here is read when asked for).
 	protected void PlanReads()
 	{
 		m_Reads = new array<string>();
 		foreach (DZS_PatchChange c : m_Project.m_Changes)
-			AddRead(PlannedFile(c.m_Block));
+		{
+			DZS_PKind ck = DZS_PKinds.Get(c.m_Block);
+			if (ck && ck.m_FileInKey)
+				AddRead(DZS_PKind.EnvFile(KeyStr(c.m_Key, "file")));
+			else
+				AddRead(PlannedFile(c.m_Block));
+		}
 		foreach (DZS_PatchBlock b : m_Project.m_Blocks)
 			AddRead(PlannedFile(b.m_Kind));
 	}
 
 	protected static string PlannedFile(string kind)
 	{
+		if (kind == "effectArea" || kind == "safePosition")
+			return AREA_FILE;
+		// own files are registered there
+		if (kind == "gameplaySetting" || kind == "spawnerGroup" || kind == "gearPreset" || kind == "restrictedArea")
+			return GAMEPLAY_FILE;
 		DZS_PKind k = DZS_PKinds.Get(kind);
 		if (!k || k.m_FileInKey)
 			return "";
@@ -179,9 +193,9 @@ class DZS_Patcher : DZS_PatcherJson
 			return;
 		string low = DZS_PatchText.Lower(rel);
 		int n = low.Length();
-		if (n < 4 || low.Substring(n - 4, 4) != ".xml")
-			return;
-		if (m_Reads.Find(low) < 0)
+		bool xml = n >= 4 && low.Substring(n - 4, 4) == ".xml";
+		bool json = n >= 5 && low.Substring(n - 5, 5) == ".json";
+		if ((xml || json) && m_Reads.Find(low) < 0)
 			m_Reads.Insert(low);
 	}
 
@@ -490,7 +504,7 @@ class DZS_Patcher : DZS_PatcherJson
 
 	// One piece of the own blocks: their entries, then one block of the top level, one nested block per depth, one
 	// own element's text; true when all are done (the order of the whole run at once).
-	protected bool OwnStep()
+	protected bool OwnStep(int t0, float ms)
 	{
 		int count = m_Project.m_Blocks.Count();
 		if (m_OPass < 0)
@@ -518,8 +532,19 @@ class DZS_Patcher : DZS_PatcherJson
 				m_At = 0;
 				return false;
 			}
+			if (m_OText)
+			{
+				float left = ms - (TickCount(0) - t0) / 10000.0;
+				if (!m_OText.Step(Math.Max(left, 0.5)))
+					return false;
+				OwnFileDone(m_OEntries[m_At], m_Project.m_Blocks[m_At], m_OText.m_Result, m_OText.m_Err, SPAWNERS);
+				m_OText = null;
+				m_At++;
+				return false;
+			}
 			OwnFirst(m_Project.m_Blocks[m_At], m_OEntries[m_At]);
-			m_At++;
+			if (!m_OText)
+				m_At++;
 			return false;
 		}
 		// nested blocks by depth, so a loot point can go into an own container of an own loot type
@@ -1090,20 +1115,23 @@ class DZS_Patcher : DZS_PatcherJson
 			return;
 		}
 		string err;
-		string regList = SPAWNERS;
-		array<string> chunks;
 		if (b.m_Kind == "gearPreset")
 		{
-			regList = GEAR;
-			chunks = GearText(b, err);
+			array<string> gear = GearText(b, err);
+			OwnFileDone(e, b, gear, err, GEAR);
 		}
 		else if (b.m_Kind == "restrictedArea")
 		{
-			regList = PRA;
-			chunks = PraText(b, err);
+			array<string> pra = PraText(b, err);
+			OwnFileDone(e, b, pra, err, PRA);
 		}
 		else
-			chunks = SpawnerText(b, err);
+			m_OText = new DZS_PSpawnerText(b);
+	}
+
+	// An own file's text made: the file and its registration (or the block refused).
+	protected void OwnFileDone(DZS_PatchEntry e, DZS_PatchBlock b, array<string> chunks, string err, string regList)
+	{
 		if (err != "")
 		{
 			e.m_Status = "invalid";
@@ -1261,7 +1289,7 @@ class DZS_Patcher : DZS_PatcherJson
 
 	// One file finished: first every file read from the base, then every file the run created (registered ones only
 	// when cfggameplay.json could take them). True when all are done.
-	protected bool FinishStep()
+	protected bool FinishStep(int t0, float ms)
 	{
 		if (m_FPass == 0)
 		{
@@ -1274,8 +1302,21 @@ class DZS_Patcher : DZS_PatcherJson
 				return false;
 			}
 			DZS_PatchFile f = m_FAll[m_At];
+			string bad = "";
+			if (m_FParse)
+			{
+				if (!StepCheck(f, t0, ms, bad))
+					return false;
+				m_At++;
+				FinishChanged(f, bad);
+				return false;
+			}
+			if (FinishRead(f))
+			{
+				m_FParse = new DZS_SrcJsonSteps(f.m_Out, 3);
+				return false;
+			}
 			m_At++;
-			FinishRead(f);
 			return false;
 		}
 		if (m_At >= m_FAll.Count())
@@ -1284,28 +1325,62 @@ class DZS_Patcher : DZS_PatcherJson
 			return true;
 		}
 		DZS_PatchFile c = m_FAll[m_At];
-		m_At++;
-		if (!c.m_Created || !c.m_Out)
+		string bad2 = "";
+		if (m_FParse)
+		{
+			if (!StepCheck(c, t0, ms, bad2))
+				return false;
+			m_At++;
+			if (bad2 != "")
+			{
+				Refuse(c, bad2);
+				return false;
+			}
+			m_Report.FileNote(c.m_Path, "created", "");
+			Output(c.m_Path, c.m_Out);
 			return false;
+		}
+		if (!c.m_Created || !c.m_Out)
+		{
+			m_At++;
+			return false;
+		}
 		if (m_RegFiles.Find(c) >= 0 && !m_FGameplayOk)
 		{
+			m_At++;
 			Refuse(c, "registration");
 			return false;
 		}
-		string bad2 = "";
 		if (c.m_IsJson && DZS_PatchText.Lower(c.m_Path).IndexOf(".json") > 0)
-			bad2 = EngineCheck(DZS_PatchText.Lower(c.m_Path), c.m_Out);
-		if (bad2 != "")
 		{
-			Refuse(c, bad2);
+			m_FParse = new DZS_SrcJsonSteps(c.m_Out, 3);
 			return false;
 		}
+		m_At++;
 		m_Report.FileNote(c.m_Path, "created", "");
 		Output(c.m_Path, c.m_Out);
 		return false;
 	}
 
-	protected void FinishRead(DZS_PatchFile f)
+	// One slice of the engine check of f's output (strict syntax, IntCheck); true when it is complete, with 'bad'.
+	protected bool StepCheck(DZS_PatchFile f, int t0, float ms, out string bad)
+	{
+		bad = "";
+		float left = ms - (TickCount(0) - t0) / 10000.0;
+		if (!m_FParse.Step(Math.Max(left, 0.5)))
+			return false;
+		DZS_SrcDoc doc = m_FParse.Result();
+		m_FParse = null;
+		if (doc.m_Error != "")
+			bad = "parse";
+		else
+			bad = IntCheck(DZS_PatchText.Lower(f.m_Path), doc.m_Root);
+		return true;
+	}
+
+	// A base file at the end of the run: its note and output. True when it is a changed JSON file whose engine check
+	// is still to run (FinishChanged afterwards).
+	protected bool FinishRead(DZS_PatchFile f)
 	{
 		if (!f.m_Exists)
 		{
@@ -1313,15 +1388,15 @@ class DZS_Patcher : DZS_PatcherJson
 				m_Report.FileNote(f.m_Path, "broken", f.m_Error);
 			else
 				m_Report.FileNote(f.m_Path, "missing", "");
-			return;
+			return false;
 		}
 		if (f.m_Error != "")
 		{
 			m_Report.FileNote(f.m_Path, "broken", f.m_Error);
-			return;
+			return false;
 		}
 		if (f.m_Created)
-			return;
+			return false;
 		bool changed = f.Finish();
 		if (f.m_Fresh)
 		{
@@ -1332,26 +1407,28 @@ class DZS_Patcher : DZS_PatcherJson
 			}
 			else
 				m_Report.FileNote(f.m_Path, "missing", "");
-			return;
+			return false;
 		}
 		if (changed && f.m_IsJson)
-		{
-			string bad = EngineCheck(DZS_PatchText.Lower(f.m_Path), f.m_Out);
-			if (bad != "")
-			{
-				Refuse(f, bad);
-				return;
-			}
-		}
+			return true;
 		if (changed)
-		{
-			m_Report.FileNote(f.m_Path, "written", "");
-			Output(f.m_Path, f.m_Out);
-			if (DZS_PatchText.Lower(f.m_Path) == GAMEPLAY_FILE)
-				m_Report.Note("enableCfgGameplayFile");
-		}
+			FinishChanged(f, "");
 		else
 			m_Report.FileNote(f.m_Path, "unchanged", "");
+		return false;
+	}
+
+	protected void FinishChanged(DZS_PatchFile f, string bad)
+	{
+		if (bad != "")
+		{
+			Refuse(f, bad);
+			return;
+		}
+		m_Report.FileNote(f.m_Path, "written", "");
+		Output(f.m_Path, f.m_Out);
+		if (DZS_PatchText.Lower(f.m_Path) == GAMEPLAY_FILE)
+			m_Report.Note("enableCfgGameplayFile");
 	}
 
 	protected void Refuse(DZS_PatchFile f, string why)

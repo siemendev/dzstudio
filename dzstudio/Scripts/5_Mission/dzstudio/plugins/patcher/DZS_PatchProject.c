@@ -45,18 +45,50 @@ class DZS_PatchProject : Managed
 		return FromJson(root, error);
 	}
 
-	static DZS_PatchProject FromJson(DZS_Json root, out string error)
+	// Whether FromJson reads the project, without building it (nothing is copied).
+	static bool Readable(DZS_Json root, out string error)
 	{
 		if (!root.IsObj() || root.GetStr("format") != FORMAT)
 		{
 			error = "not a dzstudio-project file";
-			return null;
+			return false;
 		}
 		if (root.GetInt("version") != VERSION)
 		{
 			error = "format version " + root.GetInt("version") + " (this patcher reads " + VERSION + ")";
-			return null;
+			return false;
 		}
+		DZS_Json blocks = root.Get("blocks");
+		if (blocks && blocks.IsArr())
+		{
+			for (int i = 0; i < blocks.Count(); i++)
+			{
+				if (!blocks.At(i).IsObj())
+				{
+					error = "block " + i + " is not an object";
+					return false;
+				}
+			}
+		}
+		DZS_Json changes = root.Get("changes");
+		if (changes && changes.IsArr())
+		{
+			for (int k = 0; k < changes.Count(); k++)
+			{
+				if (!changes.At(k).IsObj())
+				{
+					error = "change " + k + " is not an object";
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	static DZS_PatchProject FromJson(DZS_Json root, out string error)
+	{
+		if (!Readable(root, error))
+			return null;
 		DZS_PatchProject p = new DZS_PatchProject();
 		p.m_Map = root.GetStr("map");
 		p.m_Slug = root.GetStr("slug");
@@ -66,11 +98,6 @@ class DZS_PatchProject : Managed
 			for (int i = 0; i < blocks.Count(); i++)
 			{
 				DZS_Json bj = blocks.At(i);
-				if (!bj.IsObj())
-				{
-					error = "block " + i + " is not an object";
-					return null;
-				}
 				DZS_PatchBlock b = new DZS_PatchBlock();
 				b.m_Id = bj.GetStr("id");
 				b.m_Kind = bj.GetStr("kind");
@@ -92,11 +119,6 @@ class DZS_PatchProject : Managed
 			for (int k = 0; k < changes.Count(); k++)
 			{
 				DZS_Json cj = changes.At(k);
-				if (!cj.IsObj())
-				{
-					error = "change " + k + " is not an object";
-					return null;
-				}
 				DZS_PatchChange c = new DZS_PatchChange();
 				c.m_Op = cj.GetStr("op");
 				c.m_Block = cj.GetStr("block");

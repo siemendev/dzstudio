@@ -527,3 +527,97 @@ class DZS_Json : Managed
 		return v;
 	}
 }
+
+// DZS_Json.ToChunks over several frames: containers above 'deep' are written item by item with the budget checked
+// between items, values from 'deep' down are written whole. The same chunks as ToChunks.
+class DZS_JsonWriteSteps : Managed
+{
+	protected ref DZS_Json m_Root;
+	protected bool m_Pretty;
+	protected int m_Deep;
+	protected ref DZS_TextWriter m_W = new DZS_TextWriter();
+	protected ref array<DZS_Json> m_Open = new array<DZS_Json>();
+	protected ref array<int> m_Next = new array<int>();
+	protected ref array<string> m_Result;
+
+	void DZS_JsonWriteSteps(DZS_Json root, bool pretty, int deep)
+	{
+		m_Root = root;
+		m_Pretty = pretty;
+		m_Deep = deep;
+		Enter(root);
+	}
+
+	array<string> Result()
+	{
+		return m_Result;
+	}
+
+	protected void Enter(DZS_Json v)
+	{
+		int depth = m_Open.Count();
+		if (depth >= m_Deep || v.Count() == 0 || (v.m_Type != DZS_Json.ARR && v.m_Type != DZS_Json.OBJ))
+		{
+			v.Write(m_W, m_Pretty, depth);
+			return;
+		}
+		if (v.m_Type == DZS_Json.ARR)
+			m_W.Append("[");
+		else
+			m_W.Append("{");
+		m_Open.Insert(v);
+		m_Next.Insert(0);
+	}
+
+	// Writes until about ms milliseconds are used; true when the text is complete (Result).
+	bool Step(float ms)
+	{
+		if (m_Result)
+			return true;
+		int t0 = TickCount(0);
+		float limit = ms * 10000;
+		while (m_Open.Count() > 0)
+		{
+			if (TickCount(0) - t0 >= limit)
+				return false;
+			int top = m_Open.Count() - 1;
+			DZS_Json n = m_Open[top];
+			int i = m_Next[top];
+			if (i >= n.Count())
+			{
+				if (m_Pretty)
+					m_W.Append("\n" + DZS_Json.Indent(top));
+				if (n.m_Type == DZS_Json.ARR)
+					m_W.Append("]");
+				else
+					m_W.Append("}");
+				m_Open.Remove(top);
+				m_Next.Remove(top);
+				continue;
+			}
+			m_Next[top] = i + 1;
+			if (i > 0)
+				m_W.Append(",");
+			if (m_Pretty)
+				m_W.Append("\n" + DZS_Json.Indent(top + 1));
+			DZS_Json item;
+			if (n.m_Type == DZS_Json.ARR)
+				item = n.At(i);
+			else
+			{
+				string key = n.m_Keys[i];
+				DZS_Json.WriteString(m_W, key);
+				if (m_Pretty)
+					m_W.Append(": ");
+				else
+					m_W.Append(":");
+				item = n.m_Map.Get(key);
+			}
+			Enter(item);
+		}
+		if (m_Pretty)
+			m_W.Append("\n");
+		m_Result = m_W.Finish();
+		return true;
+	}
+}

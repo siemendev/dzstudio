@@ -91,6 +91,22 @@ class DZS_PatchFile : Managed
 		Measure();
 	}
 
+	// A JSON file read over several frames (DZS_SrcJsonSteps): the same as Load.
+	void LoadJson(array<string> chunks, DZS_SrcDoc doc)
+	{
+		m_Chunks = chunks;
+		m_IsJson = true;
+		m_Xml = new DZS_XmlDoc();
+		m_Xml.SetSource(chunks);
+		m_Json = doc;
+		if (m_Json.m_Error != "")
+		{
+			m_Error = "parse";
+			m_ErrorText = m_Json.ErrorText();
+		}
+		Measure();
+	}
+
 	// An XML file read over several frames (DZS_XmlSteps): the same as Load.
 	void LoadXml(array<string> chunks, DZS_XmlDoc doc)
 	{
@@ -787,6 +803,16 @@ class DZS_PatchFileRead : Managed
 	ref DZS_PatchFile m_File;
 	ref array<string> m_Chunks;
 	ref DZS_XmlSteps m_Parse;
+	ref DZS_SrcJsonSteps m_JParse;
+
+	float Progress()
+	{
+		if (m_Parse)
+			return m_Parse.Progress();
+		if (m_JParse)
+			return m_JParse.Progress();
+		return 0;
+	}
 }
 
 class DZS_PatchFiles : Managed
@@ -861,9 +887,9 @@ class DZS_PatchFiles : Managed
 		return f;
 	}
 
-	// Reading a file ahead over several frames (DZS_Patcher.Step): an XML file of the base is parsed in steps and kept
+	// Reading a file ahead over several frames (DZS_Patcher.Step): a file of the base is parsed in steps and kept
 	// until the run asks for it, so a file the run never asks for leaves no trace in the result. Null when there is
-	// nothing to read in steps (read already, missing, JSON: those are read when asked for).
+	// nothing to read in steps (read already, missing).
 	DZS_PatchFileRead BeginRead(string rel)
 	{
 		string low = DZS_PatchText.Lower(rel);
@@ -873,7 +899,7 @@ class DZS_PatchFiles : Managed
 		r.m_Low = low;
 		DZS_PatchFile f = Open(rel, r);
 		r.m_File = f;
-		if (!r.m_Parse)
+		if (!r.m_Parse && !r.m_JParse)
 			return null;
 		return r;
 	}
@@ -881,15 +907,26 @@ class DZS_PatchFiles : Managed
 	// One slice of a read ahead; true when the file is read and waits for the run.
 	bool StepRead(DZS_PatchFileRead r, int t0, float ms)
 	{
-		if (!r.m_Parse.Step(t0, ms))
-			return false;
-		r.m_File.LoadXml(r.m_Chunks, r.m_Parse.Result());
+		if (r.m_JParse)
+		{
+			float left = ms - (TickCount(0) - t0) / 10000.0;
+			if (!r.m_JParse.Step(Math.Max(left, 0.5)))
+				return false;
+			r.m_File.LoadJson(r.m_Chunks, r.m_JParse.Result());
+			r.m_JParse = null;
+		}
+		else
+		{
+			if (!r.m_Parse.Step(t0, ms))
+				return false;
+			r.m_File.LoadXml(r.m_Chunks, r.m_Parse.Result());
+			r.m_Parse = null;
+		}
 		m_Ready.Set(r.m_Low, r.m_File);
-		r.m_Parse = null;
 		return true;
 	}
 
-	// The file as Get reads it; with 'steps' an XML file of the base is not parsed here but handed to steps.m_Parse.
+	// The file as Get reads it; with 'steps' it is not parsed here but handed to steps.m_Parse or m_JParse.
 	protected DZS_PatchFile Open(string rel, DZS_PatchFileRead steps)
 	{
 		string low = DZS_PatchText.Lower(rel);
@@ -914,11 +951,8 @@ class DZS_PatchFiles : Managed
 			else
 			{
 				f.m_Exists = true;
-				if (steps && !json)
-				{
-					steps.m_Chunks = kept;
-					steps.m_Parse = new DZS_XmlSteps(kept);
-				}
+				if (steps)
+					Defer(steps, kept, json);
 				else
 					f.Load(kept, json);
 			}
@@ -943,16 +977,22 @@ class DZS_PatchFiles : Managed
 			else
 			{
 				f.m_Exists = true;
-				if (steps && !json)
-				{
-					steps.m_Chunks = chunks;
-					steps.m_Parse = new DZS_XmlSteps(chunks);
-				}
+				if (steps)
+					Defer(steps, chunks, json);
 				else
 					f.Load(chunks, json);
 			}
 		}
 		return f;
+	}
+
+	protected static void Defer(DZS_PatchFileRead steps, array<string> chunks, bool json)
+	{
+		steps.m_Chunks = chunks;
+		if (json)
+			steps.m_JParse = new DZS_SrcJsonSteps(chunks, 3);
+		else
+			steps.m_Parse = new DZS_XmlSteps(chunks);
 	}
 
 	// A file the run creates (own spawner files).

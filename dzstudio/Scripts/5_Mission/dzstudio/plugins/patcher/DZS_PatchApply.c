@@ -340,6 +340,10 @@ class DZS_ApplyStore : Managed
 	protected ref array<string> m_ROwn;
 	protected ref map<string, string> m_ROver;
 	protected ref DZS_SrcJsonSteps m_RParse;
+	protected bool m_RParsed;
+	// writing a project's run: the part (0 originals kept, 1 the state, 2 the files, 3 the report) and the file at hand
+	protected int m_RWPart;
+	protected int m_RW;
 	protected ref DZS_Patcher m_RRun;
 	bool m_RDone;
 	bool m_Ok;
@@ -354,6 +358,9 @@ class DZS_ApplyStore : Managed
 		m_RBaseName = baseName;
 		m_RStep = 0;
 		m_RAt = 0;
+		m_RParsed = false;
+		m_RWPart = 0;
+		m_RW = 0;
 		m_RDone = false;
 		m_Ok = false;
 		m_Err = "";
@@ -412,6 +419,13 @@ class DZS_ApplyStore : Managed
 					EndRebuild();
 					return true;
 				}
+				if (m_RParsed)
+				{
+					// the parse's last slice has used this frame: the project is built from it in the next one
+					m_RParsed = false;
+					StartProject();
+					continue;
+				}
 				if (!m_RParse)
 				{
 					array<string> copy = DZS_Files.Read(CopyPath(m_Projects[m_RAt].m_Slug));
@@ -422,8 +436,8 @@ class DZS_ApplyStore : Managed
 				float left = ms - (TickCount(0) - t0) / 10000.0;
 				if (!m_RParse.Step(Math.Max(left, 0.5)))
 					return false;
-				StartProject();
-				continue;
+				m_RParsed = true;
+				return false;
 			}
 			if (m_RStep == 2)
 			{
@@ -435,14 +449,19 @@ class DZS_ApplyStore : Managed
 			}
 			if (m_RStep == 3)
 			{
-				if (!WriteProject())
+				int w = WriteStep();
+				if (w < 0)
 				{
 					m_RDone = true;
 					return true;
 				}
+				if (w == 0)
+					continue;
 				m_RRun = null;
 				m_RAt++;
 				m_RStep = 1;
+				m_RW = 0;
+				m_RWPart = 0;
 			}
 		}
 		return true;
@@ -472,52 +491,78 @@ class DZS_ApplyStore : Managed
 		m_RStep = 2;
 	}
 
-	// The run's files into the folder (their originals kept first) and its report; false when that failed (m_Err).
-	protected bool WriteProject()
+	// One piece of putting the run's files into the folder: an original kept, the state (which lists every file before
+	// it changes), one file written, the report. 1 when the project is written, 0 for more, -1 when it failed (m_Err).
+	protected int WriteStep()
 	{
 		DZS_AppliedProject ap = m_Projects[m_RAt];
 		DZS_Patcher run = m_RRun;
-		if (ap.m_Slug == m_RFocus)
-			m_FocusRun = run;
-		else
-			m_Others.Insert(ap.m_Name);
-		foreach (string rel : run.m_OutPaths)
+		if (m_RWPart == 0)
 		{
+			if (m_RW == 0)
+			{
+				if (ap.m_Slug == m_RFocus)
+					m_FocusRun = run;
+				else
+					m_Others.Insert(ap.m_Name);
+			}
+			if (m_RW >= run.m_OutPaths.Count())
+			{
+				m_RWPart = 1;
+				return 0;
+			}
+			string rel = run.m_OutPaths[m_RW];
+			m_RW++;
 			if (IndexLow(m_RTouched, rel) >= 0)
-				continue;
+				return 0;
 			if (!KeepOriginal(rel, m_ROwn))
 			{
 				m_Err = "cannot keep " + rel;
-				return false;
+				return -1;
 			}
 			m_RTouched.Insert(rel);
+			return 0;
 		}
-		array<string> pending = new array<string>();
-		pending.Copy(m_Touched);
-		foreach (string tr : m_RTouched)
+		if (m_RWPart == 1)
 		{
-			if (IndexLow(pending, tr) < 0)
-				pending.Insert(tr);
+			array<string> pending = new array<string>();
+			pending.Copy(m_Touched);
+			foreach (string tr : m_RTouched)
+			{
+				if (IndexLow(pending, tr) < 0)
+					pending.Insert(tr);
+			}
+			array<string> pendingOwn = new array<string>();
+			pendingOwn.Copy(m_Own);
+			foreach (string orr : m_ROwn)
+			{
+				if (IndexLow(pendingOwn, orr) < 0)
+					pendingOwn.Insert(orr);
+			}
+			SaveState(pending, pendingOwn);
+			m_RWPart = 2;
+			m_RW = 0;
+			return 0;
 		}
-		array<string> pendingOwn = new array<string>();
-		pendingOwn.Copy(m_Own);
-		foreach (string orr : m_ROwn)
+		if (m_RWPart == 2)
 		{
-			if (IndexLow(pendingOwn, orr) < 0)
-				pendingOwn.Insert(orr);
-		}
-		SaveState(pending, pendingOwn);
-		foreach (string w : run.m_OutPaths)
-		{
+			if (m_RW >= run.m_OutPaths.Count())
+			{
+				m_RWPart = 3;
+				return 0;
+			}
+			string w = run.m_OutPaths[m_RW];
+			m_RW++;
 			string full = m_Target + "\\" + Win(w);
 			MakeParent(full);
 			array<string> data = run.m_Out.Get(w);
 			if (!DZS_Files.Write(full, data))
 			{
 				m_Err = "cannot write " + w;
-				return false;
+				return -1;
 			}
 			m_ROver.Set(DZS_PatchText.Lower(w), full);
+			return 0;
 		}
 		array<string> lines = DZS_ApplyResult.Lines(run.m_Report, m_RBaseName);
 		string text = "";
@@ -525,7 +570,7 @@ class DZS_ApplyStore : Managed
 			text += l + "\n";
 		array<string> reportChunks = DZS_Files.Chunk(text);
 		DZS_Files.Write(ReportPath(ap.m_Slug), reportChunks);
-		return true;
+		return 1;
 	}
 
 	// files no project changes any more are back to their original already; dzStudio's .original goes
@@ -891,10 +936,9 @@ class DZS_PatchApply : Managed
 		DZS_Jobs.Start(j);
 	}
 
-	// The project is put together: its copy goes into the folder's list and the rebuild begins (false: m_Err).
+	// The project is put together: its text is written in steps (j.m_Text), then Store (false: m_Err).
 	bool Prepare(DZS_ApplyJob j, DZS_Json project)
 	{
-		DZS_PatchBase b = j.m_Base;
 		// the stored copy is the project as applied: its extensions too (the patcher ignores them), not the editor's view
 		DZS_Json exts = DZS_ProjectExtensions.Save();
 		if (exts)
@@ -904,17 +948,24 @@ class DZS_PatchApply : Managed
 				project.Set(DZS_EntityExts.MEMBER, exts);
 		}
 		string err;
-		DZS_PatchProject pj = DZS_PatchProject.FromJson(project, err);
-		if (!pj)
+		if (!DZS_PatchProject.Readable(project, err))
 		{
 			j.m_Err = err;
 			return false;
 		}
+		// deep enough that a spawner group's objects are written one by one
+		j.m_Text = new DZS_JsonWriteSteps(project, true, 5);
+		return true;
+	}
+
+	// The project's text is complete: its copy goes into the folder's list and the rebuild begins (false: m_Err).
+	bool Store(DZS_ApplyJob j, array<string> text)
+	{
+		DZS_PatchBase b = j.m_Base;
 		if (b.m_Vanilla)
 			DZS_ApplyStore.MarkVanillaCopy(b.m_Target);
 		string slug = DZS_ProjectV2.Slug(j.m_Name);
 		DZS_ApplyStore st = new DZS_ApplyStore(b.m_Target, b.m_Dir);
-		array<string> text = project.ToChunks(true);
 		if (!st.Put(slug, j.m_Name, text))
 		{
 			j.m_Err = "cannot write " + st.CopyPath(slug);
@@ -1071,11 +1122,12 @@ class DZS_ApplyJob : DZS_Job
 	DZS_ApplyDialog m_Source;
 	DZS_PatchApply m_Prepare;
 	ref DZS_ProjectBuild m_Build;
+	ref DZS_JsonWriteSteps m_Text;
 	ref DZS_ApplyStore m_Store;
 
 	override bool CanCancelNow()
 	{
-		return m_Cancelable && m_Build != null;
+		return m_Cancelable && (m_Build != null || m_Text != null);
 	}
 
 	override void OnCancel()
@@ -1083,6 +1135,7 @@ class DZS_ApplyJob : DZS_Job
 		if (m_Build)
 			m_Build.OnCancel();
 		m_Build = null;
+		m_Text = null;
 	}
 
 	override bool Step(float ms)
@@ -1093,7 +1146,7 @@ class DZS_ApplyJob : DZS_Job
 			SetStep("Bausteine", "building blocks");
 			if (!m_Build.Step(ms))
 			{
-				m_Share = 0.4 * m_Build.m_Share;
+				m_Share = 0.35 * m_Build.m_Share;
 				return false;
 			}
 			DZS_Json project = m_Build.m_Root;
@@ -1104,6 +1157,22 @@ class DZS_ApplyJob : DZS_Job
 				return true;
 			}
 			if (!m_Prepare || !m_Prepare.Prepare(this, project))
+			{
+				if (m_Err == "")
+					m_Err = "not prepared";
+				return true;
+			}
+			m_Share = 0.35;
+			return false;
+		}
+		if (m_Text)
+		{
+			float budget = ms - (TickCount(0) - t0) / 10000.0;
+			if (!m_Text.Step(Math.Max(budget, 0.5)))
+				return false;
+			array<string> text = m_Text.Result();
+			m_Text = null;
+			if (!m_Prepare.Store(this, text))
 			{
 				if (m_Err == "")
 					m_Err = "not prepared";
