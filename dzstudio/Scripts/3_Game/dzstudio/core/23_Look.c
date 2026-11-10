@@ -48,7 +48,7 @@ class DZS_Texts
 		return Fill(Get(key), a1, a2, a3);
 	}
 
-	// In one pass, so a value that itself holds "%2" (a path like patrick%2esiemen) stays as it is.
+	// In one pass, so a value that itself holds "%2" (a path like Users\jane%2edoe) stays as it is.
 	static string Fill(string s, string a1, string a2, string a3)
 	{
 		if (!s.Contains("%"))
