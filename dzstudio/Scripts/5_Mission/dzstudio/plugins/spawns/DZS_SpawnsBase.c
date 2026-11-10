@@ -27,9 +27,14 @@ class DZS_SpawnPoint : Managed
 	bool m_Own;
 	bool m_Moved;
 	bool m_Gone;
+	// carried over from the file, not editable here (DZS_KeptBlocks): an own point of the file (m_Elem its block id)
+	// or a base point a kept change touches
+	bool m_Kept;
 
 	string Key()
 	{
+		if (m_Kept && m_Own)
+			return "k:" + m_Elem;
 		if (m_Elem != "")
 			return "e:" + m_Elem;
 		return "b:" + m_Event + ":" + m_BX + ":" + m_BZ;
@@ -215,6 +220,82 @@ class DZS_SpawnsBase : Managed
 			np.m_Z = DZS_SpawnsModel.Field(inst, qid, "z").ToFloat();
 			np.m_A = DZS_SpawnsModel.Field(inst, qid, "a").ToFloat();
 			points.Insert(np);
+		}
+		Kept(inst, points);
+	}
+
+	protected void Kept(DZS_Instance inst, array<ref DZS_SpawnPoint> points)
+	{
+		array<ref DZS_Json> kch = DZS_KeptBlocks.Entries(inst, "changes", "spawnPosition");
+		foreach (DZS_Json kc : kch)
+		{
+			DZS_Json key = kc.Get("key");
+			string kx = DZS_KeptBlocks.Num(key, "x");
+			string kz = DZS_KeptBlocks.Num(key, "z");
+			if (kx == "" || kz == "")
+				continue;
+			foreach (DZS_SpawnPoint bp : points)
+			{
+				if (bp.m_Own || bp.m_Event != key.GetStr("event") || Math.AbsFloat(bp.m_BX.ToFloat() - kx.ToFloat()) > 0.5 || Math.AbsFloat(bp.m_BZ.ToFloat() - kz.ToFloat()) > 0.5)
+					continue;
+				bp.m_Kept = true;
+				string field = kc.GetStr("field");
+				DZS_Json to = kc.Get("to");
+				if (kc.GetStr("op") == "remove")
+					bp.m_Gone = true;
+				else if ((field == "x" || field == "z" || field == "a") && to && to.IsNum())
+				{
+					bp.m_Moved = true;
+					if (field == "x")
+						bp.m_X = to.m_Str.ToFloat();
+					else if (field == "z")
+						bp.m_Z = to.m_Str.ToFloat();
+					else
+						bp.m_A = to.m_Str.ToFloat();
+				}
+				else if (field == "pos" && to && to.IsObj())
+				{
+					bp.m_Moved = true;
+					if (DZS_KeptBlocks.Num(to, "x") != "")
+						bp.m_X = DZS_KeptBlocks.Num(to, "x").ToFloat();
+					if (DZS_KeptBlocks.Num(to, "z") != "")
+						bp.m_Z = DZS_KeptBlocks.Num(to, "z").ToFloat();
+					if (DZS_KeptBlocks.Num(to, "a") != "")
+						bp.m_A = DZS_KeptBlocks.Num(to, "a").ToFloat();
+				}
+			}
+		}
+		map<string, string> evNames = new map<string, string>();
+		array<ref DZS_Json> kev = DZS_KeptBlocks.Entries(inst, "blocks", "event");
+		foreach (DZS_Json ke : kev)
+		{
+			DZS_Json ed = ke.Get("data");
+			if (ed && ed.IsObj())
+				evNames.Set(ke.GetStr("id"), ed.GetStr("name"));
+		}
+		array<ref DZS_Json> kbl = DZS_KeptBlocks.Entries(inst, "blocks", "spawnPosition");
+		foreach (DZS_Json kb : kbl)
+		{
+			DZS_Json d = kb.Get("data");
+			string x = DZS_KeptBlocks.Num(d, "x");
+			string z = DZS_KeptBlocks.Num(d, "z");
+			if (x == "" || z == "")
+				continue;
+			DZS_Json par = kb.Get("parent");
+			string ev = "";
+			if (par && par.IsObj())
+				ev = par.GetStr("event");
+			else if (par && par.IsStr())
+				ev = evNames.Get(par.m_Str);
+			DZS_SpawnPoint kp = new DZS_SpawnPoint();
+			kp.m_Event = ev;
+			kp.m_Elem = kb.GetStr("id");
+			kp.m_Own = true;
+			kp.m_Kept = true;
+			kp.m_X = x.ToFloat();
+			kp.m_Z = z.ToFloat();
+			kp.m_A = DZS_KeptBlocks.Num(d, "a").ToFloat();
+			points.Insert(kp);
 		}
 	}
 }

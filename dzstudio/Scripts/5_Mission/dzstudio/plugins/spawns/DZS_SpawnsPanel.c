@@ -97,15 +97,20 @@ class DZS_SpawnsPanel : DZS_PanelContent
 	protected void Summary()
 	{
 		int pts = 0;
+		int kept = 0;
 		foreach (DZS_SpawnPoint sp : m_P.m_Points)
 		{
 			if (!sp.m_Gone)
 				pts++;
+			if (sp.m_Kept)
+				kept++;
 		}
 		Line(DZS_Texts.Pick("Fahrzeug-Spawnpunkte", "Vehicle spawn points"), "textMuted", 12, 18);
 		Line(m_P.m_Events.Count().ToString() + DZS_Texts.Pick(" Events · ", " events · ") + pts + DZS_Texts.Pick(" Punkte", " points"), "text", 14, 22);
 		Line(DZS_Texts.Pick("Punkt anklicken, um sein Event zu sehen.", "Click a point to see its event."), "textQuiet", 13, 20);
 		Line(DZS_Texts.Pick("Grün: eigene Punkte · Gelb: verschobene", "Green: own points · Yellow: moved"), "textQuiet", 13, 20);
+		if (kept > 0)
+			Line(DZS_Texts.Pick("Blau: außerhalb angelegt, nur sichtbar", "Blue: made outside, shown only"), "textQuiet", 13, 20);
 	}
 
 	protected void EventView(DZS_SpawnPoint p)
@@ -118,6 +123,13 @@ class DZS_SpawnsPanel : DZS_PanelContent
 		Line(kind, "textMuted", 12, 18);
 		Line(p.m_Event, "text", 15, 24);
 		string where = "x " + Math.Round(p.m_X) + " · z " + Math.Round(p.m_Z) + " · " + Math.Round(p.m_A) + "°";
+		if (p.m_Kept)
+		{
+			Line(where, "textQuiet", 13, 20);
+			Line(DZS_KeptBlocks.ReadOnlyTitle(), "textMuted", 13, 20);
+			Line(DZS_KeptBlocks.ReadOnlyHint(), "textQuiet", 13, 20);
+			return;
+		}
 		if (p.m_Own)
 			where += DZS_Texts.Pick(" · eigener Punkt", " · own point");
 		else if (p.m_Moved)

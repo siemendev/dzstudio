@@ -25,9 +25,14 @@ class DZS_TerrZone : Managed
 	bool m_Own;
 	bool m_Changed;
 	bool m_Gone;
+	// carried over from the file, not editable here (DZS_KeptBlocks): an own zone of the file (m_Elem its block id) or
+	// a base zone a kept change touches
+	bool m_Kept;
 
 	string Key()
 	{
+		if (m_Kept && m_Own)
+			return "k:" + m_Elem;
 		if (m_Own)
 			return "e:" + m_Elem;
 		return "b:" + m_File + ":" + m_Name + ":" + m_BX + ":" + m_BZ;
@@ -78,17 +83,17 @@ class DZS_TerrModel
 		o.Set(key, v);
 	}
 
-	static DZS_Json ZoneData(DZS_Instance inst, string id)
+	static DZS_Json ZoneData(DZS_LayerSrc s, string id)
 	{
 		DZS_Json d = DZS_Json.Obj();
-		Str(d, "name", Field(inst, id, "name"));
-		Num(d, "smin", Or(Field(inst, id, "smin"), "0"));
-		Num(d, "smax", Or(Field(inst, id, "smax"), "0"));
-		Num(d, "dmin", Or(Field(inst, id, "dmin"), "0"));
-		Num(d, "dmax", Or(Field(inst, id, "dmax"), "0"));
-		Num(d, "x", Field(inst, id, "x"));
-		Num(d, "z", Field(inst, id, "z"));
-		Num(d, "r", Field(inst, id, "r"));
+		Str(d, "name", s.Field(id, "name"));
+		Num(d, "smin", Or(s.Field(id, "smin"), "0"));
+		Num(d, "smax", Or(s.Field(id, "smax"), "0"));
+		Num(d, "dmin", Or(s.Field(id, "dmin"), "0"));
+		Num(d, "dmax", Or(s.Field(id, "dmax"), "0"));
+		Num(d, "x", s.Field(id, "x"));
+		Num(d, "z", s.Field(id, "z"));
+		Num(d, "r", s.Field(id, "r"));
 		return d;
 	}
 
@@ -126,86 +131,91 @@ class DZS_TerrModel
 
 	static DZS_Json Fragment(DZS_Instance inst)
 	{
+		return Build(DZS_LayerSrc.Of(inst));
+	}
+
+	static DZS_Json Build(DZS_LayerSrc s)
+	{
 		DZS_Json blocks = DZS_Json.Arr();
 		DZS_Json changes = DZS_Json.Arr();
-		array<string> terrs = Of(inst, TERR);
+		array<string> terrs = s.All(TERR);
 		foreach (string tid : terrs)
 		{
 			DZS_Json td = DZS_Json.Obj();
-			Str(td, "file", Field(inst, tid, "file"));
-			Str(td, "color", Field(inst, tid, "color"));
-			DZS_Json tb = DZS_SpawnsModel.Block("tr-" + DZS_ProjectV2.IdPart(tid), "territory", null, "", td);
-			DZS_EntityExts.Attach(tb, inst, tid, DZS_EntityExts.SLOT);
+			Str(td, "file", s.Field(tid, "file"));
+			Str(td, "color", s.Field(tid, "color"));
+			DZS_Json tb = DZS_SpawnsModel.Block(s.BlockId(tid, "tr-"), "territory", null, "", td);
+			s.Attach(tb, tid, DZS_EntityExts.SLOT);
 			blocks.Add(tb);
 		}
-		array<string> zones = Of(inst, ZONE);
+		array<string> zones = s.All(ZONE);
 		foreach (string zid : zones)
 		{
-			DZS_Json zd = ZoneData(inst, zid);
-			string owner = Field(inst, zid, "territory");
+			DZS_Json zd = ZoneData(s, zid);
+			string owner = s.Field(zid, "territory");
 			DZS_Json zb;
 			if (owner != "")
-				zb = DZS_SpawnsModel.Block("tz-" + DZS_ProjectV2.IdPart(zid), "territoryZone", null, "tr-" + DZS_ProjectV2.IdPart(owner), zd);
+				zb = DZS_SpawnsModel.Block(s.BlockId(zid, "tz-"), "territoryZone", null, s.BlockId(owner, "tr-"), zd);
 			else
 			{
 				DZS_Json par = DZS_Json.Obj();
-				Str(par, "file", Field(inst, zid, "file"));
-				Str(par, "color", Field(inst, zid, "color"));
-				zb = DZS_SpawnsModel.Block("tz-" + DZS_ProjectV2.IdPart(zid), "territoryZone", par, "", zd);
+				Str(par, "file", s.Field(zid, "file"));
+				Str(par, "color", s.Field(zid, "color"));
+				zb = DZS_SpawnsModel.Block(s.BlockId(zid, "tz-"), "territoryZone", par, "", zd);
 			}
-			DZS_EntityExts.Attach(zb, inst, zid, DZS_EntityExts.SLOT);
+			s.Attach(zb, zid, DZS_EntityExts.SLOT);
 			blocks.Add(zb);
 		}
-		array<string> chs = Of(inst, CHANGE);
+		array<string> chs = s.All(CHANGE);
 		foreach (string cid : chs)
 		{
-			string file = Field(inst, cid, "file");
-			string name = Field(inst, cid, "name");
-			string bx = Field(inst, cid, "bx");
-			string bz = Field(inst, cid, "bz");
-			if (Field(inst, cid, "gone") == "1")
+			string file = s.Field(cid, "file");
+			string name = s.Field(cid, "name");
+			string bx = s.Field(cid, "bx");
+			string bz = s.Field(cid, "bz");
+			if (s.Field(cid, "gone") == "1")
 			{
 				DZS_Json rc = DZS_Json.Obj();
 				Str(rc, "op", "remove");
 				Str(rc, "block", "territoryZone");
 				DZS_Json rk = ZoneKey(file, name, bx, bz);
 				rc.Set("key", rk);
-				DZS_EntityExts.Attach(rc, inst, cid, DZS_EntityExts.ChangeSlot(rc));
+				s.Attach(rc, cid, DZS_EntityExts.ChangeSlot(rc));
 				changes.Add(rc);
 				continue;
 			}
 			int c0 = changes.Count();
 			DZS_Json k1 = ZoneKey(file, name, bx, bz);
-			SetChange(changes, k1, "x", bx, Field(inst, cid, "x"));
+			SetChange(changes, k1, "x", bx, s.Field(cid, "x"));
 			DZS_Json k2 = ZoneKey(file, name, bx, bz);
-			SetChange(changes, k2, "z", bz, Field(inst, cid, "z"));
+			SetChange(changes, k2, "z", bz, s.Field(cid, "z"));
 			DZS_Json k3 = ZoneKey(file, name, bx, bz);
-			SetChange(changes, k3, "r", Field(inst, cid, "br"), Field(inst, cid, "r"));
+			SetChange(changes, k3, "r", s.Field(cid, "br"), s.Field(cid, "r"));
 			DZS_Json k4 = ZoneKey(file, name, bx, bz);
-			SetChange(changes, k4, "dmin", Field(inst, cid, "bdmin"), Field(inst, cid, "dmin"));
+			SetChange(changes, k4, "dmin", s.Field(cid, "bdmin"), s.Field(cid, "dmin"));
 			DZS_Json k5 = ZoneKey(file, name, bx, bz);
-			SetChange(changes, k5, "dmax", Field(inst, cid, "bdmax"), Field(inst, cid, "dmax"));
+			SetChange(changes, k5, "dmax", s.Field(cid, "bdmax"), s.Field(cid, "dmax"));
 			for (int ci = c0; ci < changes.Count(); ci++)
 			{
 				DZS_Json made = changes.At(ci);
-				DZS_EntityExts.Attach(made, inst, cid, DZS_EntityExts.ChangeSlot(made));
+				s.Attach(made, cid, DZS_EntityExts.ChangeSlot(made));
 			}
 		}
-		array<string> nominals = Of(inst, "territories:nominal");
+		array<string> nominals = s.All("territories:nominal");
 		foreach (string nid : nominals)
 		{
 			DZS_Json nc = DZS_Json.Obj();
 			Str(nc, "op", "set");
 			Str(nc, "block", "event");
 			DZS_Json nk = DZS_Json.Obj();
-			Str(nk, "name", Field(inst, nid, "event"));
+			Str(nk, "name", s.Field(nid, "event"));
 			nc.Set("key", nk);
 			Str(nc, "field", "nominal");
-			string nf = Field(inst, nid, "from");
+			string nf = s.Field(nid, "from");
 			if (nf != "")
 				Num(nc, "from", nf);
-			Num(nc, "to", Field(inst, nid, "to"));
-			DZS_EntityExts.Attach(nc, inst, nid, DZS_EntityExts.ChangeSlot(nc));
+			Num(nc, "to", s.Field(nid, "to"));
+			s.Attach(nc, nid, DZS_EntityExts.ChangeSlot(nc));
 			changes.Add(nc);
 		}
 		if (blocks.Count() == 0 && changes.Count() == 0)
@@ -217,6 +227,11 @@ class DZS_TerrModel
 	}
 
 	static void Restore(DZS_OpBuilder b, DZS_Json frag)
+	{
+		Read(DZS_LayerSrc.Into(b), frag);
+	}
+
+	static void Read(DZS_LayerSrc s, DZS_Json frag)
 	{
 		if (!frag || !frag.IsObj())
 			return;
@@ -233,8 +248,8 @@ class DZS_TerrModel
 				map<string, string> tf = new map<string, string>();
 				tf.Set("file", td.GetStr("file"));
 				tf.Set("color", td.GetStr("color"));
-				DZS_EntityExts.TakeInto(tf, DZS_EntityExts.SLOT, bl);
-				string tid = DZS_SpawnsModel.CreateFor(b, TERR, tf, bl.GetStr("id"), "tr-");
+				s.TakeExts(tf, DZS_EntityExts.SLOT, bl);
+				string tid = s.Add(TERR, tf, bl.GetStr("id"), "tr-");
 				terrIds.Set(bl.GetStr("id"), tid);
 			}
 			for (int k = 0; k < blocks.Count(); k++)
@@ -259,8 +274,8 @@ class DZS_TerrModel
 					zf.Set("file", par.GetStr("file"));
 					zf.Set("color", par.GetStr("color"));
 				}
-				DZS_EntityExts.TakeInto(zf, DZS_EntityExts.SLOT, zb);
-				DZS_SpawnsModel.CreateFor(b, ZONE, zf, zb.GetStr("id"), "tz-");
+				s.TakeExts(zf, DZS_EntityExts.SLOT, zb);
+				s.Add(ZONE, zf, zb.GetStr("id"), "tz-");
 			}
 		}
 		DZS_Json changes = frag.Get("changes");
@@ -280,8 +295,8 @@ class DZS_TerrModel
 				if (from)
 					nf.Set("from", from.m_Str);
 				nf.Set("to", ch.Get("to").m_Str);
-				DZS_EntityExts.TakeInto(nf, DZS_EntityExts.ChangeSlot(ch), ch);
-				b.Create("territories:nominal", DZS_PROJECT_ID, DZS_END, nf);
+				s.TakeExts(nf, DZS_EntityExts.ChangeSlot(ch), ch);
+				s.Add("territories:nominal", nf);
 				continue;
 			}
 			string id = key2.GetStr("file") + ":" + key2.GetStr("name") + ":" + key2.Get("x").m_Str + ":" + key2.Get("z").m_Str;
@@ -296,7 +311,7 @@ class DZS_TerrModel
 				by.Set(id, f);
 				order.Insert(id);
 			}
-			DZS_EntityExts.TakeInto(f, DZS_EntityExts.ChangeSlot(ch), ch);
+			s.TakeExts(f, DZS_EntityExts.ChangeSlot(ch), ch);
 			if (ch.GetStr("op") == "remove")
 			{
 				f.Set("gone", "1");
@@ -311,7 +326,7 @@ class DZS_TerrModel
 		foreach (string oid : order)
 		{
 			map<string, string> ff = by.Get(oid);
-			b.Create(CHANGE, DZS_PROJECT_ID, DZS_END, ff);
+			s.Add(CHANGE, ff);
 		}
 	}
 }
@@ -624,6 +639,80 @@ class DZS_TerrBase : Managed
 			o.m_Dmax = DZS_TerrModel.Field(inst, zid, "dmax");
 			o.m_Kind = KindOfZone(o.m_File, o.m_Name);
 			zones.Insert(o);
+		}
+		Kept(inst, zones);
+	}
+
+	protected void Kept(DZS_Instance inst, array<ref DZS_TerrZone> zones)
+	{
+		array<ref DZS_Json> kch = DZS_KeptBlocks.Entries(inst, "changes", "territoryZone");
+		foreach (DZS_Json kc : kch)
+		{
+			DZS_Json key = kc.Get("key");
+			string kx = DZS_KeptBlocks.Num(key, "x");
+			string kz = DZS_KeptBlocks.Num(key, "z");
+			if (kx == "" || kz == "")
+				continue;
+			foreach (DZS_TerrZone bz : zones)
+			{
+				if (bz.m_Own || bz.m_File != key.GetStr("file") || bz.m_Name != key.GetStr("name") || Math.AbsFloat(bz.m_BX.ToFloat() - kx.ToFloat()) > 0.5 || Math.AbsFloat(bz.m_BZ.ToFloat() - kz.ToFloat()) > 0.5)
+					continue;
+				bz.m_Kept = true;
+				bz.m_Changed = true;
+				string field = kc.GetStr("field");
+				string to = DZS_KeptBlocks.Num(kc, "to");
+				if (kc.GetStr("op") == "remove")
+					bz.m_Gone = true;
+				else if (to == "")
+					continue;
+				else if (field == "x")
+					bz.m_X = to.ToFloat();
+				else if (field == "z")
+					bz.m_Z = to.ToFloat();
+				else if (field == "r")
+					bz.m_R = to.ToFloat();
+				else if (field == "dmin")
+					bz.m_Dmin = to;
+				else if (field == "dmax")
+					bz.m_Dmax = to;
+			}
+		}
+		map<string, string> terrFiles = new map<string, string>();
+		array<ref DZS_Json> ktr = DZS_KeptBlocks.Entries(inst, "blocks", "territory");
+		foreach (DZS_Json kt : ktr)
+		{
+			DZS_Json td = kt.Get("data");
+			if (td && td.IsObj())
+				terrFiles.Set(kt.GetStr("id"), td.GetStr("file"));
+		}
+		array<ref DZS_Json> kbl = DZS_KeptBlocks.Entries(inst, "blocks", "territoryZone");
+		foreach (DZS_Json kb : kbl)
+		{
+			DZS_Json d = kb.Get("data");
+			string x = DZS_KeptBlocks.Num(d, "x");
+			string z = DZS_KeptBlocks.Num(d, "z");
+			if (x == "" || z == "")
+				continue;
+			DZS_TerrZone k = new DZS_TerrZone();
+			k.m_Own = true;
+			k.m_Kept = true;
+			k.m_Elem = kb.GetStr("id");
+			k.m_Name = d.GetStr("name");
+			DZS_Json par = kb.Get("parent");
+			if (par && par.IsObj())
+			{
+				k.m_File = par.GetStr("file");
+				k.m_Color = par.GetStr("color");
+			}
+			else if (par && par.IsStr())
+				k.m_File = terrFiles.Get(par.m_Str);
+			k.m_X = x.ToFloat();
+			k.m_Z = z.ToFloat();
+			k.m_R = DZS_KeptBlocks.Num(d, "r").ToFloat();
+			k.m_Dmin = DZS_KeptBlocks.Num(d, "dmin");
+			k.m_Dmax = DZS_KeptBlocks.Num(d, "dmax");
+			k.m_Kind = KindOfZone(k.m_File, k.m_Name);
+			zones.Insert(k);
 		}
 	}
 }

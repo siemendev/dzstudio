@@ -66,7 +66,10 @@ An own block whose key already exists in the base (an own event named like an ex
 
 A program that rewrites a project keeps the blocks and changes it does not edit exactly as they are, `extensions`
 included, and keeps the file's `slug` when the project belongs to a server (its own files are already there under
-`dzstudio/<slug>/`). dzStudio carries such entries through every save and lists their rules read-only.
+`dzstudio/<slug>/`). dzStudio carries such entries through every save and lists their rules read-only. Its
+layers (spawns, effect areas, territories) take the entries they edit from the file's blocks and changes at every
+open — never from the copy in dzStudio's own extension, which other programs leave as it is — and show the entries of
+their kinds they cannot write back unchanged read-only.
 
 ## Changes
 

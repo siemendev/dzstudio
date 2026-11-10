@@ -388,6 +388,8 @@ class DZS_SpawnsPlugin : DZS_Plugin
 		string hint;
 		if (m_Adding)
 			hint = DZS_Texts.Pick("Klick in die Szene setzt einen Spawnpunkt · Esc bricht ab", "Click in the scene to add a spawn point · Esc cancels");
+		else if (Selected() && Selected().m_Kept)
+			hint = DZS_KeptBlocks.ReadOnlyTitle() + " · " + DZS_KeptBlocks.ReadOnlyHint();
 		else if (m_Sel == "")
 			hint = DZS_Texts.Pick("Spawnpunkt anklicken · Fahrzeuge aus dem Katalog in der Ebene Objekte setzen", "Click a spawn point · place vehicles from the catalog in the Objects layer");
 		else
@@ -485,7 +487,7 @@ class DZS_SpawnsPlugin : DZS_Plugin
 			m_PressX = mx;
 			m_PressY = my;
 		}
-		if (m_Press && lmb && !m_Drag && (Math.AbsFloat(mx - m_PressX) > 4 || Math.AbsFloat(my - m_PressY) > 4))
+		if (m_Press && lmb && !m_Drag && Selected() && !Selected().m_Kept && (Math.AbsFloat(mx - m_PressX) > 4 || Math.AbsFloat(my - m_PressY) > 4))
 			m_Drag = true;
 		if (m_Drag && !lmb)
 		{
@@ -514,6 +516,7 @@ class DZS_SpawnsPlugin : DZS_Plugin
 		int normal = DZS_Color.Get("accent");
 		int own = DZS_Color.Get("success");
 		int moved = DZS_Color.Get("warning");
+		int kept = DZS_Color.Get("info");
 		foreach (DZS_SpawnPoint p : m_Points)
 		{
 			if (p.m_Gone)
@@ -524,7 +527,9 @@ class DZS_SpawnsPlugin : DZS_Plugin
 				continue;
 			string key = p.Key();
 			int col = normal;
-			if (p.m_Own)
+			if (p.m_Kept)
+				col = kept;
+			else if (p.m_Own)
 				col = own;
 			else if (p.m_Moved)
 				col = moved;
@@ -612,6 +617,8 @@ class DZS_SpawnsPlugin : DZS_Plugin
 
 	void MovePoint(DZS_Instance inst, DZS_SpawnPoint p, float x, float z, float a)
 	{
+		if (p.m_Kept)
+			return;
 		DZS_OpBuilder b = inst.BeginOperation(DZS_SpawnsModel.OP, 1);
 		if (p.m_Elem != "")
 		{
@@ -641,7 +648,7 @@ class DZS_SpawnsPlugin : DZS_Plugin
 	{
 		DZS_Instance inst = m_Kernel.GetShown();
 		DZS_SpawnPoint p = Selected();
-		if (!inst || !p)
+		if (!inst || !p || p.m_Kept)
 			return;
 		DZS_OpBuilder b = inst.BeginOperation(DZS_SpawnsModel.OP, 1);
 		if (p.m_Own)

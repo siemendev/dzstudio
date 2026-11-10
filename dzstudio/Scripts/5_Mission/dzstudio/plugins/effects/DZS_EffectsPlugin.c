@@ -330,6 +330,8 @@ class DZS_EffectsPlugin : DZS_Plugin
 		string hint;
 		if (m_AddPreset != "")
 			hint = DZS_Texts.Pick("Mitte drücken, auf den Radius ziehen, loslassen · Esc bricht ab", "Press at the centre, drag to the radius, release · Esc cancels");
+		else if (Selected() && Selected().m_Kept)
+			hint = DZS_KeptBlocks.ReadOnlyTitle() + " · " + DZS_KeptBlocks.ReadOnlyHint();
 		else if (m_Sel == "")
 			hint = DZS_Texts.Pick("Zone anklicken · neue Zone: Vorlage im Panel wählen", "Click an area · new area: pick a preset in the panel");
 		else
@@ -423,7 +425,7 @@ class DZS_EffectsPlugin : DZS_Plugin
 			else
 			{
 				DZS_FxArea sel = Selected();
-				if (sel && OnEdge(sel, g))
+				if (sel && !sel.m_Kept && OnEdge(sel, g))
 					m_Drag = "resize";
 				else
 				{
@@ -432,7 +434,7 @@ class DZS_EffectsPlugin : DZS_Plugin
 				}
 			}
 		}
-		if (m_Press && lmb && m_Drag == "" && m_Sel != "" && (Math.AbsFloat(mx - m_PressX) > 4 || Math.AbsFloat(my - m_PressY) > 4))
+		if (m_Press && lmb && m_Drag == "" && m_Sel != "" && Selected() && !Selected().m_Kept && (Math.AbsFloat(mx - m_PressX) > 4 || Math.AbsFloat(my - m_PressY) > 4))
 			m_Drag = "move";
 		if (!lmb && m_Press)
 		{
@@ -592,6 +594,8 @@ class DZS_EffectsPlugin : DZS_Plugin
 	// Moves or resizes an area: an own one directly, a base one through its change element.
 	void Change(DZS_Instance inst, DZS_FxArea a, float x, float z, float r)
 	{
+		if (a.m_Kept)
+			return;
 		DZS_OpBuilder b = inst.BeginOperation(DZS_EffectsModel.OP, 1);
 		if (a.m_Own)
 		{
@@ -633,7 +637,7 @@ class DZS_EffectsPlugin : DZS_Plugin
 	{
 		DZS_Instance inst = m_Kernel.GetShown();
 		DZS_FxArea a = Selected();
-		if (!inst || !a)
+		if (!inst || !a || a.m_Kept)
 			return;
 		DZS_OpBuilder b = inst.BeginOperation(DZS_EffectsModel.OP, 1);
 		if (a.m_Own)
@@ -780,7 +784,9 @@ class DZS_EffectsPanel : DZS_PanelContent
 		else
 		{
 			string kind2 = DZS_Texts.Pick("Zone der Basis", "Base area");
-			if (a.m_Own)
+			if (a.m_Kept)
+				kind2 = DZS_KeptBlocks.ReadOnlyTitle();
+			else if (a.m_Own)
 				kind2 = DZS_Texts.Pick("Eigene Zone", "Own area");
 			else if (a.m_Changed)
 				kind2 = DZS_Texts.Pick("Zone der Basis, geändert", "Base area, changed");
@@ -790,6 +796,14 @@ class DZS_EffectsPanel : DZS_PanelContent
 			if (a.m_Preset == "")
 				type = a.m_Type;
 			Line(type + " · x " + Math.Round(a.m_X) + " · z " + Math.Round(a.m_Z), "textQuiet", 13, 20);
+			if (a.m_Kept)
+			{
+				Line(DZS_Texts.Pick("Radius ", "Radius ") + DZS_PatchNum.Canon(a.m_R.ToString()) + " m", "textQuiet", 13, 20);
+				Line(DZS_KeptBlocks.ReadOnlyHint(), "textQuiet", 13, 20);
+				m_H = m_Y + DZS_Scale.Px(8);
+				DZS_W.Place(m_Root, 0, 0, m_Width, m_H);
+				return;
+			}
 			float rowH = DZS_Scale.Px(26);
 			TextWidget l = DZS_W.Text(m_Root, DZS_Font.READ, 13, DZS_Color.Get("text"));
 			l.SetText(DZS_Texts.Pick("Radius (m)", "Radius (m)"));

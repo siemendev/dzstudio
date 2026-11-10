@@ -1,8 +1,8 @@
 // Blocks and changes of a project file that no part of the editor takes over when it opens — kinds it has no editor
 // for (events without positions, items, globals, presets, restricted areas …, written by dzbot's workbench, its AI or
-// another program), loot entries while the loot editor is off for the project, layer entries the file's layer parts
-// do not hold. They are carried over unchanged, extensions included, and written back at every save, so a save never
-// drops what the editor cannot show.
+// another program), loot entries while the loot editor is off for the project, layer entries a layer would not write
+// back as they are (DZS_LayerTake). They are carried over unchanged, extensions included, and written back at every
+// save, so a save never drops what the editor cannot show.
 //
 // Opening puts them into the project's plugin entries under NAME (the working folder's project part, then the
 // projects:plugins companion); every build of the project file appends them after the editor's own blocks and changes.
@@ -134,6 +134,50 @@ class DZS_KeptBlocks
 		if (!kept || !kept.IsObj())
 			return null;
 		return kept;
+	}
+
+	// The kept blocks ('list' "blocks") or changes ("changes") of a kind; the layers show them read-only.
+	static array<ref DZS_Json> Entries(DZS_Instance inst, string list, string kind)
+	{
+		array<ref DZS_Json> r = new array<ref DZS_Json>();
+		DZS_Json kept = From(inst);
+		if (!kept)
+			return r;
+		DZS_Json part = kept.Get(list);
+		if (!part || !part.IsArr())
+			return r;
+		string member = "kind";
+		if (list == "changes")
+			member = "block";
+		for (int i = 0; i < part.Count(); i++)
+		{
+			DZS_Json e = part.At(i);
+			if (e.IsObj() && e.GetStr(member) == kind)
+				r.Insert(e);
+		}
+		return r;
+	}
+
+	// A number of a kept entry ("" when it is none).
+	static string Num(DZS_Json o, string key)
+	{
+		if (!o || !o.IsObj())
+			return "";
+		DZS_Json v = o.Get(key);
+		if (!v || !v.IsNum())
+			return "";
+		return v.m_Str;
+	}
+
+	// The panels' two lines for a kept entry.
+	static string ReadOnlyTitle()
+	{
+		return DZS_Texts.Pick("Außerhalb von dzStudio angelegt", "Made outside dzStudio");
+	}
+
+	static string ReadOnlyHint()
+	{
+		return DZS_Texts.Pick("Nur sichtbar · dort bearbeiten (dzbot)", "Shown only · edit it there (dzbot)");
 	}
 
 	// Whether a rule of a kept block or change names the setting (as a whole word: a condition's field, a formula, a

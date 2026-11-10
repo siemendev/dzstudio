@@ -1641,6 +1641,22 @@ class DZS_ProjTest : DZS_Plugin
 		array<string> groups = inst.GetChildren(DZS_PROJECT_ID);
 		foreach (string g : groups)
 		{
+			if (inst.GetKind(g) != DZS_KIND_GROUP)
+			{
+				string line = inst.GetKind(g) + " " + g;
+				array<string> keys = inst.GetFieldKeys(g);
+				foreach (string key : keys)
+				{
+					string fv;
+					inst.GetField(g, key, fv);
+					if (key.IndexOf("ext") != 0)
+						line += " " + key + "=" + fv;
+					else
+						line += " " + key + "=(" + fv.Length() + ")";
+				}
+				Log(line);
+				continue;
+			}
 			string gname, file;
 			inst.GetField(g, DZS_Obj.GROUP_NAME, gname);
 			inst.GetField(g, DZS_Obj.GROUP_FILE, file);

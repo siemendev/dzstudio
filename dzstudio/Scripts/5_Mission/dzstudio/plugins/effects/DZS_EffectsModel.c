@@ -19,9 +19,14 @@ class DZS_FxArea : Managed
 	bool m_Own;
 	bool m_Changed;
 	bool m_Gone;
+	// carried over from the file, not editable here (DZS_KeptBlocks): an own area of the file or a base area a kept
+	// change touches
+	bool m_Kept;
 
 	string Key()
 	{
+		if (m_Kept && m_Own)
+			return "k:" + m_Elem;
 		if (m_Own)
 			return "e:" + m_Elem;
 		return "b:" + m_Name;
@@ -237,33 +242,38 @@ class DZS_EffectsModel
 
 	static DZS_Json Fragment(DZS_Instance inst)
 	{
+		return Build(DZS_LayerSrc.Of(inst));
+	}
+
+	static DZS_Json Build(DZS_LayerSrc s)
+	{
 		DZS_Json blocks = DZS_Json.Arr();
 		DZS_Json changes = DZS_Json.Arr();
-		array<string> own = Of(inst, AREA);
+		array<string> own = s.All(AREA);
 		foreach (string oid : own)
 		{
-			DZS_Json data = PresetData(Field(inst, oid, "preset"), Field(inst, oid, "name"), Field(inst, oid, "x"), Field(inst, oid, "z"), Field(inst, oid, "r"), Field(inst, oid, "above"));
-			DZS_Json b = DZS_SpawnsModel.Block("fx-" + DZS_ProjectV2.IdPart(oid), "effectArea", null, "", data);
-			DZS_EntityExts.Attach(b, inst, oid, DZS_EntityExts.SLOT);
+			DZS_Json data = PresetData(s.Field(oid, "preset"), s.Field(oid, "name"), s.Field(oid, "x"), s.Field(oid, "z"), s.Field(oid, "r"), s.Field(oid, "above"));
+			DZS_Json b = DZS_SpawnsModel.Block(s.BlockId(oid, "fx-"), "effectArea", null, "", data);
+			s.Attach(b, oid, DZS_EntityExts.SLOT);
 			blocks.Add(b);
 		}
-		array<string> chs = Of(inst, CHANGE);
+		array<string> chs = s.All(CHANGE);
 		foreach (string cid : chs)
 		{
-			string name = Field(inst, cid, "area");
-			if (Field(inst, cid, "gone") == "1")
+			string name = s.Field(cid, "area");
+			if (s.Field(cid, "gone") == "1")
 			{
 				DZS_Json rc = DZS_Json.Obj();
 				Str(rc, "op", "remove");
 				Str(rc, "block", "effectArea");
 				DZS_Json rk = NameKey(name);
 				rc.Set("key", rk);
-				DZS_EntityExts.Attach(rc, inst, cid, DZS_EntityExts.ChangeSlot(rc));
+				s.Attach(rc, cid, DZS_EntityExts.ChangeSlot(rc));
 				changes.Add(rc);
 				continue;
 			}
-			string by = Field(inst, cid, "by");
-			if (Field(inst, cid, "x") != Field(inst, cid, "bx") || Field(inst, cid, "z") != Field(inst, cid, "bz"))
+			string by = s.Field(cid, "by");
+			if (s.Field(cid, "x") != s.Field(cid, "bx") || s.Field(cid, "z") != s.Field(cid, "bz"))
 			{
 				DZS_Json pc = DZS_Json.Obj();
 				Str(pc, "op", "set");
@@ -271,14 +281,14 @@ class DZS_EffectsModel
 				DZS_Json pk = NameKey(name);
 				pc.Set("key", pk);
 				Str(pc, "field", "Data.Pos");
-				DZS_Json was = Vec(Field(inst, cid, "bx"), by, Field(inst, cid, "bz"));
+				DZS_Json was = Vec(s.Field(cid, "bx"), by, s.Field(cid, "bz"));
 				pc.Set("from", was);
-				DZS_Json now = Vec(Field(inst, cid, "x"), by, Field(inst, cid, "z"));
+				DZS_Json now = Vec(s.Field(cid, "x"), by, s.Field(cid, "z"));
 				pc.Set("to", now);
-				DZS_EntityExts.Attach(pc, inst, cid, DZS_EntityExts.ChangeSlot(pc));
+				s.Attach(pc, cid, DZS_EntityExts.ChangeSlot(pc));
 				changes.Add(pc);
 			}
-			if (Field(inst, cid, "r") != Field(inst, cid, "br"))
+			if (s.Field(cid, "r") != s.Field(cid, "br"))
 			{
 				DZS_Json qc = DZS_Json.Obj();
 				Str(qc, "op", "set");
@@ -286,9 +296,9 @@ class DZS_EffectsModel
 				DZS_Json qk = NameKey(name);
 				qc.Set("key", qk);
 				Str(qc, "field", "Data.Radius");
-				Num(qc, "from", Field(inst, cid, "br"));
-				Num(qc, "to", Field(inst, cid, "r"));
-				DZS_EntityExts.Attach(qc, inst, cid, DZS_EntityExts.ChangeSlot(qc));
+				Num(qc, "from", s.Field(cid, "br"));
+				Num(qc, "to", s.Field(cid, "r"));
+				s.Attach(qc, cid, DZS_EntityExts.ChangeSlot(qc));
 				changes.Add(qc);
 			}
 		}
@@ -308,6 +318,11 @@ class DZS_EffectsModel
 	}
 
 	static void Restore(DZS_OpBuilder b, DZS_Json frag)
+	{
+		Read(DZS_LayerSrc.Into(b), frag);
+	}
+
+	static void Read(DZS_LayerSrc s, DZS_Json frag)
 	{
 		if (!frag || !frag.IsObj())
 			return;
@@ -336,8 +351,8 @@ class DZS_EffectsModel
 				if (ab && ab.IsNum())
 					f.Set("above", ab.m_Str);
 				f.Set("r", data.Get("Radius").m_Str);
-				DZS_EntityExts.TakeInto(f, DZS_EntityExts.SLOT, bl);
-				DZS_SpawnsModel.CreateFor(b, AREA, f, bl.GetStr("id"), "fx-");
+				s.TakeExts(f, DZS_EntityExts.SLOT, bl);
+				s.Add(AREA, f, bl.GetStr("id"), "fx-");
 			}
 		}
 		DZS_Json changes = frag.Get("changes");
@@ -357,7 +372,7 @@ class DZS_EffectsModel
 				by.Set(name, f2);
 				order.Insert(name);
 			}
-			DZS_EntityExts.TakeInto(f2, DZS_EntityExts.ChangeSlot(ch), ch);
+			s.TakeExts(f2, DZS_EntityExts.ChangeSlot(ch), ch);
 			if (ch.GetStr("op") == "remove")
 			{
 				f2.Set("gone", "1");
@@ -395,7 +410,7 @@ class DZS_EffectsModel
 				ff.Set("z", "");
 				ff.Set("bz", "");
 			}
-			b.Create(CHANGE, DZS_PROJECT_ID, DZS_END, ff);
+			s.Add(CHANGE, ff);
 		}
 	}
 }
@@ -516,6 +531,65 @@ class DZS_EffectsBase : Managed
 			o.m_Z = DZS_EffectsModel.Field(inst, oid, "z").ToFloat();
 			o.m_R = DZS_EffectsModel.Field(inst, oid, "r").ToFloat();
 			out_.Insert(o);
+		}
+		Kept(inst, out_);
+	}
+
+	protected void Kept(DZS_Instance inst, array<ref DZS_FxArea> out_)
+	{
+		array<ref DZS_Json> kch = DZS_KeptBlocks.Entries(inst, "changes", "effectArea");
+		foreach (DZS_Json kc : kch)
+		{
+			DZS_Json key = kc.Get("key");
+			if (!key || !key.IsObj())
+				continue;
+			foreach (DZS_FxArea ba : out_)
+			{
+				if (ba.m_Own || ba.m_Name != key.GetStr("name"))
+					continue;
+				ba.m_Kept = true;
+				if (kc.GetStr("op") == "remove")
+					ba.m_Gone = true;
+				else if (kc.GetStr("field") == "Data.Pos")
+				{
+					DZS_Json to = kc.Get("to");
+					if (to && to.IsArr() && to.Count() >= 2)
+					{
+						ba.m_X = to.At(0).m_Str.ToFloat();
+						ba.m_Z = to.At(to.Count() - 1).m_Str.ToFloat();
+					}
+				}
+				else if (kc.GetStr("field") == "Data.Radius" && DZS_KeptBlocks.Num(kc, "to") != "")
+					ba.m_R = DZS_KeptBlocks.Num(kc, "to").ToFloat();
+			}
+		}
+		array<ref DZS_Json> kbl = DZS_KeptBlocks.Entries(inst, "blocks", "effectArea");
+		foreach (DZS_Json kb : kbl)
+		{
+			DZS_Json d = kb.Get("data");
+			if (!d || !d.IsObj())
+				continue;
+			DZS_Json data = d.Get("Data");
+			if (!data || !data.IsObj())
+				continue;
+			DZS_Json pos = data.Get("Pos");
+			if (!pos || !pos.IsArr() || pos.Count() < 2)
+				continue;
+			DZS_FxArea k = new DZS_FxArea();
+			k.m_Own = true;
+			k.m_Kept = true;
+			k.m_Elem = kb.GetStr("id");
+			k.m_Name = d.GetStr("AreaName");
+			k.m_Type = d.GetStr("Type");
+			DZS_Json pd = d.Get("PlayerData");
+			string around = "";
+			if (pd && pd.IsObj())
+				around = pd.GetStr("AroundPartName");
+			k.m_Preset = DZS_EffectsModel.PresetOf(k.m_Type, around);
+			k.m_X = pos.At(0).m_Str.ToFloat();
+			k.m_Z = pos.At(pos.Count() - 1).m_Str.ToFloat();
+			k.m_R = DZS_KeptBlocks.Num(data, "Radius").ToFloat();
+			out_.Insert(k);
 		}
 	}
 }

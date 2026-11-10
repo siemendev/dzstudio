@@ -338,7 +338,9 @@ class DZS_TerrPlugin : DZS_Plugin
 		LayerInput(inst, scr);
 		Draw();
 		string hint;
-		if (m_Sel == "")
+		if (Selected() && Selected().m_Kept)
+			hint = DZS_KeptBlocks.ReadOnlyTitle() + " · " + DZS_KeptBlocks.ReadOnlyHint();
+		else if (m_Sel == "")
 			hint = DZS_Texts.Pick("Zone anklicken · Tiere und Zombies aus dem Katalog in der Ebene Objekte setzen", "Click a zone · place animals and infected from the catalog in the Objects layer");
 		else
 			hint = DZS_Texts.Pick("Ziehen verschiebt · Rand ziehen ändert die Größe · Entf entfernt", "Drag to move · drag the edge to resize · Del removes");
@@ -426,7 +428,7 @@ class DZS_TerrPlugin : DZS_Plugin
 			m_PressY = my;
 			m_PressGround = g;
 			DZS_TerrZone sel = Selected();
-			if (sel && OnEdge(sel, g))
+			if (sel && !sel.m_Kept && OnEdge(sel, g))
 				m_Drag = "resize";
 			else
 			{
@@ -434,7 +436,7 @@ class DZS_TerrPlugin : DZS_Plugin
 				m_Drag = "";
 			}
 		}
-		if (m_Press && lmb && m_Drag == "" && m_Sel != "" && (Math.AbsFloat(mx - m_PressX) > 4 || Math.AbsFloat(my - m_PressY) > 4))
+		if (m_Press && lmb && m_Drag == "" && m_Sel != "" && Selected() && !Selected().m_Kept && (Math.AbsFloat(mx - m_PressX) > 4 || Math.AbsFloat(my - m_PressY) > 4))
 			m_Drag = "move";
 		if (!lmb && m_Press)
 		{
@@ -537,6 +539,8 @@ class DZS_TerrPlugin : DZS_Plugin
 
 	void Change(DZS_Instance inst, DZS_TerrZone z, float x, float zz, float r, string dmin, string dmax)
 	{
+		if (z.m_Kept)
+			return;
 		DZS_OpBuilder b = inst.BeginOperation(DZS_TerrModel.OP, 1);
 		if (z.m_Own)
 		{
@@ -586,7 +590,7 @@ class DZS_TerrPlugin : DZS_Plugin
 	{
 		DZS_Instance inst = m_Kernel.GetShown();
 		DZS_TerrZone z = Selected();
-		if (!inst || !z)
+		if (!inst || !z || z.m_Kept)
 			return;
 		DZS_OpBuilder b = inst.BeginOperation(DZS_TerrModel.OP, 1);
 		if (z.m_Own)
@@ -870,6 +874,16 @@ class DZS_TerrPanel : DZS_PanelContent
 			Line(DZS_Texts.Pick("Art", "Kind"), "textMuted", 12, 18);
 			Line(kindLabel, "text", 15, 24);
 			string where = z.m_Name + " · " + z.m_File;
+			if (z.m_Kept)
+			{
+				Line(where, "textQuiet", 13, 20);
+				Line(DZS_Texts.Pick("Radius ", "Radius ") + DZS_PatchNum.Canon(z.m_R.ToString()) + " m", "textQuiet", 13, 20);
+				Line(DZS_KeptBlocks.ReadOnlyTitle(), "textMuted", 13, 20);
+				Line(DZS_KeptBlocks.ReadOnlyHint(), "textQuiet", 13, 20);
+				m_H = m_Y + DZS_Scale.Px(8);
+				DZS_W.Place(m_Root, 0, 0, m_Width, m_H);
+				return;
+			}
 			if (z.m_Own)
 				where += DZS_Texts.Pick(" · eigene Zone", " · own zone");
 			else if (z.m_Changed)
