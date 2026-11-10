@@ -664,7 +664,7 @@ class DZS_ExtFieldsDialog : DZS_LinesDialog
 		int n = m_G.CountSet(m_Inst, t, fields);
 		string s = DZS_Texts.Pick("Standardwerte", "defaults");
 		if (n > 0)
-			s = n.ToString() + DZS_Texts.Pick(" Werte", " values");
+			s = n.ToString() + DZS_Texts.Pick(DZS_Issues.Plural(n, " Wert", " Werte"), DZS_Issues.Plural(n, " value", " values"));
 		if (t.m_Attach != "block" || !t.m_Json)
 			return s;
 		int els = 0;
@@ -684,7 +684,7 @@ class DZS_ExtFieldsDialog : DZS_LinesDialog
 			}
 		}
 		if (els > 0)
-			s += " · " + els.ToString() + DZS_Texts.Pick(" Elemente mit Werten", " elements with values");
+			s += " · " + els.ToString() + DZS_Texts.Pick(DZS_Issues.Plural(els, " Element mit Werten", " Elemente mit Werten"), DZS_Issues.Plural(els, " element with values", " elements with values"));
 		return s;
 	}
 
@@ -968,7 +968,7 @@ class DZS_ExtTargetDialog : DZS_LinesDialog
 				Label(l, label, 0, tone, 13);
 				string sum = DZS_Texts.Pick("Standardwerte", "defaults");
 				if (filled > 0)
-					sum = filled.ToString() + DZS_Texts.Pick(" Werte", " values");
+					sum = filled.ToString() + DZS_Texts.Pick(DZS_Issues.Plural(filled, " Wert", " Werte"), DZS_Issues.Plural(filled, " value", " values"));
 				Label(l, sum, -1, "textQuiet", 12);
 				Knob(l, "side", DZS_Texts.Pick("Bearbeiten", "Edit"), "el:" + m_Elements.Count());
 				m_Elements.Insert(et);

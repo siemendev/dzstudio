@@ -576,10 +576,10 @@ class DZS_DzbotRules : DZS_ProjectExtension
 			s = Join(s, DZS_Texts.Pick("Wiederholt", "Repeated"));
 		DZS_Json f = rule.Get("fields");
 		if (f && f.IsObj() && f.Count() > 0)
-			s = Join(s, f.Count().ToString() + DZS_Texts.Pick(" Werte", " values"));
+			s = Join(s, f.Count().ToString() + DZS_Texts.Pick(DZS_Issues.Plural(f.Count(), " Wert", " Werte"), DZS_Issues.Plural(f.Count(), " value", " values")));
 		DZS_Json it = rule.Get("items");
 		if (it && it.IsObj() && it.Count() > 0)
-			s = Join(s, it.Count().ToString() + DZS_Texts.Pick(" Elemente", " elements"));
+			s = Join(s, it.Count().ToString() + DZS_Texts.Pick(DZS_Issues.Plural(it.Count(), " Element", " Elemente"), DZS_Issues.Plural(it.Count(), " element", " elements")));
 		return s;
 	}
 
