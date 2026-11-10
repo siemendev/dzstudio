@@ -2558,7 +2558,14 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		{
 			if (list != "")
 				list += ", ";
-			list += c;
+			string shownName = c;
+			if (c == DZS_ProjectFile.NAME)
+			{
+				string realPath = DZS_LocalStore.Path(m_Open.m_Folder, c);
+				int bs = realPath.LastIndexOf("\\");
+				shownName = realPath.Substring(bs + 1, realPath.Length() - bs - 1);
+			}
+			list += shownName;
 		}
 		DZS_Log.Info("changed outside: " + list);
 		string tx5 = DZS_Texts.Pick("Speichern", "Save");
