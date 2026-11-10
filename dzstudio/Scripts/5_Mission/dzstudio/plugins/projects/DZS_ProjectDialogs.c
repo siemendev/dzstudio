@@ -717,6 +717,8 @@ class DZS_BrowserDialog : DZS_Dialog
 		}
 		else if (tag == "delete" && p)
 		{
+			if (m_P.RefuseApplied(p.m_Folder, "projects.delete"))
+				return;
 			string tx111 = DZS_Texts.Pick("Projekt", "Project");
 			string tx112 = DZS_Texts.Pick("Löschen", "Delete");
 			string tx113 = DZS_Texts.Pick(p.m_Name + " endgültig löschen? Die Projektdatei wird gelöscht.", "Delete " + p.m_Name + " for good? The project file is deleted.");

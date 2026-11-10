@@ -737,6 +737,24 @@ class DZS_PatchApply : Managed
 		b.m_Meta = meta;
 	}
 
+	// The first folder in dzstudio\Missions a project of this slug is applied to ("" = none).
+	static string AppliedIn(string slug)
+	{
+		array<string> names;
+		array<bool> folders;
+		DZS_Files.List(MISSIONS, names, folders);
+		for (int i = 0; i < names.Count(); i++)
+		{
+			if (!folders[i])
+				continue;
+			string dir = MISSIONS + "\\" + names[i];
+			DZS_ApplyStore st = new DZS_ApplyStore(dir, dir);
+			if (st.Find(slug))
+				return names[i];
+		}
+		return "";
+	}
+
 	// The vanilla mission of the map first, then every folder in dzstudio\Missions (not the vanilla copies).
 	array<ref DZS_PatchBase> Bases(string mapKey, string projectName)
 	{
