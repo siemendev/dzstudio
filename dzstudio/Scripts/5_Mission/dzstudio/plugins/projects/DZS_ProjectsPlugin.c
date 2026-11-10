@@ -1511,6 +1511,8 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		if (pf.m_Status == "ok" && pf.m_Name != "")
 			op.m_Name = pf.m_Name;
 		op.m_MapKey = LoadedMapKey();
+		if (op.m_MapKey == "" && pf.m_Status == "ok")
+			op.m_MapKey = pf.m_MapKey;
 		array<string> files = DZS_LocalStore.GroupFiles(src);
 		array<bool> taken = new array<bool>();
 		foreach (string f0 : files)

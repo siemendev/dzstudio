@@ -114,7 +114,7 @@ class DZS_ProjectV2
 		root.Set("format", fmt);
 		DZS_Json ver = DZS_Json.Int(DZS_PatchProject.VERSION);
 		root.Set("version", ver);
-		DZS_Json mp = DZS_Json.Str(mapKey);
+		DZS_Json mp = DZS_Json.Str(DZS_Maps.FormatKey(mapKey));
 		root.Set("map", mp);
 		DZS_Json slug = DZS_Json.Str(Slug(name));
 		root.Set("slug", slug);

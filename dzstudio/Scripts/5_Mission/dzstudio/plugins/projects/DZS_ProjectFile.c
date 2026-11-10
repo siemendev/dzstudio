@@ -21,6 +21,35 @@ class DZS_Maps
 		return "";
 	}
 
+	// The map as the project format writes it: the world name in lower case ("chernarusplus", "enoch", "nasdara").
+	static string FormatKey(string key)
+	{
+		string w = WorldOf(key);
+		if (w == "")
+			return key;
+		w.ToLower();
+		return w;
+	}
+
+	// dzStudio's map key ("chernarus") of a project file's map, which is the world name in lower case; a key itself is
+	// taken as it is. "" when the map is unknown.
+	static string FromFormat(string mapName)
+	{
+		string low = mapName;
+		low.ToLower();
+		if (WorldOf(low) != "")
+			return low;
+		array<string> keys = Keys();
+		foreach (string k : keys)
+		{
+			string kw = WorldOf(k);
+			kw.ToLower();
+			if (kw == low)
+				return k;
+		}
+		return "";
+	}
+
 	static string KeyOfWorld(string world)
 	{
 		array<string> keys = DZS_Maps.Keys();
@@ -335,10 +364,7 @@ class DZS_ProjectFile
 			if (mp && mp.IsStr())
 			{
 				d.m_MapRaw = mp.m_Str;
-				string low = mp.m_Str;
-				low.ToLower();
-				if (DZS_Maps.WorldOf(low) != "")
-					d.m_MapKey = low;
+				d.m_MapKey = DZS_Maps.FromFormat(mp.m_Str);
 			}
 			else
 				d.m_Issues.Add(DZS_Issue.WARNING, "Karte fehlt in der Projektdatei — die geladene Karte gilt", "Map missing in the project file — the loaded map counts");
@@ -370,10 +396,7 @@ class DZS_ProjectFile
 		if (rm && rm.IsStr())
 		{
 			d.m_MapRaw = rm.m_Str;
-			string rlow = rm.m_Str;
-			rlow.ToLower();
-			if (DZS_Maps.WorldOf(rlow) != "")
-				d.m_MapKey = rlow;
+			d.m_MapKey = DZS_Maps.FromFormat(rm.m_Str);
 		}
 		DZS_SrcNode ed = EditorNodeOf(root);
 		if (!ed)
@@ -868,9 +891,14 @@ class DZS_ProjectFile
 		DZS_Json prov = DZS_Json.Obj();
 		DZS_Json nj = DZS_Json.Str(name);
 		prov.Set("name", nj);
-		DZS_Json mj = DZS_Json.Str(mapKey);
+		DZS_Json mj = DZS_Json.Str(DZS_Maps.FormatKey(mapKey));
 		prov.Set("map", mj);
 		ed.Set("provider", prov);
+		if (mapKey != "")
+		{
+			DZS_Json rmj = DZS_Json.Str(DZS_Maps.FormatKey(mapKey));
+			root.Set("map", rmj);
+		}
 		if (base == "")
 			base = "vanilla";
 		DZS_Json bj = DZS_Json.Str(base);
@@ -925,9 +953,9 @@ class DZS_ProjectFile
 		}
 		if (mapKey != "")
 		{
-			DZS_Json mj = DZS_Json.Str(mapKey);
+			DZS_Json mj = DZS_Json.Str(DZS_Maps.FormatKey(mapKey));
 			prov.Set("map", mj);
-			DZS_Json rj = DZS_Json.Str(mapKey);
+			DZS_Json rj = DZS_Json.Str(DZS_Maps.FormatKey(mapKey));
 			root.Set("map", rj);
 		}
 		if (base != "")

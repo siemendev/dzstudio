@@ -114,8 +114,7 @@ class DZS_WorkFolder
 		DZS_Json ed = DZS_ProjectFile.EditorOf(root);
 		if (mk == "" && ed && ed.Get("provider"))
 			mk = ed.Get("provider").GetStr("map");
-		mk.ToLower();
-		return mk;
+		return DZS_Maps.FromFormat(mk);
 	}
 
 	static string BaseOf(DZS_Json root)
