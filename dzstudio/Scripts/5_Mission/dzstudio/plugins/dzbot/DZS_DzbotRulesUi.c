@@ -160,6 +160,15 @@ class DZS_RulesDialog : DZS_RulesBase
 			tone = "accentText";
 		Label(l, label, 0, tone, 14);
 		DZS_ExtOwner o = DZS_EntityExts.Owner(m_Inst, section, rid);
+		if (!o)
+		{
+			// carried over from the file without an editor here (DZS_KeptBlocks): its rules are edited in dzbot
+			string kept = DZS_DzbotRules.Summary(DZS_DzbotRules.RuleOf(json));
+			if (kept == "")
+				kept = DZS_Texts.Pick("immer dabei", "always");
+			Label(l, kept + DZS_Texts.Pick(" · in dzbot bearbeiten", " · edit in dzbot"), -1, "textQuiet", 13);
+			return;
+		}
 		TextWidget sum = Label(l, Summary(o), -1, "textQuiet", 13);
 		int i = m_RowRef.Count();
 		Knob(l, "side", DZS_Texts.Pick("Regeln", "Rules"), "edit:" + i);
@@ -2086,6 +2095,12 @@ class DZS_SettingDialog : DZS_RulesBase
 				continue;
 			if (DZS_DzbotRules.SettingId(other) == id)
 				errors.Insert(DZS_Texts.Pick("Name schon vergeben", "Identifier already used"));
+		}
+		if (at >= 0 && !section)
+		{
+			string was = DZS_DzbotRules.SettingId(list.At(at));
+			if (was != id && DZS_KeptBlocks.Uses(m_Inst, was))
+				errors.Insert(DZS_Texts.Pick("Regeln, die nur dzbot bearbeitet, nennen " + was + " — dort umbenennen", "Rules only dzbot edits name " + was + " — rename it there"));
 		}
 		if (errors.Count() > 0)
 		{

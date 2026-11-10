@@ -888,10 +888,14 @@ class DZS_ProjectFile
 	}
 
 	// ComposeV2 without the text, on root itself (a copy of the blocks, or ShareTop of them).
-	static DZS_Json ComposeV2Root(DZS_Json root, string name, string mapKey, string base, string projectPart, string viewPart, DZS_Json extensions = null)
+	// keepSlug: a slug the root has stays (a provider's project: its own files stay in dzstudio/<slug>/ on the server).
+	static DZS_Json ComposeV2Root(DZS_Json root, string name, string mapKey, string base, string projectPart, string viewPart, DZS_Json extensions = null, bool keepSlug = false)
 	{
-		DZS_Json slug = DZS_Json.Str(DZS_ProjectV2.Slug(name));
-		root.Set("slug", slug);
+		if (!keepSlug || root.GetStr("slug") == "")
+		{
+			DZS_Json slug = DZS_Json.Str(DZS_ProjectV2.Slug(name));
+			root.Set("slug", slug);
+		}
 		DZS_Json ed = DZS_Json.Obj();
 		DZS_Json prov = DZS_Json.Obj();
 		DZS_Json nj = DZS_Json.Str(name);
@@ -949,7 +953,8 @@ class DZS_ProjectFile
 	}
 
 	// A version 2 file with another name (and slug), map, base or view ("" keeps each); null when it is not version 2.
-	static array<string> RewriteV2(array<string> chunks, string name, string mapKey, string viewPart, string base = "")
+	// keepSlug: a slug the file has stays (a project received from a provider), else a name sets it.
+	static array<string> RewriteV2(array<string> chunks, string name, string mapKey, string viewPart, string base = "", bool keepSlug = false)
 	{
 		if (!IsV2(chunks))
 			return null;
@@ -968,8 +973,11 @@ class DZS_ProjectFile
 		{
 			DZS_Json nj = DZS_Json.Str(name);
 			prov.Set("name", nj);
-			DZS_Json sj = DZS_Json.Str(DZS_ProjectV2.Slug(name));
-			root.Set("slug", sj);
+			if (!keepSlug || root.GetStr("slug") == "")
+			{
+				DZS_Json sj = DZS_Json.Str(DZS_ProjectV2.Slug(name));
+				root.Set("slug", sj);
+			}
 		}
 		if (mapKey != "")
 		{

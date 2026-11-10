@@ -3074,6 +3074,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		array<string> none = new array<string>();
 		b.m_ProjectPart = DZS_ProjectFile.ProjectPart(entries, le == "true", lh == "true", ll == "true", "", none, none, true, pplugins);
 		b.m_Build = DZS_ProjectBuild.Make(m_Kernel, inst, m_Open.m_Name, m_Open.m_MapKey, noLoot, false);
+		b.m_Build.m_KeepSlug = m_Open.m_Folder.IndexOf("@") == 0 || m_Open.m_Provider == "shared";
 		b.m_Build.StampGen(b.m_Gen);
 	}
 
@@ -3089,7 +3090,8 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		if (plan.m_SaveAs)
 			name = plan.m_Name;
 		DZS_Json shared = DZS_ProjectFile.ShareTop(plan.m_Blocks);
-		DZS_Json root = DZS_ProjectFile.ComposeV2Root(shared, name, m_Open.m_MapKey, plan.m_Base, plan.m_ProjectPart, CameraView(), DZS_ProjectExtensions.Save());
+		bool keepSlug = !plan.m_SaveAs && (m_Open.m_Folder.IndexOf("@") == 0 || m_Open.m_Provider == "shared");
+		DZS_Json root = DZS_ProjectFile.ComposeV2Root(shared, name, m_Open.m_MapKey, plan.m_Base, plan.m_ProjectPart, CameraView(), DZS_ProjectExtensions.Save(), keepSlug);
 		b.m_Text = new DZS_JsonWriteSteps(root, true, 5);
 	}
 

@@ -182,6 +182,18 @@ class DZS_ProjectRefs
 			return DZS_Texts.Pick("Wetter", "Weather");
 		if (kind == "gameplay")
 			return "cfggameplay.json";
+		if (kind == "gearPreset")
+			return DZS_Texts.Pick("Startausrüstung", "Spawn gear");
+		if (kind == "restrictedArea")
+			return DZS_Texts.Pick("Sperrgebiet", "Restricted area");
+		if (kind == "global")
+			return DZS_Texts.Pick("Globaler Wert", "Global");
+		if (kind == "message")
+			return DZS_Texts.Pick("Servernachricht", "Server message");
+		if (kind == "eventGroup")
+			return DZS_Texts.Pick("Event-Gruppe", "Event group");
+		if (kind == "playerSpawnGroup" || kind == "playerSpawnPosition" || kind == "playerSpawnSection")
+			return DZS_Texts.Pick("Spieler-Spawn", "Player spawn");
 		return kind;
 	}
 

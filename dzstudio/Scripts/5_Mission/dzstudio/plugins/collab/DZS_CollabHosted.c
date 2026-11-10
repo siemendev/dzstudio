@@ -582,7 +582,7 @@ class DZS_CollabHosted : Managed
 		{
 			// name and map come from the server, the camera stays; an older store keeps only format, version and project
 			string view = DZS_ProjectFile.ViewRawOf(DZS_Files.Read(path));
-			array<string> own = DZS_ProjectFile.RewriteV2(m_FileChunks, p.m_Name, p.m_Map, view);
+			array<string> own = DZS_ProjectFile.RewriteV2(m_FileChunks, p.m_Name, p.m_Map, view, "", true);
 			string ppart = RawOf(m_FileChunks, "project");
 			if (own)
 				m_FileChunks = own;

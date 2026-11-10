@@ -331,6 +331,8 @@ class DZS_ProjectBuild : DZS_Job
 	string m_Name;
 	string m_MapKey;
 	bool m_NoLoot;
+	// the file's slug stays (set by the save of a provider's project before the build steps)
+	bool m_KeepSlug;
 	// the state's generation at the start
 	int m_Gen;
 	// the result; null when the project went away meanwhile
@@ -357,6 +359,8 @@ class DZS_ProjectBuild : DZS_Job
 	protected ref array<string> m_LootObjs = new array<string>();
 	protected int m_Rows;
 	protected ref array<ref DZS_ProjectSection> m_Sections;
+	// what the open carried over unchanged (DZS_KeptBlocks), appended last
+	protected ref DZS_Json m_Kept;
 
 	static DZS_ProjectBuild Make(DZS_Kernel kernel, DZS_Instance inst, string name, string mapKey, bool noLoot, bool ownFreeze)
 	{
@@ -421,6 +425,7 @@ class DZS_ProjectBuild : DZS_Job
 		m_Total += m_Types.Count() + m_LootObjs.Count();
 		m_Sections = DZS_ProjectSections.All();
 		m_Total += m_Sections.Count();
+		m_Kept = DZS_KeptBlocks.From(m_Inst);
 	}
 
 	override bool Step(float ms)
@@ -511,7 +516,11 @@ class DZS_ProjectBuild : DZS_Job
 			else if (m_Phase == SECTIONS)
 			{
 				if (m_At >= m_Sections.Count())
+				{
+					DZS_KeptBlocks.AddTo(m_Kept, m_Root, m_KeepSlug);
+					m_Kept = null;
 					return true;
+				}
 				DZS_Json frag = m_Sections[m_At].Fragment(m_Inst);
 				DZS_ProjectV2.AddFragment(frag, m_Blocks, m_Changes);
 				m_At++;

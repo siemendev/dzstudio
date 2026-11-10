@@ -45,6 +45,15 @@ class DZS_ProjectSections
 		DZS_Json list = DZS_Json.ParseText(entries, err);
 		if (!list || !list.IsArr())
 			list = DZS_Json.Arr();
+		// what the open carried over is taken from the file's blocks anew at every open, never from this part
+		DZS_Json rest = DZS_Json.Arr();
+		for (int r = 0; r < list.Count(); r++)
+		{
+			DZS_Json re = list.At(r);
+			if (re.At(0).m_Str != DZS_KeptBlocks.NAME)
+				rest.Add(re);
+		}
+		list = rest;
 		array<ref DZS_ProjectSection> sections = All();
 		foreach (DZS_ProjectSection s : sections)
 		{

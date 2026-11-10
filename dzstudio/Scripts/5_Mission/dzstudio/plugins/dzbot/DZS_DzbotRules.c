@@ -560,6 +560,20 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		return true;
 	}
 
+	// The rule a block, change or element of the file carries in its own extensions, null when none.
+	static DZS_Json RuleOf(DZS_Json entity)
+	{
+		if (!entity || !entity.IsObj())
+			return null;
+		DZS_Json exts = entity.Get("extensions");
+		if (!exts || !exts.IsObj())
+			return null;
+		DZS_Json rule = exts.Get(URL);
+		if (!rule || !rule.IsObj())
+			return null;
+		return rule;
+	}
+
 	// "Condition · Formula · …" of a rule, "" for none.
 	static string Summary(DZS_Json rule)
 	{

@@ -1423,7 +1423,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		string view = "";
 		if (reloading && pp.m_Open.m_MapKey == dp.m_MapKey)
 			view = m_ReloadView;
-		array<string> own = DZS_ProjectFile.RewriteV2(projectChunks, dp.m_Name, mapSet, view);
+		array<string> own = DZS_ProjectFile.RewriteV2(projectChunks, dp.m_Name, mapSet, view, "", true);
 		if (!own)
 			own = DZS_LocalStore.NewFile(dp.m_Name, dp.m_MapKey, "", "objects.json", DZS_Texts.Get("core.group.objects"));
 		DZS_Files.Write(DZS_LocalStore.Path(folder, DZS_ProjectFile.NAME), own);

@@ -238,6 +238,7 @@ class DZS_WorkFolder
 		}
 		DZS_Json part = PartV1(proj, paths);
 		Unlisted(root, part, paths);
+		DZS_KeptBlocks.Put(root, part);
 		string projText = TextOf(part, 1);
 		return DZS_ProjectFile.Compose(name, mapKey, projText, viewText);
 	}
