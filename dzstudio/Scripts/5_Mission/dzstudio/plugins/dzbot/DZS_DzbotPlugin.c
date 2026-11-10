@@ -201,7 +201,7 @@ class DZS_DzbotProvider : DZS_StoreProvider
 	override string TabLabel()
 	{
 		if (m_P.IsConnected())
-			return "dzbot";
+			return DZS_Texts.Pick("dzbot · Server", "dzbot · Servers");
 		return "";
 	}
 	override void RefreshRows() { m_P.RefreshProjects(); }

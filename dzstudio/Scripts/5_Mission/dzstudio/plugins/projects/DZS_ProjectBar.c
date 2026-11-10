@@ -505,6 +505,19 @@ class DZS_ProjectBar : DZS_PanelContent
 		r.m_LockB.SetOn(locked);
 	}
 
+	// A group's own file as the next save writes it: a local project's slug follows its name, so Save As moves it.
+	protected string ShownFile(string file)
+	{
+		DZS_OpenProject o = m_P.m_Open;
+		if (!o || o.m_Folder.IndexOf("@") == 0 || o.m_Provider == "shared" || file.IndexOf("dzstudio/") != 0)
+			return file;
+		string rest = file.Substring(9, file.Length() - 9);
+		int slash = rest.IndexOf("/");
+		if (slash < 0)
+			return file;
+		return "dzstudio/" + DZS_ProjectV2.Slug(o.m_Name) + rest.Substring(slash, rest.Length() - slash);
+	}
+
 	// hits: objects of the group the filter matches, -1 without a filter
 	protected void PlaceGroup(DZS_Instance inst, DZS_GroupRow r, string gid, bool isActive, float width, float y, DZS_SelectionApi sel, int hits)
 	{
@@ -520,6 +533,7 @@ class DZS_ProjectBar : DZS_PanelContent
 		inst.GetField(gid, DZS_Obj.GROUP_NAME, name);
 		inst.GetField(gid, DZS_Obj.GROUP_COLOR, color);
 		inst.GetField(gid, DZS_Obj.GROUP_FILE, file);
+		file = ShownFile(file);
 		inst.GetField(gid, "unreadable", unreadable);
 		string countKey = m_P.m_StateVer.ToString() + "|" + m_DupGen + "|" + gid;
 		bool closed = IsClosed(gid);
