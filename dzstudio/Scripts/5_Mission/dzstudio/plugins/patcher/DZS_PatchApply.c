@@ -975,7 +975,7 @@ class DZS_PatchApply : Managed
 		string text = DZS_Texts.Pick("Alle Änderungen von „", "Take back every change of '") + ProjectName();
 		text += DZS_Texts.Pick("“ in ", "' in ") + b.m_TargetShown;
 		text += DZS_Texts.Pick(" zurücknehmen? Der Ordner wird aus den Originalen neu aufgebaut, andere dort angewendete Projekte bleiben.", "? The folder is rebuilt from the originals; other projects applied there stay.");
-		DZS_ConfirmDialog c = new DZS_ConfirmDialog(kicker, title, text);
+		DZS_ConfirmDialog c = new DZS_ConfirmDialog(kicker, title, DZS_W.Literal(text));
 		c.AddFootButton("cancel", DZS_Texts.Get("core.dialog.cancel"), "side");
 		DZS_Button yes = c.AddFootButton("undo", DZS_Texts.Pick("Rückgängig", "Undo"), "danger");
 		yes.m_Hit.m_Primary = true;
@@ -1290,9 +1290,9 @@ class DZS_ApplyDialog : DZS_Dialog
 		for (int i = 0; i < m_Bases.Count(); i++)
 		{
 			TextWidget n = DZS_W.Text(inner, DZS_Font.READ, 14, DZS_Color.Get("text"));
-			n.SetText(m_Bases[i].m_Name);
+			n.SetText(DZS_W.Literal(m_Bases[i].m_Name));
 			TextWidget m = DZS_W.Text(inner, DZS_Font.READ, 13, DZS_Color.Get("textQuiet"));
-			m.SetText(m_Bases[i].m_Meta);
+			m.SetText(DZS_W.Literal(m_Bases[i].m_Meta));
 			DZS_Button b = new DZS_Button(inner, "side", DZS_Texts.Pick("Wählen", "Choose"));
 			b.m_Tag = i.ToString();
 			b.m_OnClick.Insert(OnPick);
@@ -1308,7 +1308,8 @@ class DZS_ApplyDialog : DZS_Dialog
 			AddFocusHit(r.m_Hit);
 		}
 		m_Hint = DZS_W.Text(inner, DZS_Font.READ, 13, DZS_Color.Get("textQuiet"));
-		m_Hint.SetText(DZS_Texts.Pick("Eigene Server-Dateien: Missionsordner nach ", "Your server's files: copy the mission folder to ") + DZS_PatchApply.Shown("Missions") + DZS_Texts.Pick(" kopieren.", "."));
+		string hint = DZS_Texts.Pick("Eigene Server-Dateien: Missionsordner nach ", "Your server's files: copy the mission folder to ") + DZS_PatchApply.Shown("Missions") + DZS_Texts.Pick(" kopieren.", ".");
+		m_Hint.SetText(DZS_W.Literal(hint));
 		m_ChgLbl = DZS_W.Text(inner, DZS_Font.READ, 12, DZS_Color.Get("textMuted"));
 		m_ChgLbl.SetText(DZS_Texts.Pick("WIRD GEÄNDERT", "CHANGES GO TO"));
 		m_ChgPath = DZS_W.Text(inner, DZS_Font.READ, 13, DZS_Color.Get("text"));
@@ -1333,11 +1334,11 @@ class DZS_ApplyDialog : DZS_Dialog
 				m_Names[i].SetColor(DZS_Color.Get("text"));
 			}
 			m_Picks[i].SetEnabled(!on);
-			m_Metas[i].SetText(m_Bases[i].m_Meta);
+			m_Metas[i].SetText(DZS_W.Literal(m_Bases[i].m_Meta));
 			m_Removes[i].Show(m_Bases[i].m_Applied != "");
 		}
 		DZS_PatchBase b = m_Bases[m_Pick];
-		m_ChgPath.SetText(b.m_TargetShown);
+		m_ChgPath.SetText(DZS_W.Literal(b.m_TargetShown));
 		if (b.m_Vanilla)
 			m_ChgNote.SetText(DZS_Texts.Pick("Neuer Ordner, nur die Dateien des Projekts – auf einen Server mit Vanilla-Mission kopieren", "A new folder with only the project's files – copy it onto a server that runs the vanilla mission"));
 		else
@@ -1467,7 +1468,7 @@ class DZS_ApplyResultDialog : DZS_Dialog
 		Add(b.m_TargetShown, "accentText");
 		if (r.m_Notes.Find("enableCfgGameplayFile") >= 0)
 			Add(DZS_Texts.Pick("Der Server braucht enableCfgGameplayFile = 1 in serverDZ.cfg.", "The server needs enableCfgGameplayFile = 1 in serverDZ.cfg."), "textQuiet");
-		Setup(MEDIUM, DZS_Texts.Pick("Projekt", "Project"), DZS_Texts.Pick("Angewendet auf ", "Applied to ") + b.m_Name, false);
+		Setup(MEDIUM, DZS_Texts.Pick("Projekt", "Project"), DZS_W.Literal(DZS_Texts.Pick("Angewendet auf ", "Applied to ") + b.m_Name), false);
 		if (b.m_Applied != "")
 			AddFootButtonLeft("undo", DZS_Texts.Pick("Rückgängig", "Undo"), "side");
 		AddFootButton("copy", DZS_Texts.Pick("Pfad kopieren", "Copy path"), "side");
@@ -1499,7 +1500,7 @@ class DZS_ApplyResultDialog : DZS_Dialog
 			if (i == 0)
 				size = 15;
 			TextWidget t = DZS_W.Text(inner, DZS_Font.READ, size, DZS_Color.Get(m_Tones[i]));
-			t.SetText(m_Lines[i]);
+			t.SetText(DZS_W.Literal(m_Lines[i]));
 			m_Widgets.Insert(t);
 		}
 		AddFootFocus();

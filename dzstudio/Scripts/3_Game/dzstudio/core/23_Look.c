@@ -45,11 +45,39 @@ class DZS_Texts
 	// Replaces %1, %2 … in a table text.
 	static string Fmt(string key, string a1 = "", string a2 = "", string a3 = "")
 	{
-		string s = Get(key);
-		s.Replace("%1", a1);
-		s.Replace("%2", a2);
-		s.Replace("%3", a3);
-		return s;
+		return Fill(Get(key), a1, a2, a3);
+	}
+
+	// In one pass, so a value that itself holds "%2" (a path like patrick%2esiemen) stays as it is.
+	static string Fill(string s, string a1, string a2, string a3)
+	{
+		if (!s.Contains("%"))
+			return s;
+		string r = "";
+		int n = s.Length();
+		int i = 0;
+		while (i < n)
+		{
+			string c = s.Get(i);
+			if (c == "%" && i + 1 < n)
+			{
+				string d = s.Get(i + 1);
+				if (d == "1" || d == "2" || d == "3")
+				{
+					if (d == "1")
+						r += a1;
+					else if (d == "2")
+						r += a2;
+					else
+						r += a3;
+					i += 2;
+					continue;
+				}
+			}
+			r += c;
+			i++;
+		}
+		return r;
 	}
 
 	// A table text in one language (operation names carry both).
@@ -64,9 +92,7 @@ class DZS_Texts
 			else
 				s = pair[1] + "";
 		}
-		s.Replace("%1", a1);
-		s.Replace("%2", a2);
-		return s;
+		return Fill(s, a1, a2, "");
 	}
 
 	// The bundled reading font draws no ASCII apostrophe in DayZ 1.30; names from the game show the typographic one.
