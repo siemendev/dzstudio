@@ -1,15 +1,14 @@
 // The Spawns layer: vehicle spawn points of the base (vanilla or the mission folder chosen for the project) with the
 // project's changes, ghost cars near the camera and dots further away. A point is selected and dragged like loot
-// points (own picking, the layer owns the scene tool); its event shows in the side panel. Placing a vehicle class in
-// the Objects layer makes an own fixed event. Layer tabs sit in the top bar.
+// points (own picking, the layer owns the scene tool); the right bar lists the points and shows the selected point's
+// event. The left list offers the events (a new point for one) and the vehicles (an own fixed event, also from the
+// catalogue of the Objects layer); placed by a click in the scene or by dragging, like an object.
 class DZS_SpawnsActions : DZS_ActionHandler
 {
 	DZS_SpawnsPlugin m_P;
 
 	override bool IsActionChecked(string actionId)
 	{
-		if (actionId == "spawns.layer.objects")
-			return DZS_Layers.Active() == "";
 		if (actionId == "spawns.layer.spawns")
 			return m_P.m_On;
 		return false;
@@ -28,9 +27,7 @@ class DZS_SpawnsActions : DZS_ActionHandler
 
 	override void OnAction(string actionId)
 	{
-		if (actionId == "spawns.layer.objects")
-			DZS_Layers.Only("");
-		else if (actionId == "spawns.layer.spawns")
+		if (actionId == "spawns.layer.spawns")
 			m_P.SetOn(true);
 	}
 }
@@ -83,8 +80,8 @@ class DZS_SpawnsEsc : DZS_EscHandler
 
 	override void OnEsc()
 	{
-		if (m_P.m_Adding)
-			m_P.m_Adding = false;
+		if (m_P.m_PlaceClass != "")
+			m_P.Arm("", false);
 		else if (m_P.m_Sel != "")
 			m_P.Select("");
 		else
@@ -99,6 +96,89 @@ class DZS_SpawnsLayer : DZS_Layer
 	override string Id() { return "spawns"; }
 	override bool IsOn() { return m_P.m_On; }
 	override void TurnOff() { m_P.SetOn(false); }
+	override string CatalogTitle() { return DZS_Texts.Pick("Events und Fahrzeuge", "Events and vehicles"); }
+	override bool Offers(string cls) { return DZS_SpawnsBase.IsVehicle(cls); }
+	override int ExtraRev() { return m_P.m_Events.Count() * 100000 + m_P.PointsShown(); }
+
+	// Each event of base and project: a new spawn point for it.
+	override void Extra(array<ref DZS_LayerEntry> into)
+	{
+		array<string> names = new array<string>();
+		foreach (string n, DZS_SpawnEvent e : m_P.m_Events)
+			names.Insert(n);
+		names.Sort();
+		foreach (string name : names)
+		{
+			DZS_LayerEntry le = new DZS_LayerEntry();
+			le.m_Key = "ev:" + name;
+			le.m_Name = name;
+			int pts = m_P.PointsOf(name);
+			string ptsText = pts.ToString() + DZS_Texts.Pick(" Punkte", " points");
+			if (pts == 1)
+				ptsText = DZS_Texts.Pick("1 Punkt", "1 point");
+			le.m_Sub = DZS_Texts.Pick("Neuer Spawnpunkt · ", "New spawn point · ") + ptsText;
+			le.m_Icon = "car";
+			into.Insert(le);
+		}
+	}
+	override void Arm(string key, bool drag) { m_P.Arm(key, drag); }
+	override string Armed() { return m_P.m_PlaceClass; }
+}
+
+class DZS_SpawnsList : DZS_LayerListSource
+{
+	DZS_SpawnsPlugin m_P;
+	protected ref array<DZS_SpawnPoint> m_Rows = new array<DZS_SpawnPoint>();
+	protected int m_RowsGen = -1;
+
+	protected void Sync()
+	{
+		if (m_RowsGen == m_P.m_Gen)
+			return;
+		m_RowsGen = m_P.m_Gen;
+		m_Rows.Clear();
+		foreach (DZS_SpawnPoint p : m_P.m_Points)
+		{
+			if (!p.m_Gone)
+				m_Rows.Insert(p);
+		}
+	}
+
+	override int Gen() { return m_P.m_Gen; }
+	override int RowCount() { Sync(); return m_Rows.Count(); }
+	override string RowKey(int i) { return m_Rows[i].Key(); }
+	override string RowTitle(int i) { return m_Rows[i].m_Event; }
+
+	override string RowSub(int i)
+	{
+		DZS_SpawnPoint p = m_Rows[i];
+		string s = "x " + Math.Round(p.m_X) + " · z " + Math.Round(p.m_Z);
+		if (p.m_Kept)
+			s += DZS_Texts.Pick(" · außerhalb angelegt", " · made outside");
+		else if (p.m_Own)
+			s += DZS_Texts.Pick(" · eigener Punkt", " · own point");
+		else if (p.m_Moved)
+			s += DZS_Texts.Pick(" · verschoben", " · moved");
+		return s;
+	}
+
+	override int RowColor(int i) { return m_P.ColorOf(m_Rows[i]); }
+	override string SelectedKey() { return m_P.m_Sel; }
+	override void SelectRow(string key) { m_P.Select(key); }
+
+	override void FocusRow(string key)
+	{
+		DZS_SpawnPoint p = m_P.PointOf(key);
+		if (p)
+			DZS_LayerRay.Focus(p.m_X, p.m_Z, 8);
+	}
+
+	override string EmptyText()
+	{
+		if (!m_P.HasBase())
+			return DZS_Texts.Pick("Keine Basis geladen", "No base loaded");
+		return DZS_Texts.Pick("Keine Spawnpunkte", "No spawn points");
+	}
 }
 
 [DZS_RegisterPlugin(DZS_SpawnsPlugin)]
@@ -106,13 +186,17 @@ class DZS_SpawnsPlugin : DZS_Plugin
 {
 	static const string TOOL = "spawns";
 	static const string PANEL = "spawns.event";
+	static const string LIST = "spawns.list";
 	static const float GHOST_RANGE = 150;
 	static const int GHOST_MAX = 60;
 
 	bool m_On;
 	string m_Sel;
 	string m_Hover;
-	bool m_Adding;
+	// from the left list: "ev:<event>" (a new point of the event) or a vehicle class (a fixed vehicle); placed by the
+	// next click, or where a drag from the list is let go
+	string m_PlaceClass;
+	protected bool m_PlaceDrag;
 	int m_Gen;
 	protected bool m_World;
 	protected ref DZS_SpawnsActions m_Actions;
@@ -121,6 +205,7 @@ class DZS_SpawnsPlugin : DZS_Plugin
 	protected ref DZS_SpawnsEsc m_Esc;
 	protected ref DZS_SpawnsLayer m_Layer;
 	protected ref DZS_SpawnsPanel m_Panel;
+	protected ref DZS_SpawnsList m_ListSrc;
 	protected ref DZS_SpawnsBase m_Base;
 	protected string m_BaseFor;
 	ref map<string, ref DZS_SpawnEvent> m_Events = new map<string, ref DZS_SpawnEvent>();
@@ -161,14 +246,17 @@ class DZS_SpawnsPlugin : DZS_Plugin
 		m_Layer.m_P = this;
 		DZS_Layers.Add(m_Layer);
 		DZS_UiRegistry ui = m_Kernel.GetUi();
-		ui.RegisterAction("spawns", "spawns.layer.objects", "Objekte", "Objects", null, m_Actions);
-		ui.RegisterTool("spawns", "spawns.layer.objects", "Objekte", "Objects", "switches", "box", -100);
-		ui.SetToolLabelled("spawns.layer.objects");
-		ui.SetToolTip("spawns.layer.objects", "Ebene Objekte: platzieren, verschieben, Loot", "Objects layer: place, move, loot", "spawns.layer.objects");
-		ui.RegisterAction("spawns", "spawns.layer.spawns", "Spawns", "Spawns", null, m_Actions);
-		ui.RegisterTool("spawns", "spawns.layer.spawns", "Spawns", "Spawns", "switches", "car", -99);
-		ui.SetToolLabelled("spawns.layer.spawns");
-		ui.SetToolTip("spawns.layer.spawns", "Ebene Spawns: Fahrzeug-Spawnpunkte und Events", "Spawns layer: vehicle spawn points and events", "spawns.layer.spawns");
+		DZS_LayersPlugin.Register(ui, "spawns", "spawns.layer.spawns", "spawns", "Spawns", "Spawns", "car", "2", 20, m_Actions);
+		ui.RegisterAction("spawns", "spawns.tool.select", "Auswählen und verschieben", "Select and move", null, m_Actions);
+		ui.SetListed("spawns.tool.select", false);
+		ui.RegisterTool("spawns", "spawns.tool.select", "Auswählen und verschieben", "Select and move", "tools", "mouse-pointer-2", 10);
+		ui.SetToolLayer("spawns.tool.select", "spawns");
+		ui.SetToolTip("spawns.tool.select", "Auswählen und verschieben — Punkt anklicken, ziehen", "Select and move — click a point, drag it", "");
+		ui.SetActionLayer("spawns.tool.select", "spawns");
+		m_ListSrc = new DZS_SpawnsList();
+		m_ListSrc.m_P = this;
+		ui.RegisterPanel("spawns", LIST, "Spawnpunkte", "Spawn points", "right", "car", new DZS_LayerList(m_ListSrc), 14);
+		ui.SetPanelShown(LIST, false);
 		m_Panel = new DZS_SpawnsPanel(this);
 		ui.RegisterPanel("spawns", PANEL, "Event", "Event", "right", "car", m_Panel, 15);
 		ui.SetPanelShown(PANEL, false);
@@ -309,11 +397,12 @@ class DZS_SpawnsPlugin : DZS_Plugin
 			}
 			m_On = true;
 			m_Sel = "";
-			m_Adding = false;
+			m_PlaceClass = "";
 			m_ViewVer = -1;
 			m_Kernel.SetSceneTool(TOOL);
 			m_Kernel.ClaimSceneState(true);
 			ui.SetOverride(m_Override);
+			ui.SetPanelShown(LIST, true);
 			ui.SetPanelShown(PANEL, true);
 			ui.SetPanelShown("properties.panel", false);
 			DZS_Instance inst = m_Kernel.GetShown();
@@ -327,11 +416,12 @@ class DZS_SpawnsPlugin : DZS_Plugin
 		{
 			m_On = false;
 			m_Drag = false;
-			m_Adding = false;
+			m_PlaceClass = "";
 			m_Kernel.SetSceneTool("");
 			m_Kernel.ClaimSceneState(false);
 			ui.SetSceneState("none");
 			ui.SetOverride(null);
+			ui.SetPanelShown(LIST, false);
 			ui.SetPanelShown(PANEL, false);
 			ui.SetPanelShown("properties.panel", true);
 			m_Kernel.GetScreen().SetHint("spawns", 30, "");
@@ -341,6 +431,26 @@ class DZS_SpawnsPlugin : DZS_Plugin
 			DZS_Log.Info("spawns: layer off");
 		}
 		m_Gen++;
+		DZS_Layers.Sync();
+	}
+
+	void Arm(string cls, bool drag)
+	{
+		m_PlaceClass = cls;
+		m_PlaceDrag = drag && cls != "";
+		m_Gen++;
+		DZS_Log.Info("spawns: armed '" + cls + "' drag " + DZS_Str.Bool(drag));
+	}
+
+	int ColorOf(DZS_SpawnPoint p)
+	{
+		if (p.m_Kept)
+			return DZS_Color.Get("info");
+		if (p.m_Own)
+			return DZS_Color.Get("success");
+		if (p.m_Moved)
+			return DZS_Color.Get("warning");
+		return DZS_Color.Get("accent");
 	}
 
 	void Select(string key)
@@ -378,6 +488,9 @@ class DZS_SpawnsPlugin : DZS_Plugin
 		else
 			m_Kernel.GetUi().SetSceneState("none");
 		LayerInput(inst, scr);
+		DZS_PanelInfo li = m_Kernel.GetUi().GetPanel(LIST);
+		if (li)
+			li.m_Meta = PointsShown().ToString();
 		m_GhostWait -= dt;
 		if (m_GhostWait <= 0)
 		{
@@ -386,15 +499,34 @@ class DZS_SpawnsPlugin : DZS_Plugin
 		}
 		Draw();
 		string hint;
-		if (m_Adding)
+		if (m_PlaceClass.IndexOf("ev:") == 0)
 			hint = DZS_Texts.Pick("Klick in die Szene setzt einen Spawnpunkt · Esc bricht ab", "Click in the scene to add a spawn point · Esc cancels");
+		else if (m_PlaceClass != "")
+			hint = DZS_Texts.Pick("Klick in die Szene setzt ein festes Fahrzeug · Esc bricht ab", "Click in the scene to add a fixed vehicle · Esc cancels");
 		else if (Selected() && Selected().m_Kept)
 			hint = DZS_KeptBlocks.ReadOnlyTitle() + " · " + DZS_KeptBlocks.ReadOnlyHint();
 		else if (m_Sel == "")
-			hint = DZS_Texts.Pick("Spawnpunkt anklicken · Fahrzeuge aus dem Katalog in der Ebene Objekte setzen", "Click a spawn point · place vehicles from the catalog in the Objects layer");
+			hint = DZS_Texts.Pick("Spawnpunkt anklicken · links ein Event oder Fahrzeug wählen und in die Szene setzen", "Click a spawn point · pick an event or vehicle on the left and place it in the scene");
 		else
 			hint = DZS_Texts.Pick("Ziehen verschiebt · Entf entfernt · Esc hebt die Auswahl auf", "Drag to move · Del removes · Esc clears the selection");
 		scr.SetHint("spawns", 30, hint);
+	}
+
+	protected float CameraYaw()
+	{
+		vector d = GetGame().GetCurrentCameraDirection();
+		return Math.Atan2(d[0], d[2]) * Math.RAD2DEG;
+	}
+
+	int PointsShown()
+	{
+		int n = 0;
+		foreach (DZS_SpawnPoint p : m_Points)
+		{
+			if (!p.m_Gone)
+				n++;
+		}
+		return n;
 	}
 
 	protected vector Ground(float x, float z)
@@ -462,6 +594,7 @@ class DZS_SpawnsPlugin : DZS_Plugin
 		bool over = !blocked && (!scr.IsCursorVisible() || scr.IsPointerOverScene());
 		bool lmb = DZS_UiRegistry.KeyDown("MouseLeft");
 		bool lDown = lmb && !m_LmbWas;
+		bool lUp = !lmb && m_LmbWas;
 		m_LmbWas = lmb;
 		int mx, my;
 		GetMousePos(mx, my);
@@ -472,14 +605,24 @@ class DZS_SpawnsPlugin : DZS_Plugin
 		m_Hover = "";
 		if (over && !m_Drag)
 			m_Hover = Pick(mx, my);
+		if (m_PlaceDrag && lUp)
+		{
+			vector dropAt;
+			string dropKey = m_PlaceClass;
+			Arm("", false);
+			if (over && RayGround(from, dir, dropAt))
+				PlaceAt(inst, dropKey, dropAt);
+			return;
+		}
 		if (lDown && over && !scr.IsMouseSwallowed())
 		{
-			if (m_Adding)
+			if (m_PlaceClass != "" && !m_PlaceDrag)
 			{
-				vector at;
-				if (RayGround(from, dir, at))
-					AddPoint(inst, at[0], at[2]);
-				m_Adding = false;
+				vector clickAt;
+				string clickKey = m_PlaceClass;
+				Arm("", false);
+				if (RayGround(from, dir, clickAt))
+					PlaceAt(inst, clickKey, clickAt);
 				return;
 			}
 			Select(m_Hover);
@@ -513,10 +656,6 @@ class DZS_SpawnsPlugin : DZS_Plugin
 		GetScreenSize(sw, sh);
 		DZS_W.Place(m_Canvas, 0, 0, sw, sh);
 		vector cam = GetGame().GetCurrentCameraPosition();
-		int normal = DZS_Color.Get("accent");
-		int own = DZS_Color.Get("success");
-		int moved = DZS_Color.Get("warning");
-		int kept = DZS_Color.Get("info");
 		foreach (DZS_SpawnPoint p : m_Points)
 		{
 			if (p.m_Gone)
@@ -526,13 +665,7 @@ class DZS_SpawnsPlugin : DZS_Plugin
 			if (dist > 2500)
 				continue;
 			string key = p.Key();
-			int col = normal;
-			if (p.m_Kept)
-				col = kept;
-			else if (p.m_Own)
-				col = own;
-			else if (p.m_Moved)
-				col = moved;
+			int col = ColorOf(p);
 			float d = DZS_Scale.Px(9);
 			if (dist > 800)
 				d = DZS_Scale.Px(6);
@@ -689,29 +822,31 @@ class DZS_SpawnsPlugin : DZS_Plugin
 		return n;
 	}
 
-	// A new point for the selected point's event at a ground position.
-	void AddPoint(DZS_Instance inst, float x, float z)
+	protected void PlaceAt(DZS_Instance inst, string key, vector pos)
 	{
-		DZS_SpawnPoint s = Selected();
-		if (!s)
-			return;
+		if (key.IndexOf("ev:") == 0)
+			AddPoint(inst, key.Substring(3, key.Length() - 3), pos[0], pos[2], CameraYaw());
+		else
+			FixedVehicle(inst, key, pos, CameraYaw());
+	}
+
+	// A new own point of an event at a ground position.
+	void AddPoint(DZS_Instance inst, string ev, float x, float z, float yaw)
+	{
+		float a = yaw;
+		if (a < 0)
+			a += 360;
 		DZS_OpBuilder b = inst.BeginOperation(DZS_SpawnsModel.OP, 1);
 		map<string, string> f = new map<string, string>();
-		f.Set("event", s.m_Event);
+		f.Set("event", ev);
 		f.Set("origin", "own");
 		f.Set("x", NumText(x));
 		f.Set("z", NumText(z));
-		f.Set("a", NumText(s.m_A));
+		f.Set("a", NumText(a));
 		string id = b.Create(DZS_SpawnsModel.POINT, DZS_PROJECT_ID, DZS_END, f);
 		b.Commit("Spawnpunkt hinzufügen", "Add spawn point");
-		m_Sel = "e:" + id;
-		DZS_Log.Info("spawns: added a point to " + s.m_Event + " at " + x + " " + z);
-	}
-
-	void StartAdding()
-	{
-		if (Selected())
-			m_Adding = true;
+		Select("e:" + id);
+		DZS_Log.Info("spawns: added a point to " + ev + " at " + x + " " + z);
 	}
 
 	// A value of the selected point's event: nominal or "child:<type>:max". Own events keep nominal on the element.
@@ -790,9 +925,15 @@ class DZS_SpawnsPlugin : DZS_Plugin
 		if (a < 0)
 			a += 360;
 		pf.Set("a", NumText(a));
-		b.Create(DZS_SpawnsModel.POINT, DZS_PROJECT_ID, DZS_END, pf);
+		string pid = b.Create(DZS_SpawnsModel.POINT, DZS_PROJECT_ID, DZS_END, pf);
 		DZS_SubmitResult r = b.Commit("Festes Fahrzeug: " + cls, "Fixed vehicle: " + cls);
 		DZS_Log.Info("spawns: fixed vehicle " + cls + " as event " + name + " at " + pos.ToString() + " ok " + r.Ok());
-		m_Kernel.GetScreen().ShowMessage("spawns.fixed", "info", DZS_Texts.Pick("Festes Fahrzeug angelegt (eigenes Event „", "Fixed vehicle added (own event '") + name + DZS_Texts.Pick("“) – sichtbar in der Ebene Spawns", "') – shown in the Spawns layer"), 6.0);
+		if (m_On)
+		{
+			Select("e:" + pid);
+			m_Kernel.GetScreen().ShowMessage("spawns.fixed", "info", DZS_Texts.Pick("Festes Fahrzeug angelegt (eigenes Event „", "Fixed vehicle added (own event '") + name + DZS_Texts.Pick("“)", "')"), 6.0);
+		}
+		else
+			m_Kernel.GetScreen().ShowMessage("spawns.fixed", "info", DZS_Texts.Pick("Festes Fahrzeug angelegt (eigenes Event „", "Fixed vehicle added (own event '") + name + DZS_Texts.Pick("“) – sichtbar in der Ebene Spawns", "') – shown in the Spawns layer"), 6.0);
 	}
 }

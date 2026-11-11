@@ -139,6 +139,8 @@ class DZS_BrushPlugin : DZS_Plugin
 		ui.RegisterAction("brush", "brush.fromSelection", "Auswahl als Pinsel-Set …", "Selection as brush set …", null, m_Actions);
 		ui.SetGroup("brush.fromSelection", "brush");
 		ui.AddMenuEntry("edit", "brush.fromSelection", 904);
+		ui.SetToolLayer("brush.toggle", DZS_UiRegistry.LAYER_OBJECTS);
+		ui.SetPluginLayer("brush", DZS_UiRegistry.LAYER_OBJECTS);
 		m_Panel = new DZS_BrushPanel(this);
 		ui.RegisterPanel("brush", PANEL, "Pinsel", "Brush", "right", "paintbrush", m_Panel, 500);
 		ui.SetPanelShown(PANEL, false);
@@ -369,6 +371,11 @@ class DZS_BrushPlugin : DZS_Plugin
 	{
 		if (on == m_On)
 			return;
+		if (on && DZS_Layers.Active() != "")
+		{
+			DZS_Log.Info("brush: not in the " + DZS_Layers.Active() + " layer");
+			return;
+		}
 		if (!on && m_Stroke)
 			CancelStroke("off");
 		if (on)

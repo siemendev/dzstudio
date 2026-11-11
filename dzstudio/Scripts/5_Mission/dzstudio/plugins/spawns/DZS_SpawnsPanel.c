@@ -1,5 +1,5 @@
-// Side panel of the Spawns layer: the event of the selected point — how many of it are on the map (with the base's
-// value next to it), its classes with their maximum, and adding or removing points.
+// Inspector of the Spawns layer: the event of the selected point — how many of it are on the map (with the base's
+// value next to it), its classes with their maximum, and removing the point (adding is "+ Spawn point" in the top bar).
 class DZS_SpawnsPanel : DZS_PanelContent
 {
 	protected DZS_SpawnsPlugin m_P;
@@ -158,13 +158,8 @@ class DZS_SpawnsPanel : DZS_PanelContent
 			Line(m_P.PointsOf(p.m_Event).ToString() + DZS_Texts.Pick(" Spawnpunkte", " spawn points"), "textQuiet", 13, 20);
 		}
 		m_Y += DZS_Scale.Px(8);
-		DZS_Button add = new DZS_Button(m_Root, "side", DZS_Texts.Pick("Punkt hinzufügen", "Add point"), "plus");
-		add.Place(Pad(), m_Y);
-		add.SetTip(DZS_Texts.Pick("Danach in die Szene klicken", "Then click in the scene"));
-		add.m_OnClick.Insert(OnAdd);
-		m_Buttons.Insert(add);
-		DZS_Button rem = new DZS_Button(m_Root, "danger", DZS_Texts.Pick("Punkt entfernen", "Remove point"), "trash-2");
-		rem.Place(Pad() + add.GetWidth() + DZS_Scale.Px(8), m_Y);
+		DZS_Button rem = new DZS_Button(m_Root, "danger", DZS_Texts.Pick("Punkt entfernen", "Remove point"), "trash");
+		rem.Place(Pad(), m_Y);
 		rem.m_OnClick.Insert(OnRemove);
 		m_Buttons.Insert(rem);
 		m_Y += DZS_Scale.Px(32);
@@ -202,11 +197,6 @@ class DZS_SpawnsPanel : DZS_PanelContent
 			return;
 		int n = Math.Clamp(Math.Round(num), 0, 999);
 		m_P.SetEventValue(m_Event, f.m_Tag, n.ToString());
-	}
-
-	void OnAdd(DZS_Button b)
-	{
-		m_P.StartAdding();
 	}
 
 	void OnRemove(DZS_Button b)

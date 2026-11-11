@@ -74,9 +74,22 @@ class DZS_W
 		return im;
 	}
 
+	protected static ref map<string, bool> s_MissingIcons;
+
+	// A name without a file in gui/icons shows the "puzzle" symbol instead of a blank square, and is logged once.
 	static void SetIcon(ImageWidget im, string name)
 	{
-		im.LoadImageFile(0, "dzstudio/gui/icons/" + name + ".edds");
+		if (!im.LoadImageFile(0, "dzstudio/gui/icons/" + name + ".edds"))
+		{
+			if (!s_MissingIcons)
+				s_MissingIcons = new map<string, bool>();
+			if (!s_MissingIcons.Contains(name))
+			{
+				s_MissingIcons.Set(name, true);
+				DZS_Log.Warn("icon '" + name + "' is not in gui/icons");
+			}
+			im.LoadImageFile(0, "dzstudio/gui/icons/puzzle.edds");
+		}
 		im.SetImage(0);
 	}
 

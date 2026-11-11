@@ -110,6 +110,12 @@ class DZS_CatalogPlugin : DZS_Plugin
 	float m_LastSearchMs;
 	protected ref map<string, string> m_PhotoCache;
 	protected ref map<string, string> m_DescCache;
+	// while a layer other than Objects is on: what it creates (its classes of "Vehicles and AI", or own entries)
+	protected string m_LayerFor;
+	protected ref array<ref DZS_CatEntry> m_LayerOwn = new array<ref DZS_CatEntry>();
+	protected ref array<DZS_CatEntry> m_LayerScope = new array<DZS_CatEntry>();
+	protected bool m_LayerScoped;
+	protected int m_LayerRev;
 
 	override string GetName() { return "catalog"; }
 
@@ -159,6 +165,9 @@ class DZS_CatalogPlugin : DZS_Plugin
 			ui.RegisterAction("catalog", c, c, c, null, m_Actions);
 			ui.SetListed(c, false);
 		}
+		array<string> objectsOnly = {"catalog.full", "catalog.next", "catalog.prev", "catalog.saveTemplate", "catalog.ctx.hand", "catalog.ctx.rename", "catalog.ctx.delete"};
+		foreach (string oo : objectsOnly)
+			ui.SetActionLayer(oo, DZS_UiRegistry.LAYER_OBJECTS);
 		m_Panel = new DZS_CatalogPanel(this);
 		ui.RegisterPanel("catalog", "catalog.bar", "Katalog", "Catalogue", "left", "library", m_Panel, 0);
 		ui.SetPanelMain("catalog.bar");
@@ -231,6 +240,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 		}
 		if (!m_Panel.m_Search)
 			return;
+		SyncLayer();
 		string q = m_Panel.m_Search.Query();
 		if (m_Full && m_Full.IsOpen())
 			q = m_Full.Query();
@@ -243,7 +253,10 @@ class DZS_CatalogPlugin : DZS_Plugin
 		if (m_Dirty && m_Store.IsReady())
 			Recompute();
 		DZS_PanelInfo info = m_Kernel.GetUi().GetPanel("catalog.bar");
-		if (m_Store.IsReady())
+		DZS_Layer lay = DZS_Layers.Current();
+		if (lay && m_Store.IsReady())
+			info.m_Meta = lay.CatalogTitle() + " · " + LayerScope().Count();
+		else if (m_Store.IsReady())
 			info.m_Meta = DZS_Texts.Fmt("catalog.count", m_Store.CountObjects().ToString());
 		else
 			info.m_Meta = "…";
@@ -252,10 +265,83 @@ class DZS_CatalogPlugin : DZS_Plugin
 			m_Full.Update(dt);
 	}
 
+	// ---- layers: the bar offers what the active layer creates ----
+
+	bool InLayer() { return DZS_Layers.Active() != ""; }
+
+	protected void SyncLayer()
+	{
+		string now = DZS_Layers.Active();
+		DZS_Layer cur = DZS_Layers.Current();
+		if (now == m_LayerFor)
+		{
+			if (cur && cur.ExtraRev() != m_LayerRev)
+			{
+				m_LayerScoped = false;
+				m_Dirty = true;
+			}
+			return;
+		}
+		m_LayerFor = now;
+		m_LayerScoped = false;
+		m_Dirty = true;
+		m_Panel.ResetScroll();
+		DropHand();
+		DZS_Log.Info("catalog: layer '" + now + "'");
+	}
+
+	protected array<DZS_CatEntry> LayerScope()
+	{
+		if (m_LayerScoped || !m_Store.IsReady())
+			return m_LayerScope;
+		m_LayerScoped = true;
+		m_LayerScope.Clear();
+		m_LayerOwn.Clear();
+		DZS_Layer lay = DZS_Layers.Current();
+		if (!lay)
+			return m_LayerScope;
+		m_LayerRev = lay.ExtraRev();
+		array<ref DZS_LayerEntry> extra = new array<ref DZS_LayerEntry>();
+		lay.Extra(extra);
+		foreach (DZS_LayerEntry le : extra)
+		{
+			DZS_CatEntry own = new DZS_CatEntry();
+			own.m_Key = le.m_Key;
+			own.m_Low = le.m_Key;
+			own.m_Name = le.m_Name;
+			own.m_BaseName = le.m_Name;
+			own.m_Sub = le.m_Sub;
+			own.m_Icon = le.m_Icon;
+			own.m_Cat = "layer";
+			m_LayerOwn.Insert(own);
+			m_LayerScope.Insert(own);
+		}
+		foreach (DZS_CatEntry e : m_Store.m_All)
+		{
+			if (e.m_Cat == "spawns" && lay.Offers(e.m_Key))
+				m_LayerScope.Insert(e);
+		}
+		DZS_Log.Info("catalog: layer " + lay.Id() + " offers " + m_LayerScope.Count() + " entries");
+		return m_LayerScope;
+	}
+
+	// An entry chosen in a layer: the layer takes it (a click arms it, a drag drops it into the scene).
+	protected bool LayerTakes(DZS_CatEntry e, bool drag)
+	{
+		DZS_Layer lay = DZS_Layers.Current();
+		if (!lay)
+			return false;
+		if (e)
+			lay.Arm(e.m_Key, drag);
+		return true;
+	}
+
 	// ---- list of the bar ----
 
 	array<DZS_CatEntry> Scope(string cat)
 	{
+		if (InLayer())
+			return LayerScope();
 		array<DZS_CatEntry> r = new array<DZS_CatEntry>();
 		if (cat == "recent")
 		{
@@ -278,10 +364,42 @@ class DZS_CatalogPlugin : DZS_Plugin
 	protected void Recompute()
 	{
 		int t0 = TickCount(0);
-		m_List = m_Store.Search(m_Query, Scope(m_Cat), m_Cat == "recent");
+		bool layer = InLayer();
+		array<DZS_CatEntry> scope = Scope(m_Cat);
+		bool keepOrder = layer;
+		if (m_Cat == "recent")
+			keepOrder = true;
+		if (layer && m_LayerOwn.Count() > 0)
+			m_List = OwnSearch(m_Query, scope);
+		else
+			m_List = m_Store.Search(m_Query, scope, keepOrder);
 		m_LastSearchMs = (TickCount(0) - t0) / 10000.0;
 		m_Dirty = false;
 		DZS_Log.Info("catalog: search '" + m_Query + "' in " + m_Cat + ": " + m_List.m_Items.Count() + " hit(s) in " + m_LastSearchMs + " ms");
+	}
+
+	// The layer's own entries (no search index): every word of the query in the name.
+	protected DZS_CatResult OwnSearch(string q, array<DZS_CatEntry> scope)
+	{
+		DZS_CatResult res = new DZS_CatResult();
+		string low = q;
+		low.ToLower();
+		array<string> words = new array<string>();
+		low.Split(" ", words);
+		foreach (DZS_CatEntry e : scope)
+		{
+			string name = e.m_Name;
+			name.ToLower();
+			bool all = true;
+			foreach (string w : words)
+			{
+				if (w != "" && !name.Contains(w))
+					all = false;
+			}
+			if (all)
+				res.m_Items.Insert(e);
+		}
+		return res;
 	}
 
 	int ListCount()
@@ -363,6 +481,8 @@ class DZS_CatalogPlugin : DZS_Plugin
 	// Second line of a tile: the category, for templates the number of objects.
 	string SubText(DZS_CatEntry e)
 	{
+		if (e.m_Sub != "")
+			return e.m_Sub;
 		if (e.m_IsTemplate)
 			return ObjectsText(e.m_TplCount);
 		if (m_Store.NameCount(e.m_Name) > 1)
@@ -398,7 +518,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 
 	void ToggleFavourite(DZS_CatEntry e)
 	{
-		if (!e)
+		if (!e || e.m_Cat == "layer")
 			return;
 		if (m_Favs.Contains(e.m_Low))
 			m_Favs.Remove(e.m_Low);
@@ -485,7 +605,20 @@ class DZS_CatalogPlugin : DZS_Plugin
 
 	// ---- hand ----
 
-	bool IsInHand(DZS_CatEntry e) { return e && e == m_Hand; }
+	bool IsInHand(DZS_CatEntry e)
+	{
+		if (!e)
+			return false;
+		DZS_Layer lay = DZS_Layers.Current();
+		if (lay)
+		{
+			string armed = lay.Armed();
+			if (armed == "")
+				return false;
+			return armed == e.m_Key;
+		}
+		return e == m_Hand;
+	}
 
 	// While swapping templates cannot be chosen.
 	bool IsOffNow(DZS_CatEntry e)
@@ -497,6 +630,8 @@ class DZS_CatalogPlugin : DZS_Plugin
 	void TakeInHand(DZS_CatEntry e)
 	{
 		if (!e)
+			return;
+		if (LayerTakes(e, false))
 			return;
 		DZS_SelectionApi sel = DZS_SelectionApi.Get();
 		if (sel && sel.IsSwapping() && !e.m_IsTemplate)
@@ -561,7 +696,8 @@ class DZS_CatalogPlugin : DZS_Plugin
 			return;
 		if (button == MouseState.RIGHT)
 		{
-			OpenContext(t.m_Entry);
+			if (t.m_Entry.m_Cat != "layer")
+				OpenContext(t.m_Entry);
 			return;
 		}
 		if (where == "full")
@@ -574,8 +710,11 @@ class DZS_CatalogPlugin : DZS_Plugin
 
 	void OnTileDrag(DZS_CatTile t)
 	{
-		if (t.m_Entry)
-			TakeInHand(t.m_Entry);
+		if (!t.m_Entry)
+			return;
+		if (LayerTakes(t.m_Entry, true))
+			return;
+		TakeInHand(t.m_Entry);
 	}
 
 	// ---- photos of image sources: DDS or TGA only ----

@@ -76,6 +76,7 @@ class DZS_PropertiesPlugin : DZS_Plugin
 		ui.RegisterAction("properties", "properties.physics", "Physik", "Physics", null, m_Actions);
 		ui.SetListed("properties.physics", false);
 		ui.SetChangesSelection("properties.physics");
+		ui.SetPluginLayer("properties", DZS_UiRegistry.LAYER_OBJECTS);
 		m_Panel = new DZS_PropPanel(this);
 		ui.RegisterPanel("properties", "properties.panel", "Eigenschaften", "Properties", "right", "sliders-horizontal", m_Panel, 900);
 		ui.SetPanelFixedHeight("properties.panel", 280);

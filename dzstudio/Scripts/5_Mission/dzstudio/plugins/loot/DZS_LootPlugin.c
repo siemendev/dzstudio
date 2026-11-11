@@ -241,6 +241,7 @@ class DZS_LootPlugin : DZS_Plugin
 		ui.AddMenuEntry("project", "loot.vanilla", 451);
 		ui.RegisterAction("loot", "loot.edit", "Loot bearbeiten", "Edit loot", null, m_Actions);
 		ui.SetGroup("loot.edit", "loot");
+		ui.SetActionLayer("loot.edit", DZS_UiRegistry.LAYER_OBJECTS);
 		m_Save = new DZS_LootSave();
 		m_Save.m_P = this;
 		m_MapMenu = new DZS_LootMapMenu();

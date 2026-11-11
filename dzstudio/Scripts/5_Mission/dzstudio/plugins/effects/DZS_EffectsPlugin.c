@@ -1,10 +1,16 @@
-// The Effects layer: effect areas of the base and the project as circles on the ground. Pick a preset in the panel,
-// then press in the scene and drag to the radius; drag a circle to move it, its edge to resize it; Del removes it.
+// The Effects layer: effect areas of the base and the project as circles on the ground. A preset from the left list
+// starts a new one: press in the scene and drag to the radius, or drag the preset into the scene.
+// Drag a circle to move it, its edge (or anywhere with the radius tool) to resize it; Del removes it.
 class DZS_EffectsActions : DZS_ActionHandler
 {
 	DZS_EffectsPlugin m_P;
 
-	override bool IsActionChecked(string actionId) { return actionId == "effects.layer" && m_P.m_On; }
+	override bool IsActionChecked(string actionId)
+	{
+		if (actionId == "effects.layer")
+			return m_P.m_On;
+		return false;
+	}
 
 	override bool IsActionEnabled(string actionId, out string reasonDe, out string reasonEn)
 	{
@@ -55,11 +61,8 @@ class DZS_EffectsEsc : DZS_EscHandler
 
 	override void OnEsc()
 	{
-		if (m_P.m_AddPreset != "")
-		{
-			m_P.m_AddPreset = "";
-			m_P.m_Gen++;
-		}
+		if (m_P.m_AddPreset != "" || m_P.m_DropPreset != "")
+			m_P.Arm("", false);
 		else if (m_P.m_Sel != "")
 			m_P.Select("");
 		else
@@ -74,6 +77,91 @@ class DZS_EffectsLayer : DZS_Layer
 	override string Id() { return "effects"; }
 	override bool IsOn() { return m_P.m_On; }
 	override void TurnOff() { m_P.SetOn(false); }
+	override string CatalogTitle() { return DZS_Texts.Pick("Vorlagen", "Presets"); }
+
+	override void Extra(array<ref DZS_LayerEntry> into)
+	{
+		array<string> presets = DZS_EffectsModel.Presets();
+		foreach (string p : presets)
+		{
+			DZS_LayerEntry e = new DZS_LayerEntry();
+			e.m_Key = "fx:" + p;
+			e.m_Name = DZS_EffectsModel.PresetName(p);
+			e.m_Sub = DZS_Texts.Pick("Effektbereich · r ", "Effect area · r ") + DZS_PatchNum.Canon(DZS_EffectsModel.PresetRadius(p).ToString()) + " m";
+			e.m_Icon = "flame";
+			into.Insert(e);
+		}
+	}
+
+	override void Arm(string key, bool drag)
+	{
+		string preset = key;
+		preset.Replace("fx:", "");
+		m_P.Arm(preset, drag);
+	}
+
+	override string Armed()
+	{
+		if (m_P.m_DropPreset != "")
+			return "fx:" + m_P.m_DropPreset;
+		if (m_P.m_AddPreset != "")
+			return "fx:" + m_P.m_AddPreset;
+		return "";
+	}
+}
+
+class DZS_EffectsList : DZS_LayerListSource
+{
+	DZS_EffectsPlugin m_P;
+	protected ref array<DZS_FxArea> m_Rows = new array<DZS_FxArea>();
+	protected int m_RowsGen = -1;
+
+	protected void Sync()
+	{
+		if (m_RowsGen == m_P.m_Gen)
+			return;
+		m_RowsGen = m_P.m_Gen;
+		m_Rows.Clear();
+		foreach (DZS_FxArea a : m_P.m_Areas)
+		{
+			if (!a.m_Gone)
+				m_Rows.Insert(a);
+		}
+	}
+
+	override int Gen() { return m_P.m_Gen; }
+	override int RowCount() { Sync(); return m_Rows.Count(); }
+	override string RowKey(int i) { return m_Rows[i].Key(); }
+	override string RowTitle(int i) { return m_Rows[i].m_Name; }
+
+	override string RowSub(int i)
+	{
+		DZS_FxArea a = m_Rows[i];
+		string type = DZS_EffectsModel.PresetName(a.m_Preset);
+		if (a.m_Preset == "")
+			type = a.m_Type;
+		string s = type + " · r " + DZS_PatchNum.Canon(a.m_R.ToString()) + " m";
+		if (a.m_Kept)
+			s += DZS_Texts.Pick(" · außerhalb angelegt", " · made outside");
+		else if (a.m_Own)
+			s += DZS_Texts.Pick(" · eigener", " · own");
+		else if (a.m_Changed)
+			s += DZS_Texts.Pick(" · geändert", " · changed");
+		return s;
+	}
+
+	override int RowColor(int i) { return DZS_EffectsPlugin.ColorOf(m_Rows[i].m_Preset); }
+	override string SelectedKey() { return m_P.m_Sel; }
+	override void SelectRow(string key) { m_P.Select(key); }
+
+	override void FocusRow(string key)
+	{
+		DZS_FxArea a = m_P.AreaOf(key);
+		if (a)
+			DZS_LayerRay.Focus(a.m_X, a.m_Z, a.m_R);
+	}
+
+	override string EmptyText() { return DZS_Texts.Pick("Keine Effektbereiche", "No effect areas"); }
 }
 
 [DZS_RegisterPlugin(DZS_EffectsPlugin)]
@@ -81,11 +169,14 @@ class DZS_EffectsPlugin : DZS_Plugin
 {
 	static const string TOOL = "effects";
 	static const string PANEL = "effects.area";
+	static const string LIST = "effects.list";
 
 	bool m_On;
 	string m_Sel;
 	string m_Hover;
 	string m_AddPreset;
+	// a preset dragged from the catalogue: dropped in the scene it makes an area of the preset's radius
+	string m_DropPreset;
 	int m_Gen;
 	ref array<ref DZS_FxArea> m_Areas = new array<ref DZS_FxArea>();
 	protected bool m_World;
@@ -94,6 +185,7 @@ class DZS_EffectsPlugin : DZS_Plugin
 	protected ref DZS_EffectsEsc m_Esc;
 	protected ref DZS_EffectsLayer m_Layer;
 	protected ref DZS_EffectsPanel m_Panel;
+	protected ref DZS_EffectsList m_ListSrc;
 	protected ref DZS_EffectsBase m_Base;
 	protected string m_BaseFor;
 	protected int m_ViewVer = -1;
@@ -128,13 +220,26 @@ class DZS_EffectsPlugin : DZS_Plugin
 		m_Layer.m_P = this;
 		DZS_Layers.Add(m_Layer);
 		DZS_UiRegistry ui = m_Kernel.GetUi();
-		ui.RegisterAction("effects", "effects.layer", "Effekte", "Effects", null, m_Actions);
-		ui.RegisterTool("effects", "effects.layer", "Effekte", "Effects", "switches", "flame", -98);
-		ui.SetToolLabelled("effects.layer");
-		ui.SetToolTip("effects.layer", "Ebene Effekte: Gas, Geysire, Herzchen, Rauch", "Effects layer: gas, geysers, hearts, smoke", "effects.layer");
+		DZS_LayersPlugin.Register(ui, "effects", "effects.layer", "effects", "Effekte", "Effects", "flame", "3", 30, m_Actions);
+		LayerTool(ui, "effects.tool.select", "Auswählen und verschieben", "Select and move", "mouse-pointer-2", 10, "Auswählen und verschieben — Bereich anklicken, ziehen; Rand ziehen ändert die Größe", "Select and move — click an area, drag it; drag its edge to resize");
+		LayerTool(ui, "effects.tool.radius", "Radius", "Radius", "radius", 20, "Radius — den gewählten Bereich irgendwo ziehen ändert seine Größe", "Radius — drag anywhere on the selected area to resize it");
+		m_ListSrc = new DZS_EffectsList();
+		m_ListSrc.m_P = this;
+		ui.RegisterPanel("effects", LIST, "Bereiche", "Areas", "right", "flame", new DZS_LayerList(m_ListSrc), 16);
+		ui.SetPanelShown(LIST, false);
 		m_Panel = new DZS_EffectsPanel(this);
-		ui.RegisterPanel("effects", PANEL, "Effekt", "Effect", "right", "flame", m_Panel, 16);
+		ui.RegisterPanel("effects", PANEL, "Bereich", "Area", "right", "flame", m_Panel, 17);
 		ui.SetPanelShown(PANEL, false);
+	}
+
+	protected void LayerTool(DZS_UiRegistry ui, string id, string de, string en, string icon, int order, string tipDe, string tipEn)
+	{
+		ui.RegisterAction("effects", id, de, en, null, m_Actions);
+		ui.SetListed(id, false);
+		ui.SetActionLayer(id, "effects");
+		ui.RegisterTool("effects", id, de, en, "tools", icon, order);
+		ui.SetToolLayer(id, "effects");
+		ui.SetToolTip(id, tipDe, tipEn, "");
 	}
 
 	override void OnSessionStart(string world)
@@ -270,10 +375,12 @@ class DZS_EffectsPlugin : DZS_Plugin
 			m_On = true;
 			m_Sel = "";
 			m_AddPreset = "";
+			m_DropPreset = "";
 			m_ViewVer = -1;
 			m_Kernel.SetSceneTool(TOOL);
 			m_Kernel.ClaimSceneState(true);
 			ui.SetOverride(m_Override);
+			ui.SetPanelShown(LIST, true);
 			ui.SetPanelShown(PANEL, true);
 			ui.SetPanelShown("properties.panel", false);
 			DZS_Instance inst = m_Kernel.GetShown();
@@ -286,10 +393,12 @@ class DZS_EffectsPlugin : DZS_Plugin
 			m_On = false;
 			m_Drag = "";
 			m_AddPreset = "";
+			m_DropPreset = "";
 			m_Kernel.SetSceneTool("");
 			m_Kernel.ClaimSceneState(false);
 			ui.SetSceneState("none");
 			ui.SetOverride(null);
+			ui.SetPanelShown(LIST, false);
 			ui.SetPanelShown(PANEL, false);
 			ui.SetPanelShown("properties.panel", true);
 			m_Kernel.GetScreen().SetHint("effects", 30, "");
@@ -298,12 +407,31 @@ class DZS_EffectsPlugin : DZS_Plugin
 			DZS_Log.Info("effects: layer off");
 		}
 		m_Gen++;
+		DZS_Layers.Sync();
 	}
 
 	void StartAdding(string preset)
 	{
 		m_AddPreset = preset;
+		m_DropPreset = "";
 		m_Gen++;
+	}
+
+	// A preset from the catalogue: a click arms "+ Area" with it, a drag drops an area where it is let go.
+	void Arm(string preset, bool drag)
+	{
+		if (drag && preset != "")
+		{
+			m_AddPreset = "";
+			m_DropPreset = preset;
+			m_Gen++;
+		}
+		else
+		{
+			m_DropPreset = "";
+			StartAdding(preset);
+		}
+		DZS_Log.Info("effects: armed '" + preset + "' drag " + DZS_Str.Bool(drag));
 	}
 
 	override void OnUpdate(float dt)
@@ -327,52 +455,44 @@ class DZS_EffectsPlugin : DZS_Plugin
 			m_Kernel.GetUi().SetSceneState("none");
 		LayerInput(inst, scr);
 		Draw();
+		DZS_PanelInfo li = m_Kernel.GetUi().GetPanel(LIST);
+		if (li)
+			li.m_Meta = AreasShown().ToString();
 		string hint;
-		if (m_AddPreset != "")
-			hint = DZS_Texts.Pick("Mitte drücken, auf den Radius ziehen, loslassen · Esc bricht ab", "Press at the centre, drag to the radius, release · Esc cancels");
+		if (m_DropPreset != "")
+			hint = DZS_Texts.Pick("In der Szene loslassen setzt den Bereich · Esc bricht ab", "Release in the scene to add the area · Esc cancels");
+		else if (m_AddPreset != "")
+			hint = DZS_EffectsModel.PresetName(m_AddPreset) + DZS_Texts.Pick(": Mitte drücken, auf den Radius ziehen, loslassen · Esc bricht ab", ": press at the centre, drag to the radius, release · Esc cancels");
 		else if (Selected() && Selected().m_Kept)
 			hint = DZS_KeptBlocks.ReadOnlyTitle() + " · " + DZS_KeptBlocks.ReadOnlyHint();
 		else if (m_Sel == "")
-			hint = DZS_Texts.Pick("Zone anklicken · neue Zone: Vorlage im Panel wählen", "Click an area · new area: pick a preset in the panel");
+			hint = DZS_Texts.Pick("Bereich anklicken · links eine Vorlage wählen und in die Szene setzen", "Click an area · pick a preset on the left and place it in the scene");
+		else if (RadiusTool())
+			hint = DZS_Texts.Pick("Bereich ziehen ändert die Größe · Entf entfernt", "Drag on the area to resize · Del removes");
 		else
 			hint = DZS_Texts.Pick("Ziehen verschiebt · Rand ziehen ändert die Größe · Entf entfernt", "Drag to move · drag the edge to resize · Del removes");
 		scr.SetHint("effects", 30, hint);
 	}
 
-	protected bool RayGround(vector from, vector dir, out vector hit)
-	{
-		float step = 2;
-		vector prev = from;
-		for (int i = 1; i < 1500; i++)
-		{
-			vector p = from + dir * (i * step);
-			if (p[1] <= GetGame().SurfaceY(p[0], p[2]))
-			{
-				vector a = prev;
-				vector b = p;
-				for (int k = 0; k < 12; k++)
-				{
-					vector m = (a + b) * 0.5;
-					if (m[1] <= GetGame().SurfaceY(m[0], m[2]))
-						b = m;
-					else
-						a = m;
-				}
-				hit = b;
-				return true;
-			}
-			prev = p;
-		}
-		return false;
-	}
-
 	protected bool PointerGround(DZS_Screen scr, out vector hit)
 	{
-		vector from = GetGame().GetCurrentCameraPosition();
-		vector dir = GetGame().GetPointerDirection();
-		if (!scr.IsCursorVisible())
-			dir = GetGame().GetCurrentCameraDirection();
-		return RayGround(from, dir, hit);
+		return DZS_LayerRay.Pointer(scr, hit);
+	}
+
+	bool RadiusTool()
+	{
+		return m_Kernel.GetUi().GetActiveTool() == "effects.tool.radius";
+	}
+
+	int AreasShown()
+	{
+		int n = 0;
+		foreach (DZS_FxArea a : m_Areas)
+		{
+			if (!a.m_Gone)
+				n++;
+		}
+		return n;
 	}
 
 	// The smallest area the ground point lies in.
@@ -406,6 +526,7 @@ class DZS_EffectsPlugin : DZS_Plugin
 		bool over = !blocked && (!scr.IsCursorVisible() || scr.IsPointerOverScene());
 		bool lmb = DZS_UiRegistry.KeyDown("MouseLeft");
 		bool lDown = lmb && !m_LmbWas;
+		bool lUp = !lmb && m_LmbWas;
 		m_LmbWas = lmb;
 		int mx, my;
 		GetMousePos(mx, my);
@@ -414,6 +535,15 @@ class DZS_EffectsPlugin : DZS_Plugin
 		m_Hover = "";
 		if (hasG && m_Drag == "")
 			m_Hover = PickAt(g);
+		if (m_DropPreset != "" && lUp)
+		{
+			string drop = m_DropPreset;
+			m_DropPreset = "";
+			m_Gen++;
+			if (hasG)
+				Create(inst, drop, g[0], g[2], DZS_EffectsModel.PresetRadius(drop));
+			return;
+		}
 		if (lDown && hasG && !scr.IsMouseSwallowed())
 		{
 			m_Press = true;
@@ -425,7 +555,12 @@ class DZS_EffectsPlugin : DZS_Plugin
 			else
 			{
 				DZS_FxArea sel = Selected();
-				if (sel && !sel.m_Kept && OnEdge(sel, g))
+				bool inSel = false;
+				if (sel && OnEdge(sel, g))
+					inSel = true;
+				if (sel && RadiusTool() && PickAt(g) == sel.Key())
+					inSel = true;
+				if (sel && !sel.m_Kept && inSel)
 					m_Drag = "resize";
 				else
 				{
@@ -446,6 +581,7 @@ class DZS_EffectsPlugin : DZS_Plugin
 			if (what == "create")
 			{
 				float r = Math.Sqrt((g[0] - m_PressGround[0]) * (g[0] - m_PressGround[0]) + (g[2] - m_PressGround[2]) * (g[2] - m_PressGround[2]));
+				r = Math.Round(r);
 				if (r < 1)
 					r = DZS_EffectsModel.PresetRadius(m_AddPreset);
 				Create(inst, m_AddPreset, m_PressGround[0], m_PressGround[2], r);
@@ -462,7 +598,7 @@ class DZS_EffectsPlugin : DZS_Plugin
 				DZS_FxArea rs = Selected();
 				if (rs)
 				{
-					float nr = Math.Max(1, Math.Sqrt((g[0] - rs.m_X) * (g[0] - rs.m_X) + (g[2] - rs.m_Z) * (g[2] - rs.m_Z)));
+					float nr = Math.Max(1, Math.Round(Math.Sqrt((g[0] - rs.m_X) * (g[0] - rs.m_X) + (g[2] - rs.m_Z) * (g[2] - rs.m_Z))));
 					Change(inst, rs, rs.m_X, rs.m_Z, nr);
 				}
 			}
@@ -576,7 +712,7 @@ class DZS_EffectsPlugin : DZS_Plugin
 		f.Set("z", NumText(z));
 		f.Set("r", NumText(r));
 		string id = b.Create(DZS_EffectsModel.AREA, DZS_PROJECT_ID, DZS_END, f);
-		b.Commit("Effektzone anlegen", "Add effect area");
+		b.Commit("Effektbereich anlegen", "Add effect area");
 		m_Sel = "e:" + id;
 		DZS_Log.Info("effects: added " + preset + " " + name + " at " + x + " " + z + " r " + r);
 	}
@@ -629,7 +765,7 @@ class DZS_EffectsPlugin : DZS_Plugin
 			else
 				b.Create(DZS_EffectsModel.CHANGE, DZS_PROJECT_ID, DZS_END, f);
 		}
-		b.Commit("Effektzone ändern", "Change effect area");
+		b.Commit("Effektbereich ändern", "Change effect area");
 		DZS_Log.Info("effects: changed " + a.m_Name + " to " + x + " " + z + " r " + r);
 	}
 
@@ -651,7 +787,7 @@ class DZS_EffectsPlugin : DZS_Plugin
 			f.Set("gone", "1");
 			b.Create(DZS_EffectsModel.CHANGE, DZS_PROJECT_ID, DZS_END, f);
 		}
-		b.Commit("Effektzone entfernen", "Remove effect area");
+		b.Commit("Effektbereich entfernen", "Remove effect area");
 		m_Sel = "";
 		DZS_Log.Info("effects: removed " + a.m_Name);
 	}
@@ -748,27 +884,6 @@ class DZS_EffectsPanel : DZS_PanelContent
 		Clear();
 		m_Root = DZS_W.Frame(m_Parent);
 		m_Y = DZS_Scale.Px(8);
-		Line(DZS_Texts.Pick("Neue Zone", "New area"), "textMuted", 12, 20);
-		float x = Pad();
-		array<string> presets = DZS_EffectsModel.Presets();
-		foreach (string p : presets)
-		{
-			string kind = "side";
-			if (p == m_P.m_AddPreset)
-				kind = "main";
-			DZS_Button b = new DZS_Button(m_Root, kind, DZS_EffectsModel.PresetName(p));
-			if (x + b.GetWidth() > m_Width - Pad())
-			{
-				x = Pad();
-				m_Y += DZS_Scale.Px(30);
-			}
-			b.Place(x, m_Y);
-			b.m_Tag = p;
-			b.m_OnClick.Insert(OnPreset);
-			m_Buttons.Insert(b);
-			x += b.GetWidth() + DZS_Scale.Px(6);
-		}
-		m_Y += DZS_Scale.Px(38);
 		DZS_FxArea a = m_P.Selected();
 		if (!a)
 		{
@@ -778,18 +893,18 @@ class DZS_EffectsPanel : DZS_PanelContent
 				if (!c.m_Gone)
 					n++;
 			}
-			Line(n.ToString() + DZS_Texts.Pick(" Zonen in Basis und Projekt", " areas in base and project"), "text", 14, 22);
-			Line(DZS_Texts.Pick("Zone anklicken zum Bearbeiten.", "Click an area to edit it."), "textQuiet", 13, 20);
+			Line(n.ToString() + DZS_Texts.Pick(" Bereiche in Basis und Projekt", " areas in base and project"), "text", 14, 22);
+			Line(DZS_Texts.Pick("Bereich anklicken zum Bearbeiten.", "Click an area to edit it."), "textQuiet", 13, 20);
 		}
 		else
 		{
-			string kind2 = DZS_Texts.Pick("Zone der Basis", "Base area");
+			string kind2 = DZS_Texts.Pick("Bereich der Basis", "Base area");
 			if (a.m_Kept)
 				kind2 = DZS_KeptBlocks.ReadOnlyTitle();
 			else if (a.m_Own)
-				kind2 = DZS_Texts.Pick("Eigene Zone", "Own area");
+				kind2 = DZS_Texts.Pick("Eigener Bereich", "Own area");
 			else if (a.m_Changed)
-				kind2 = DZS_Texts.Pick("Zone der Basis, geändert", "Base area, changed");
+				kind2 = DZS_Texts.Pick("Bereich der Basis, geändert", "Base area, changed");
 			Line(kind2, "textMuted", 12, 18);
 			Line(a.m_Name, "text", 15, 24);
 			string type = DZS_EffectsModel.PresetName(a.m_Preset);
@@ -815,7 +930,7 @@ class DZS_EffectsPanel : DZS_PanelContent
 			f.Place(m_Width - Pad() - f.GetWidth(), m_Y, rowH);
 			m_Fields.Insert(f);
 			m_Y += rowH + DZS_Scale.Px(8);
-			DZS_Button rem = new DZS_Button(m_Root, "danger", DZS_Texts.Pick("Zone entfernen", "Remove area"), "trash-2");
+			DZS_Button rem = new DZS_Button(m_Root, "danger", DZS_Texts.Pick("Bereich entfernen", "Remove area"), "trash");
 			rem.Place(Pad(), m_Y);
 			rem.m_OnClick.Insert(OnRemove);
 			m_Buttons.Insert(rem);
@@ -823,11 +938,6 @@ class DZS_EffectsPanel : DZS_PanelContent
 		}
 		m_H = m_Y + DZS_Scale.Px(8);
 		DZS_W.Place(m_Root, 0, 0, m_Width, m_H);
-	}
-
-	void OnPreset(DZS_Button b)
-	{
-		m_P.StartAdding(b.m_Tag);
 	}
 
 	void OnRadius(DZS_NumberField f, string typed, DZS_FieldResult r)

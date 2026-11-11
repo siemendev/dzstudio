@@ -351,6 +351,8 @@ class DZS_CatTile : DZS_HitListener
 			m_Sub.SetText(subText);
 			m_Mark.Show(m_InHand);
 		}
+		if (m_StarHit)
+			m_StarHit.m_W.Show(e.m_Cat != "layer");
 		if (m_Star)
 		{
 			if (m_Fav)
@@ -371,7 +373,10 @@ class DZS_CatTile : DZS_HitListener
 		bool wait = !photo && m_Loading;
 		m_Photo.Show(photo);
 		m_Place.Show(!photo && !wait);
-		DZS_W.SetIcon(m_Place, DZS_CatalogPlugin.CategoryIcon(e.m_Cat));
+		if (e.m_Icon != "")
+			DZS_W.SetIcon(m_Place, e.m_Icon);
+		else
+			DZS_W.SetIcon(m_Place, DZS_CatalogPlugin.CategoryIcon(e.m_Cat));
 		int lit = Math.Floor(GetGame().GetTickTime() / 0.2);
 		lit = lit % 4;
 		for (int b = 0; b < m_Wait.Count(); b++)

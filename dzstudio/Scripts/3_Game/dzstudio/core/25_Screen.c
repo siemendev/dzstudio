@@ -92,6 +92,7 @@ class DZS_Screen : DZS_EventListener
 	protected ref DZS_StatusText m_Save;
 	protected ref DZS_StatusText m_Map;
 	protected ref DZS_StatusText m_Group;
+	protected ref DZS_StatusText m_Layer;
 	protected ref array<ref DZS_StatusText> m_Seps;
 	protected ref array<ref DZS_StatusItem> m_Left;
 	protected ref array<ref DZS_StatusItem> m_Right;
@@ -144,6 +145,7 @@ class DZS_Screen : DZS_EventListener
 	protected ref DZS_TopBar m_Top;
 	protected ref DZS_SideBar m_LeftBar;
 	protected ref DZS_SideBar m_RightBar;
+	protected ref DZS_LayerRail m_Rail;
 	protected ref array<ref DZS_Dialog> m_Dialogs;
 	protected ref DZS_Popup m_Popup;
 	protected string m_OpenMenu;
@@ -189,6 +191,7 @@ class DZS_Screen : DZS_EventListener
 		DZS_Texts.Add("core.status.unsaved1", "1 ungespeicherte Änderung", "1 unsaved change");
 		DZS_Texts.Add("core.status.unsavedN", "%1 ungespeicherte Änderungen", "%1 unsaved changes");
 		DZS_Texts.Add("core.status.group", "Gruppe: %1", "Group: %1");
+		DZS_Texts.Add("core.status.layer", "Ebene %1", "%1 layer");
 		DZS_Texts.Add("core.group.objects", "Objekte", "Objects");
 		DZS_Texts.Add("core.hint.browse", "Objekt im Katalog anklicken · Klick in die Szene wählt aus", "Click an object in the catalogue · Click in the scene to select");
 		DZS_Texts.Add("core.map.ChernarusPlus", "Chernarus", "Chernarus");
@@ -218,6 +221,7 @@ class DZS_Screen : DZS_EventListener
 		m_Top = new DZS_TopBar(this, m_BarsLayer);
 		m_LeftBar = new DZS_SideBar(m_BarsLayer, "left");
 		m_RightBar = new DZS_SideBar(m_BarsLayer, "right");
+		m_Rail = new DZS_LayerRail(m_BarsLayer);
 		foreach (DZS_Button mb : m_Top.m_MenuButtons)
 			mb.m_OnClick.Insert(OnMenuTitle);
 		m_Bar = DZS_W.Frame(m_BarsLayer);
@@ -231,6 +235,8 @@ class DZS_Screen : DZS_EventListener
 		m_Map.SetText(MapName(m_Kernel.GetWorld()));
 		m_Group = new DZS_StatusText("core.group", DZS_Font.MONO, 160);
 		m_Group.Build(m_Bar);
+		m_Layer = new DZS_StatusText("core.layer", DZS_Font.MONO, 160);
+		m_Layer.Build(m_Bar);
 		m_HintClip = DZS_W.Frame(m_Bar);
 		m_HintClip.SetFlags(WidgetFlags.CLIPCHILDREN);
 		m_Hint = new DZS_RichLine(m_HintClip, DZS_Font.READ, 13, DZS_Color.Get("textMuted"));
@@ -333,7 +339,7 @@ class DZS_Screen : DZS_EventListener
 		float bot = DZS_Scale.Px(BAR_H);
 		y = top;
 		h = sh - top - bot;
-		x = m_LeftBar.Width();
+		x = m_Rail.Width() + m_LeftBar.Width();
 		w = sw - x - m_RightBar.Width();
 	}
 
@@ -392,6 +398,7 @@ class DZS_Screen : DZS_EventListener
 		m_Top.Show(!hidden);
 		m_LeftBar.Show(!hidden);
 		m_RightBar.Show(!hidden);
+		m_Rail.Show(!hidden);
 		m_Kernel.GetEvents().FirePluginEvent("core.uiHidden", null);
 	}
 
@@ -1086,6 +1093,14 @@ class DZS_Screen : DZS_EventListener
 		array<DZS_StatusItem> left = new array<DZS_StatusItem>();
 		left.Insert(m_Save);
 		left.Insert(m_Map);
+		string layerName = m_Kernel.GetUi().LayerName(m_Kernel.GetUi().GetActiveLayer());
+		if (layerName != "")
+		{
+			m_Layer.SetText(DZS_Texts.Fmt("core.status.layer", layerName));
+			left.Insert(m_Layer);
+		}
+		else
+			m_Layer.Show(false);
 		if (m_Group.GetText() != "")
 			left.Insert(m_Group);
 		else
@@ -1835,6 +1850,11 @@ class DZS_Screen : DZS_EventListener
 		DZS_W.Place(m_TipLayer, 0, 0, sw, sh);
 		float top = DZS_Scale.Px(TOP_H);
 		float bottom = sh - DZS_Scale.Px(BAR_H);
+		if (!m_UiHidden)
+			m_Rail.Layout(top, bottom);
+		m_LeftBar.m_Offset = m_Rail.Width();
+		if (m_UiHidden)
+			m_LeftBar.m_Offset = 0;
 		m_LeftBar.Layout(dt, top, bottom);
 		m_RightBar.Layout(dt, top, bottom);
 		m_LeftBar.Update(dt);

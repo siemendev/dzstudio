@@ -539,8 +539,12 @@ class DZS_CatalogPanel : DZS_PanelContent
 		m_Search.Place(pad, y, DZS_Scale.Px(32));
 		m_Search.RefreshExtras();
 		y += DZS_Scale.Px(32) + DZS_Scale.Px(10);
+		// in a layer: no recent row, no categories, no full screen — only what the layer creates
+		bool layer = m_P.InLayer();
 		// recent row
 		array<DZS_CatEntry> recent = m_P.RecentEntries(8);
+		if (layer)
+			recent.Clear();
 		float rs = DZS_Scale.Px(32);
 		float rg = DZS_Scale.Px(4);
 		for (int i = 0; i < m_Recent.Count(); i++)
@@ -555,15 +559,19 @@ class DZS_CatalogPanel : DZS_PanelContent
 			t.Place(pad + i * (rs + rg), y, rs);
 			t.Refresh("", dt);
 		}
-		m_RecentEmpty.Show(recent.Count() == 0);
+		m_RecentEmpty.Show(recent.Count() == 0 && !layer);
 		DZS_W.Place(m_RecentEmpty, pad, y, m_W - 2 * pad, rs);
-		y += rs + DZS_Scale.Px(10);
+		if (!layer)
+			y += rs + DZS_Scale.Px(10);
 		// category buttons, wrapping
 		float cx = pad;
 		float ch = DZS_Scale.Px(24);
 		float cg = DZS_Scale.Px(4);
 		foreach (DZS_CatChip c : m_Chips)
 		{
+			c.m_Hit.m_W.Show(!layer);
+			if (layer)
+				continue;
 			float cw = c.Width();
 			if (cx + cw > m_W - pad && cx > pad)
 			{
@@ -574,10 +582,15 @@ class DZS_CatalogPanel : DZS_PanelContent
 			c.Place(cx, y);
 			cx += cw + cg;
 		}
-		y += ch + DZS_Scale.Px(10);
+		if (!layer)
+			y += ch + DZS_Scale.Px(10);
 		DZS_W.Place(m_ListLine, 0, y, m_W, 1);
 		y += 1;
 		float footH = DZS_Scale.Px(48);
+		if (layer)
+			footH = 0;
+		m_FootLine.Show(!layer);
+		m_FullButton.Show(!layer);
 		float barH = 0;
 		if (m_PhotoBar.Update(m_P, dt))
 		{

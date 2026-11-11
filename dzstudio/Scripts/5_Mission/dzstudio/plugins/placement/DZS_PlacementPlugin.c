@@ -373,6 +373,10 @@ class DZS_PlacementPlugin : DZS_Plugin
 		ui.SetToolLabelled("placement.unlockAll");
 		ui.RegisterTool("placement", "placement.unhideAll", "Alle einblenden", "Show all", "switches", "eye", 41);
 		ui.SetToolLabelled("placement.unhideAll");
+		array<string> slot = {"placement.pipette", "placement.followSlope", "placement.unlockAll", "placement.unhideAll"};
+		foreach (string sl : slot)
+			ui.SetToolLayer(sl, DZS_UiRegistry.LAYER_OBJECTS);
+		ui.SetPluginLayer("placement", DZS_UiRegistry.LAYER_OBJECTS);
 
 		AddEsc("gesture", 40);
 		AddEsc("pick", 45);

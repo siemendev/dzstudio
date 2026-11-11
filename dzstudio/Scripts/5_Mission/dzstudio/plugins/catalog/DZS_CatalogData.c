@@ -13,6 +13,8 @@ class DZS_CatEntry : Managed
 	int m_TplCount;
 	int m_TplMissing;
 	int m_Base;            // place in the order without search text
+	string m_Sub;          // second line of an own entry of a layer (effect presets); "" = category
+	string m_Icon;         // symbol of an own entry of a layer
 	// search forms (folded: lower case, ä/ö/ü as a/o/u, ß as ss)
 	string m_NameF;
 	string m_NameJoin;

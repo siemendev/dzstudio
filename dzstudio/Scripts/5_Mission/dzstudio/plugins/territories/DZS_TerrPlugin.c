@@ -1,11 +1,18 @@
 // The Territories layer: zones of herds, ambient animals and infected as circles (one colour per kind). Select a zone
-// to see its kind (count on the map, for infected the numbers per zone), drag to move, drag the edge to resize, Del
-// removes. Placing an animal or an infected from the catalog in the Objects layer makes a zone of its kind there.
+// to see its kind (count on the map, for infected the numbers per zone), drag to move, drag the edge (or anywhere with
+// the radius tool) to resize, Del removes. The left list offers the zone kinds the base's territory files define;
+// one is placed by a click in the scene or by dragging, like an object. An animal or infected from the catalogue of
+// the Objects layer makes a zone of its kind too.
 class DZS_TerrActions : DZS_ActionHandler
 {
 	DZS_TerrPlugin m_P;
 
-	override bool IsActionChecked(string actionId) { return actionId == "territories.layer" && m_P.m_On; }
+	override bool IsActionChecked(string actionId)
+	{
+		if (actionId == "territories.layer")
+			return m_P.m_On;
+		return false;
+	}
 
 	override bool IsActionEnabled(string actionId, out string reasonDe, out string reasonEn)
 	{
@@ -56,7 +63,9 @@ class DZS_TerrEsc : DZS_EscHandler
 
 	override void OnEsc()
 	{
-		if (m_P.m_Sel != "")
+		if (m_P.m_PlaceClass != "")
+			m_P.Arm("", false);
+		else if (m_P.m_Sel != "")
 			m_P.Select("");
 		else
 			m_P.SetOn(false);
@@ -70,6 +79,87 @@ class DZS_TerrLayer : DZS_Layer
 	override string Id() { return "territories"; }
 	override bool IsOn() { return m_P.m_On; }
 	override void TurnOff() { m_P.SetOn(false); }
+	override string CatalogTitle() { return DZS_Texts.Pick("Gebietsarten", "Zone kinds"); }
+	override int ExtraRev() { return m_P.m_Kinds.Count(); }
+
+	// Each kind of zone the base's territory files define (herds, small animals, infected).
+	override void Extra(array<ref DZS_LayerEntry> into)
+	{
+		array<string> ids = new array<string>();
+		foreach (string id, DZS_TerrKind k : m_P.m_Kinds)
+			ids.Insert(id);
+		ids.Sort();
+		foreach (string kid : ids)
+		{
+			DZS_TerrKind kk = m_P.m_Kinds.Get(kid);
+			DZS_LayerEntry le = new DZS_LayerEntry();
+			le.m_Key = "kind:" + kid;
+			le.m_Name = kk.m_Label;
+			le.m_Sub = DZS_Texts.Pick("Neue Zone · ", "New zone · ") + kk.m_File;
+			le.m_Icon = "paw-print";
+			into.Insert(le);
+		}
+	}
+	override void Arm(string key, bool drag) { m_P.Arm(key, drag); }
+	override string Armed() { return m_P.m_PlaceClass; }
+}
+
+class DZS_TerrList : DZS_LayerListSource
+{
+	DZS_TerrPlugin m_P;
+	protected ref array<DZS_TerrZone> m_Rows = new array<DZS_TerrZone>();
+	protected int m_RowsGen = -1;
+
+	protected void Sync()
+	{
+		if (m_RowsGen == m_P.m_Gen)
+			return;
+		m_RowsGen = m_P.m_Gen;
+		m_Rows.Clear();
+		foreach (DZS_TerrZone z : m_P.m_Zones)
+		{
+			if (!z.m_Gone)
+				m_Rows.Insert(z);
+		}
+	}
+
+	override int Gen() { return m_P.m_Gen; }
+	override int RowCount() { Sync(); return m_Rows.Count(); }
+	override string RowKey(int i) { return m_Rows[i].Key(); }
+
+	override string RowTitle(int i)
+	{
+		DZS_TerrKind k = m_P.m_Kinds.Get(m_Rows[i].m_Kind);
+		if (k)
+			return k.m_Label;
+		return m_Rows[i].m_Kind;
+	}
+
+	override string RowSub(int i)
+	{
+		DZS_TerrZone z = m_Rows[i];
+		string s = z.m_Name + " · r " + DZS_PatchNum.Canon(z.m_R.ToString()) + " m";
+		if (z.m_Kept)
+			s += DZS_Texts.Pick(" · außerhalb angelegt", " · made outside");
+		else if (z.m_Own)
+			s += DZS_Texts.Pick(" · eigene", " · own");
+		else if (z.m_Changed)
+			s += DZS_Texts.Pick(" · geändert", " · changed");
+		return s;
+	}
+
+	override int RowColor(int i) { return DZS_TerrPlugin.ColorOf(m_Rows[i].m_Kind); }
+	override string SelectedKey() { return m_P.m_Sel; }
+	override void SelectRow(string key) { m_P.Select(key); }
+
+	override void FocusRow(string key)
+	{
+		DZS_TerrZone z = m_P.ZoneOf(key);
+		if (z)
+			DZS_LayerRay.Focus(z.m_X, z.m_Z, z.m_R);
+	}
+
+	override string EmptyText() { return DZS_Texts.Pick("Keine Zonen", "No zones"); }
 }
 
 class DZS_TerrDivert : DZS_PlaceDivert
@@ -94,10 +184,14 @@ class DZS_TerrPlugin : DZS_Plugin
 {
 	static const string TOOL = "territories";
 	static const string PANEL = "territories.zone";
+	static const string LIST = "territories.list";
 
 	bool m_On;
 	string m_Sel;
 	string m_Hover;
+	// "kind:<id>" from the left list: the next click (or the drop of a drag) makes a zone of that kind
+	string m_PlaceClass;
+	protected bool m_PlaceDrag;
 	int m_Gen;
 	ref array<ref DZS_TerrZone> m_Zones = new array<ref DZS_TerrZone>();
 	ref map<string, ref DZS_TerrKind> m_Kinds = new map<string, ref DZS_TerrKind>();
@@ -108,6 +202,7 @@ class DZS_TerrPlugin : DZS_Plugin
 	protected ref DZS_TerrLayer m_Layer;
 	protected ref DZS_TerrDivert m_Divert;
 	protected ref DZS_TerrPanel m_Panel;
+	protected ref DZS_TerrList m_ListSrc;
 	protected ref DZS_TerrBase m_Base;
 	protected string m_BaseFor;
 	protected int m_ViewVer = -1;
@@ -146,13 +241,26 @@ class DZS_TerrPlugin : DZS_Plugin
 		m_Divert.m_P = this;
 		DZS_PlaceDivert.Add(m_Divert);
 		DZS_UiRegistry ui = m_Kernel.GetUi();
-		ui.RegisterAction("territories", "territories.layer", "Gebiete", "Territories", null, m_Actions);
-		ui.RegisterTool("territories", "territories.layer", "Gebiete", "Territories", "switches", "paw-print", -97);
-		ui.SetToolLabelled("territories.layer");
-		ui.SetToolTip("territories.layer", "Ebene Gebiete: Tierherden und Zombiezonen", "Territories layer: animal herds and infected zones", "territories.layer");
+		DZS_LayersPlugin.Register(ui, "territories", "territories.layer", "territories", "Gebiete", "Territories", "paw-print", "4", 40, m_Actions);
+		LayerTool(ui, "territories.tool.select", "Auswählen und verschieben", "Select and move", "mouse-pointer-2", 10, "Auswählen und verschieben — Zone anklicken, ziehen; Rand ziehen ändert die Größe", "Select and move — click a zone, drag it; drag its edge to resize");
+		LayerTool(ui, "territories.tool.radius", "Radius", "Radius", "radius", 20, "Radius — die gewählte Zone irgendwo ziehen ändert ihre Größe", "Radius — drag anywhere on the selected zone to resize it");
+		m_ListSrc = new DZS_TerrList();
+		m_ListSrc.m_P = this;
+		ui.RegisterPanel("territories", LIST, "Zonen", "Zones", "right", "paw-print", new DZS_LayerList(m_ListSrc), 18);
+		ui.SetPanelShown(LIST, false);
 		m_Panel = new DZS_TerrPanel(this);
-		ui.RegisterPanel("territories", PANEL, "Gebiet", "Territory", "right", "paw-print", m_Panel, 17);
+		ui.RegisterPanel("territories", PANEL, "Gebiet", "Territory", "right", "paw-print", m_Panel, 19);
 		ui.SetPanelShown(PANEL, false);
+	}
+
+	protected void LayerTool(DZS_UiRegistry ui, string id, string de, string en, string icon, int order, string tipDe, string tipEn)
+	{
+		ui.RegisterAction("territories", id, de, en, null, m_Actions);
+		ui.SetListed(id, false);
+		ui.SetActionLayer(id, "territories");
+		ui.RegisterTool("territories", id, de, en, "tools", icon, order);
+		ui.SetToolLayer(id, "territories");
+		ui.SetToolTip(id, tipDe, tipEn, "");
 	}
 
 	override void OnSessionStart(string world)
@@ -287,10 +395,12 @@ class DZS_TerrPlugin : DZS_Plugin
 			}
 			m_On = true;
 			m_Sel = "";
+			m_PlaceClass = "";
 			m_ViewVer = -1;
 			m_Kernel.SetSceneTool(TOOL);
 			m_Kernel.ClaimSceneState(true);
 			ui.SetOverride(m_Override);
+			ui.SetPanelShown(LIST, true);
 			ui.SetPanelShown(PANEL, true);
 			ui.SetPanelShown("properties.panel", false);
 			DZS_Instance inst = m_Kernel.GetShown();
@@ -302,10 +412,12 @@ class DZS_TerrPlugin : DZS_Plugin
 		{
 			m_On = false;
 			m_Drag = "";
+			m_PlaceClass = "";
 			m_Kernel.SetSceneTool("");
 			m_Kernel.ClaimSceneState(false);
 			ui.SetSceneState("none");
 			ui.SetOverride(null);
+			ui.SetPanelShown(LIST, false);
 			ui.SetPanelShown(PANEL, false);
 			ui.SetPanelShown("properties.panel", true);
 			m_Kernel.GetScreen().SetHint("territories", 30, "");
@@ -314,6 +426,60 @@ class DZS_TerrPlugin : DZS_Plugin
 			DZS_Log.Info("territories: layer off");
 		}
 		m_Gen++;
+		DZS_Layers.Sync();
+	}
+
+	void Arm(string cls, bool drag)
+	{
+		m_PlaceClass = cls;
+		m_PlaceDrag = drag && cls != "";
+		m_Gen++;
+		DZS_Log.Info("territories: armed '" + cls + "' drag " + DZS_Str.Bool(drag));
+	}
+
+	protected void LoadBase()
+	{
+		if (!m_Base || m_BaseFor != BaseDir())
+		{
+			m_Base = DZS_TerrBase.Load(BaseDir());
+			m_BaseFor = BaseDir();
+		}
+	}
+
+	// The zone kind that spawns a class ("" = none of the base's territories).
+	string KindOf(string cls)
+	{
+		LoadBase();
+		return m_Base.KindOfClass(cls);
+	}
+
+	bool RadiusTool()
+	{
+		return m_Kernel.GetUi().GetActiveTool() == "territories.tool.radius";
+	}
+
+	int ZonesShown()
+	{
+		int n = 0;
+		foreach (DZS_TerrZone z : m_Zones)
+		{
+			if (!z.m_Gone)
+				n++;
+		}
+		return n;
+	}
+
+	protected void PlaceClassAt(DZS_Instance inst, string cls, vector pos)
+	{
+		if (cls.IndexOf("kind:") == 0)
+		{
+			ZoneForKind(inst, cls.Substring(5, cls.Length() - 5), pos);
+			return;
+		}
+		if (ZoneForClass(inst, cls, pos))
+			return;
+		DZS_Log.Info("territories: no zone kind spawns " + cls + ", nothing placed");
+		m_Kernel.GetScreen().ShowMessage("territories.class", "warning", DZS_Texts.Pick("Kein Gebiet der Basis lässt " + cls + " spawnen — nichts platziert", "No territory of the base spawns " + cls + " — nothing placed"), 6.0);
 	}
 
 	override void OnUpdate(float dt)
@@ -337,50 +503,26 @@ class DZS_TerrPlugin : DZS_Plugin
 			m_Kernel.GetUi().SetSceneState("none");
 		LayerInput(inst, scr);
 		Draw();
+		DZS_PanelInfo li = m_Kernel.GetUi().GetPanel(LIST);
+		if (li)
+			li.m_Meta = ZonesShown().ToString();
 		string hint;
-		if (Selected() && Selected().m_Kept)
+		if (m_PlaceClass != "")
+			hint = DZS_Texts.Pick("Klick in die Szene legt eine Zone dieser Art an · Esc bricht ab", "Click in the scene to add a zone of this kind · Esc cancels");
+		else if (Selected() && Selected().m_Kept)
 			hint = DZS_KeptBlocks.ReadOnlyTitle() + " · " + DZS_KeptBlocks.ReadOnlyHint();
 		else if (m_Sel == "")
-			hint = DZS_Texts.Pick("Zone anklicken · Tiere und Zombies aus dem Katalog in der Ebene Objekte setzen", "Click a zone · place animals and infected from the catalog in the Objects layer");
+			hint = DZS_Texts.Pick("Zone anklicken · links eine Gebietsart wählen und in die Szene setzen", "Click a zone · pick a zone kind on the left and place it in the scene");
+		else if (RadiusTool())
+			hint = DZS_Texts.Pick("Zone ziehen ändert die Größe · Entf entfernt", "Drag on the zone to resize · Del removes");
 		else
 			hint = DZS_Texts.Pick("Ziehen verschiebt · Rand ziehen ändert die Größe · Entf entfernt", "Drag to move · drag the edge to resize · Del removes");
 		scr.SetHint("territories", 30, hint);
 	}
 
-	protected bool RayGround(vector from, vector dir, out vector hit)
-	{
-		float step = 2;
-		vector prev = from;
-		for (int i = 1; i < 1500; i++)
-		{
-			vector p = from + dir * (i * step);
-			if (p[1] <= GetGame().SurfaceY(p[0], p[2]))
-			{
-				vector a = prev;
-				vector b = p;
-				for (int k = 0; k < 12; k++)
-				{
-					vector m = (a + b) * 0.5;
-					if (m[1] <= GetGame().SurfaceY(m[0], m[2]))
-						b = m;
-					else
-						a = m;
-				}
-				hit = b;
-				return true;
-			}
-			prev = p;
-		}
-		return false;
-	}
-
 	protected bool PointerGround(DZS_Screen scr, out vector hit)
 	{
-		vector from = GetGame().GetCurrentCameraPosition();
-		vector dir = GetGame().GetPointerDirection();
-		if (!scr.IsCursorVisible())
-			dir = GetGame().GetCurrentCameraDirection();
-		return RayGround(from, dir, hit);
+		return DZS_LayerRay.Pointer(scr, hit);
 	}
 
 	protected string PickAt(vector g)
@@ -413,6 +555,7 @@ class DZS_TerrPlugin : DZS_Plugin
 		bool over = !blocked && (!scr.IsCursorVisible() || scr.IsPointerOverScene());
 		bool lmb = DZS_UiRegistry.KeyDown("MouseLeft");
 		bool lDown = lmb && !m_LmbWas;
+		bool lUp = !lmb && m_LmbWas;
 		m_LmbWas = lmb;
 		int mx, my;
 		GetMousePos(mx, my);
@@ -421,6 +564,24 @@ class DZS_TerrPlugin : DZS_Plugin
 		m_Hover = "";
 		if (hasG && m_Drag == "")
 			m_Hover = PickAt(g);
+		if (m_PlaceDrag && lUp)
+		{
+			string dropCls = m_PlaceClass;
+			Arm("", false);
+			if (hasG)
+				PlaceClassAt(inst, dropCls, g);
+			return;
+		}
+		bool armedClick = false;
+		if (m_PlaceClass != "" && !m_PlaceDrag)
+			armedClick = true;
+		if (lDown && hasG && !scr.IsMouseSwallowed() && armedClick)
+		{
+			string clickKey = m_PlaceClass;
+			Arm("", false);
+			PlaceClassAt(inst, clickKey, g);
+			return;
+		}
 		if (lDown && hasG && !scr.IsMouseSwallowed())
 		{
 			m_Press = true;
@@ -428,7 +589,12 @@ class DZS_TerrPlugin : DZS_Plugin
 			m_PressY = my;
 			m_PressGround = g;
 			DZS_TerrZone sel = Selected();
-			if (sel && !sel.m_Kept && OnEdge(sel, g))
+			bool inSel = false;
+			if (sel && OnEdge(sel, g))
+				inSel = true;
+			if (sel && RadiusTool() && PickAt(g) == sel.Key())
+				inSel = true;
+			if (sel && !sel.m_Kept && inSel)
 				m_Drag = "resize";
 			else
 			{
@@ -452,7 +618,7 @@ class DZS_TerrPlugin : DZS_Plugin
 				Change(inst, z, z.m_X + g[0] - m_PressGround[0], z.m_Z + g[2] - m_PressGround[2], z.m_R, z.m_Dmin, z.m_Dmax);
 			else if (what == "resize")
 			{
-				float nr = Math.Max(5, Math.Sqrt((g[0] - z.m_X) * (g[0] - z.m_X) + (g[2] - z.m_Z) * (g[2] - z.m_Z)));
+				float nr = Math.Max(5, Math.Round(Math.Sqrt((g[0] - z.m_X) * (g[0] - z.m_X) + (g[2] - z.m_Z) * (g[2] - z.m_Z))));
 				Change(inst, z, z.m_X, z.m_Z, nr, z.m_Dmin, z.m_Dmax);
 			}
 		}
@@ -666,16 +832,23 @@ class DZS_TerrPlugin : DZS_Plugin
 	// Placing an animal or an infected class: a zone of its kind at that spot (3A). False when the class has no kind.
 	bool ZoneForClass(DZS_Instance inst, string cls, vector pos)
 	{
-		if (!m_Base || m_BaseFor != BaseDir())
-		{
-			m_Base = DZS_TerrBase.Load(BaseDir());
-			m_BaseFor = BaseDir();
-		}
-		string kid = m_Base.KindOfClass(cls);
+		string kid = KindOf(cls);
 		if (kid == "")
 			return false;
+		return ZoneForKind(inst, kid, pos, cls);
+	}
+
+	// A new zone of a kind at a ground spot; for herds a territory with its graze and rest zones.
+	bool ZoneForKind(DZS_Instance inst, string kid, vector pos, string cls = "")
+	{
+		LoadBase();
 		DZS_TerrKind k = m_Base.m_Kinds.Get(kid);
+		if (!k)
+			return false;
+		if (cls == "")
+			cls = k.m_Label;
 		DZS_OpBuilder b = inst.BeginOperation(DZS_TerrModel.OP, 1);
+		string made = "";
 		string x = NumText(pos[0]);
 		string z = NumText(pos[2]);
 		if (kid.IndexOf("infected:") == 0)
@@ -700,7 +873,7 @@ class DZS_TerrPlugin : DZS_Plugin
 				string tid = b.Create(DZS_TerrModel.TERR, DZS_PROJECT_ID, DZS_END, tf);
 				zf.Set("territory", tid);
 			}
-			b.Create(DZS_TerrModel.ZONE, DZS_PROJECT_ID, DZS_END, zf);
+			made = b.Create(DZS_TerrModel.ZONE, DZS_PROJECT_ID, DZS_END, zf);
 		}
 		else if (kid.IndexOf("herd:") == 0)
 		{
@@ -718,7 +891,9 @@ class DZS_TerrPlugin : DZS_Plugin
 				gz.Set("x", x);
 				gz.Set("z", z);
 				gz.Set("r", radii[i]);
-				b.Create(DZS_TerrModel.ZONE, DZS_PROJECT_ID, DZS_END, gz);
+				string gid = b.Create(DZS_TerrModel.ZONE, DZS_PROJECT_ID, DZS_END, gz);
+				if (made == "")
+					made = gid;
 			}
 		}
 		else
@@ -744,10 +919,16 @@ class DZS_TerrPlugin : DZS_Plugin
 			af.Set("x", x);
 			af.Set("z", z);
 			af.Set("r", "100");
-			b.Create(DZS_TerrModel.ZONE, DZS_PROJECT_ID, DZS_END, af);
+			made = b.Create(DZS_TerrModel.ZONE, DZS_PROJECT_ID, DZS_END, af);
 		}
 		b.Commit("Gebiet für " + cls, "Territory for " + cls);
-		m_Kernel.GetScreen().ShowMessage("territories.placed", "info", DZS_Texts.Pick("Gebiet angelegt (", "Territory added (") + k.m_Label + DZS_Texts.Pick(") – sichtbar in der Ebene Gebiete", ") – shown in the Territories layer"), 6.0);
+		if (m_On)
+		{
+			Select("e:" + made);
+			m_Kernel.GetScreen().ShowMessage("territories.placed", "info", DZS_Texts.Pick("Gebiet angelegt (", "Territory added (") + k.m_Label + ")", 6.0);
+		}
+		else
+			m_Kernel.GetScreen().ShowMessage("territories.placed", "info", DZS_Texts.Pick("Gebiet angelegt (", "Territory added (") + k.m_Label + DZS_Texts.Pick(") – sichtbar in der Ebene Gebiete", ") – shown in the Territories layer"), 6.0);
 		DZS_Log.Info("territories: " + cls + " placed as a zone of " + kid + " at " + x + " " + z);
 		return true;
 	}
@@ -904,7 +1085,7 @@ class DZS_TerrPanel : DZS_PanelContent
 				Field(DZS_Texts.Pick("Zombies höchstens", "Infected at most"), "dmax", z.m_Dmax);
 			}
 			m_Y += DZS_Scale.Px(6);
-			DZS_Button rem = new DZS_Button(m_Root, "danger", DZS_Texts.Pick("Zone entfernen", "Remove zone"), "trash-2");
+			DZS_Button rem = new DZS_Button(m_Root, "danger", DZS_Texts.Pick("Zone entfernen", "Remove zone"), "trash");
 			rem.Place(Pad(), m_Y);
 			rem.m_OnClick.Insert(OnRemove);
 			m_Buttons.Insert(rem);

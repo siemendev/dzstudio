@@ -19,6 +19,8 @@ class DZS_Action : Managed
 	string m_BlockedDefault;
 	string m_BlockedBy;
 	int m_Seq;
+	// the layer the action belongs to ("" = every layer); off with a reason in the others
+	string m_Layer;
 
 	string Name() { return DZS_Texts.Pick(m_NameDe, m_NameEn); }
 }
@@ -73,7 +75,8 @@ class DZS_PanelInfo : Managed
 	string Title() { return DZS_Texts.Pick(m_TitleDe, m_TitleEn); }
 }
 
-// A toolbar button for an action: group "tools" (exactly one active) or "switches" (on or off each).
+// A toolbar button for an action: group "layers" (the layer switch), "tools" (exactly one active per layer) or
+// "switches" (on or off each, or a command).
 class DZS_ToolInfo : Managed
 {
 	string m_Id;
@@ -92,6 +95,9 @@ class DZS_ToolInfo : Managed
 	string m_TipKeyAction;
 	// a switch with its action's label next to the icon, shown only while the action is enabled
 	bool m_Labelled;
+	// the layer whose tool slot shows it ("" = a tool of "objects", a switch of the global group);
+	// for group "layers" the layer it switches to
+	string m_Layer;
 }
 
 class DZS_KeyGroup : Managed
@@ -128,6 +134,8 @@ class DZS_ActionHandler : Managed
 
 class DZS_UiRegistry : Managed
 {
+	static const string LAYER_OBJECTS = "objects";
+
 	protected ref map<string, ref DZS_Action> m_Actions;
 	protected ref array<string> m_ActionOrder;
 	protected ref map<string, DZS_ActionHandler> m_Handlers;
@@ -143,7 +151,8 @@ class DZS_UiRegistry : Managed
 	protected bool m_InputBlocked;
 	protected string m_Target = "scene";
 	protected string m_SceneState = "none";
-	protected string m_ActiveTool;
+	protected ref map<string, string> m_ActiveTools;
+	protected string m_Layer = LAYER_OBJECTS;
 	protected int m_Seq;
 	ref ScriptInvoker m_OnBindingsChanged;
 
@@ -157,6 +166,7 @@ class DZS_UiRegistry : Managed
 		m_Panels = new map<string, ref DZS_PanelInfo>();
 		m_PanelOrder = new array<string>();
 		m_Tools = new map<string, ref DZS_ToolInfo>();
+		m_ActiveTools = new map<string, string>();
 		m_Groups = new array<ref DZS_KeyGroup>();
 		m_KeyWasDown = new map<string, bool>();
 		m_HeldNow = new map<string, bool>();
@@ -424,8 +434,6 @@ class DZS_UiRegistry : Managed
 		t.m_Seq = m_Seq;
 		m_Tools.Set(id, t);
 		m_ToolsRev++;
-		if (group == "tools" && m_ActiveTool == "")
-			m_ActiveTool = id;
 	}
 
 	array<DZS_ToolInfo> GetTools(string group)
@@ -443,7 +451,103 @@ class DZS_UiRegistry : Managed
 		return r;
 	}
 
-	string GetActiveTool() { return m_ActiveTool; }
+	// The chosen tool of the active layer (the first of its tools until one is chosen).
+	string GetActiveTool()
+	{
+		string id = m_ActiveTools.Get(m_Layer);
+		if (id != "")
+			return id;
+		array<DZS_ToolInfo> tools = GetTools("tools");
+		foreach (DZS_ToolInfo t : tools)
+		{
+			if (ToolLayer(t) == m_Layer)
+				return t.m_Id;
+		}
+		return "";
+	}
+
+	// ---- layers: one is active; the top bar shows its tools, actions of another layer are off ----
+
+	string GetActiveLayer() { return m_Layer; }
+
+	void SetActiveLayer(string layer)
+	{
+		if (layer == "")
+			layer = LAYER_OBJECTS;
+		if (layer == m_Layer)
+			return;
+		m_Layer = layer;
+		m_ToolsRev++;
+		DZS_Log.Info("layer " + layer);
+		DZS_Button.RefreshAllCaps(this);
+	}
+
+	// The layer whose slot shows a tool or switch; "" for a global switch.
+	static string ToolLayer(DZS_ToolInfo t)
+	{
+		if (t.m_Layer == "" && t.m_Group == "tools")
+			return LAYER_OBJECTS;
+		return t.m_Layer;
+	}
+
+	void SetToolLayer(string id, string layer)
+	{
+		DZS_ToolInfo t = m_Tools.Get(id);
+		if (!t)
+			return;
+		t.m_Layer = layer;
+		m_ToolsRev++;
+	}
+
+	// Name of a layer from its entry in group "layers" ("" when no layer is registered by that id).
+	string LayerName(string layer)
+	{
+		foreach (string id, DZS_ToolInfo t : m_Tools)
+		{
+			if (t.m_Group == "layers" && t.m_Layer == layer)
+				return DZS_Texts.Pick(t.m_NameDe, t.m_NameEn);
+		}
+		return "";
+	}
+
+	void SetActionLayer(string id, string layer)
+	{
+		DZS_Action a = m_Actions.Get(id);
+		if (a)
+			a.m_Layer = layer;
+	}
+
+	// Every action the plugin has registered so far belongs to this layer.
+	void SetPluginLayer(string plugin, string layer)
+	{
+		foreach (string id : m_ActionOrder)
+		{
+			DZS_Action a = m_Actions.Get(id);
+			if (a.m_Plugin == plugin)
+				a.m_Layer = layer;
+		}
+	}
+
+	// An action of another layer than the active one: off, with the layer it works in as the reason.
+	bool OtherLayer(string id, out string reasonDe, out string reasonEn)
+	{
+		DZS_Action a = m_Actions.Get(id);
+		if (!a || a.m_Layer == "" || a.m_Layer == m_Layer)
+			return false;
+		string de = a.m_Layer;
+		string en = a.m_Layer;
+		foreach (string tid, DZS_ToolInfo t : m_Tools)
+		{
+			if (t.m_Group == "layers" && t.m_Layer == a.m_Layer)
+			{
+				de = t.m_NameDe;
+				en = t.m_NameEn;
+			}
+		}
+		reasonDe = "Nur in der Ebene " + de;
+		reasonEn = "Only in the " + en + " layer";
+		return true;
+	}
 
 	// Bumped when tools or their arrows change, so the top bar rebuilds its buttons.
 	int m_ToolsRev;
@@ -478,6 +582,7 @@ class DZS_UiRegistry : Managed
 		m_ToolsRev++;
 	}
 
+
 	void SetToolTip(string id, string de, string en, string keyAction)
 	{
 		DZS_ToolInfo t = m_Tools.Get(id);
@@ -491,9 +596,12 @@ class DZS_UiRegistry : Managed
 	void SetActiveTool(string id)
 	{
 		DZS_ToolInfo t = m_Tools.Get(id);
-		if (!t || t.m_Group != "tools" || m_ActiveTool == id)
+		if (!t || t.m_Group != "tools")
 			return;
-		m_ActiveTool = id;
+		string layer = ToolLayer(t);
+		if (m_ActiveTools.Get(layer) == id)
+			return;
+		m_ActiveTools.Set(layer, id);
 		DZS_Log.Info("tool " + id);
 	}
 
@@ -881,6 +989,8 @@ class DZS_UiRegistry : Managed
 		}
 		if (m_Override && m_Override.Claims(id))
 			return m_Override.IsActionEnabled(id, reasonDe, reasonEn);
+		if (OtherLayer(id, reasonDe, reasonEn))
+			return false;
 		DZS_ActionHandler h = m_Handlers.Get(id);
 		if (!h)
 			return false;
@@ -937,6 +1047,11 @@ class DZS_UiRegistry : Managed
 		}
 		DZS_ActionHandler h = m_Handlers.Get(id);
 		string rd, re;
+		if (OtherLayer(id, rd, re))
+		{
+			DZS_Log.Info("action " + id + " refused: " + re);
+			return false;
+		}
 		if (!h || !h.IsActionEnabled(id, rd, re))
 			return false;
 		DZS_Log.Info("action " + id);
