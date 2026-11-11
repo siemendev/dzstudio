@@ -43,7 +43,7 @@ class DZS_Patcher : DZS_PatcherJson
 	static DZS_Patcher Run(DZS_PatchProject project, string baseDir, map<string, string> over = null, DZS_PatchGround ground = null)
 	{
 		DZS_Patcher p = Begin(project, baseDir, over, ground);
-		while (!p.Step(1000000))
+		while (!p.Step(DZS_Job.ALL_AT_ONCE))
 		{
 		}
 		return p;

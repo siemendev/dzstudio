@@ -24,6 +24,10 @@ class DZS_Job : Managed
 	float m_Slowest;
 	float m_Ms;
 
+	// The budget for stepping a job to its end at once. Slices test "TickCount(0) - t0 >= ms * 10000" and the game
+	// turns the float into an int there: 10^6 ms became -2^31, so a slice that checks first never did anything.
+	static const float ALL_AT_ONCE = 100000;
+
 	// One slice of about 'ms' milliseconds (a single indivisible piece may take longer); true when the work is complete.
 	bool Step(float ms)
 	{
@@ -124,7 +128,7 @@ class DZS_Jobs
 		if (!j || j.m_Done)
 			return;
 		int t0 = TickCount(0);
-		while (!j.Step(1000000))
+		while (!j.Step(DZS_Job.ALL_AT_ONCE))
 		{
 		}
 		j.m_Ms += (TickCount(0) - t0) / 10000.0;
@@ -181,7 +185,7 @@ class DZS_Jobs
 			if (j.m_Done || !j.MustFinish())
 				continue;
 			DZS_Log.Info("job " + j.m_Id + " finished at the session end: " + j.m_En);
-			while (!j.Step(1000000))
+			while (!j.Step(DZS_Job.ALL_AT_ONCE))
 			{
 			}
 		}

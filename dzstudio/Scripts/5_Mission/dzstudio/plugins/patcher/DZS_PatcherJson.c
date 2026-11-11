@@ -810,7 +810,7 @@ class DZS_PatcherJson : DZS_PatcherXml
 	static array<string> SpawnerText(DZS_PatchBlock b, out string err)
 	{
 		DZS_PSpawnerText t = new DZS_PSpawnerText(b);
-		while (!t.Step(1000000))
+		while (!t.Step(DZS_Job.ALL_AT_ONCE))
 		{
 		}
 		err = t.m_Err;

@@ -578,7 +578,7 @@ class DZS_SpawnerFormat : DZS_Format
 	override DZS_WriteResult Write(DZS_Instance inst, string groupId)
 	{
 		DZS_FormatWriter w = BeginWrite(inst, groupId);
-		while (!w.Step(1000000))
+		while (!w.Step(DZS_Job.ALL_AT_ONCE))
 		{
 		}
 		return w.Result();
