@@ -1,5 +1,6 @@
 // Vehicle events of a base (db/events.xml + cfgeventspawns.xml of the vanilla mission or a mission folder) and the
 // points the layer shows: the base's points with the project's moves and removals, plus the project's own points.
+// cfgspawnabletypes.xml gives the parts a server puts on each vehicle class (the cars are shown complete).
 class DZS_SpawnEvent : Managed
 {
 	string m_Name;
@@ -41,11 +42,75 @@ class DZS_SpawnPoint : Managed
 	}
 }
 
+// Reads a base over several frames (the three files parsed in slices), then builds it.
+class DZS_SpawnsLoad : Managed
+{
+	string m_Dir;
+	protected ref DZS_PatchFiles m_Files;
+	protected ref array<string> m_Todo = new array<string>();
+	protected ref DZS_PatchFileRead m_Read;
+	protected bool m_ReadAll;
+	int m_Frames;
+	float m_Slowest;
+
+	void DZS_SpawnsLoad(string dir)
+	{
+		m_Dir = dir;
+		m_Todo.Insert("db/events.xml");
+		m_Todo.Insert("cfgeventspawns.xml");
+		m_Todo.Insert("cfgspawnabletypes.xml");
+		m_Files = new DZS_PatchFiles(dir);
+		if (dir != "")
+			m_Files.m_Over.Copy(DZS_ApplyStore.Originals(dir));
+	}
+
+	// One slice of about 'ms'; the base when it is read, else null.
+	DZS_SpawnsBase Step(float ms)
+	{
+		int t0 = TickCount(0);
+		m_Frames++;
+		DZS_SpawnsBase done = null;
+		if (m_Dir == "")
+			done = new DZS_SpawnsBase();
+		while (!done)
+		{
+			if (!m_Read)
+			{
+				// the build in a frame of its own
+				if (m_Todo.Count() == 0)
+				{
+					if (m_ReadAll)
+						done = DZS_SpawnsBase.From(m_Dir, m_Files);
+					m_ReadAll = true;
+					break;
+				}
+				string rel = m_Todo[0];
+				m_Todo.Remove(0);
+				m_Read = m_Files.BeginRead(rel);
+				if (m_Read)
+					break;
+				continue;
+			}
+			if (!m_Files.StepRead(m_Read, t0, ms))
+				break;
+			m_Read = null;
+			if ((TickCount(0) - t0) / 10000.0 > ms)
+				break;
+		}
+		m_Slowest = Math.Max(m_Slowest, (TickCount(0) - t0) / 10000.0);
+		return done;
+	}
+}
+
 class DZS_SpawnsBase : Managed
 {
 	string m_Dir;
 	ref map<string, ref DZS_SpawnEvent> m_Events = new map<string, ref DZS_SpawnEvent>();
 	ref array<ref DZS_SpawnPoint> m_Points = new array<ref DZS_SpawnPoint>();
+	// cfgspawnabletypes.xml: type entries by lower-case name, and the parts worked out per class
+	protected ref map<string, DZS_XmlNode> m_Spawnable = new map<string, DZS_XmlNode>();
+	protected ref DZS_PatchFile m_SpawnableFile;
+	protected ref map<string, ref array<string>> m_Parts = new map<string, ref array<string>>();
 
 	static bool IsVehicle(string cls)
 	{
@@ -54,15 +119,23 @@ class DZS_SpawnsBase : Managed
 		return GetGame().IsKindOf(cls, "Transport");
 	}
 
-	static DZS_SpawnsBase Load(string dir)
+	// A folder projects were applied to shows its originals, as the patcher reads them (DZS_SpawnsLoad).
+	static DZS_SpawnsBase From(string dir, DZS_PatchFiles files)
 	{
 		DZS_SpawnsBase b = new DZS_SpawnsBase();
 		b.m_Dir = dir;
 		if (dir == "")
 			return b;
-		DZS_PatchFiles files = new DZS_PatchFiles(dir);
-		// a folder projects were applied to shows its originals, as the patcher reads them
-		files.m_Over.Copy(DZS_ApplyStore.Originals(dir));
+		DZS_PatchFile st = files.Get("cfgspawnabletypes.xml");
+		if (st.Ok())
+		{
+			b.m_SpawnableFile = st;
+			foreach (DZS_XmlNode t : st.m_Xml.m_Root.m_Children)
+			{
+				if (t.m_Name == "type")
+					b.m_Spawnable.Set(DZS_PatchText.Lower(t.Get("name")), t);
+			}
+		}
 		DZS_PatchFile ev = files.Get("db/events.xml");
 		DZS_PatchFile sp = files.Get("cfgeventspawns.xml");
 		if (!ev.Ok() || !sp.Ok())
@@ -124,6 +197,45 @@ class DZS_SpawnsBase : Managed
 			}
 		}
 		return b;
+	}
+
+	// The parts of a class as the base's cfgspawnabletypes.xml attaches them, every chance ignored: of each
+	// attachments block its likeliest item. Null when the file has no entry (the game's own debug parts are used).
+	array<string> Parts(string cls)
+	{
+		string low = DZS_PatchText.Lower(cls);
+		if (m_Parts.Contains(low))
+			return m_Parts.Get(low);
+		DZS_XmlNode t = m_Spawnable.Get(low);
+		array<string> parts = null;
+		if (t)
+		{
+			parts = new array<string>();
+			foreach (DZS_XmlNode block : t.m_Children)
+			{
+				if (block.m_Name != "attachments")
+					continue;
+				string best = "";
+				float bestChance = -1;
+				foreach (DZS_XmlNode item : block.m_Children)
+				{
+					if (item.m_Name != "item" || item.Get("name") == "")
+						continue;
+					float ch = 1;
+					if (item.Has("chance"))
+						ch = item.Get("chance").ToFloat();
+					if (ch > bestChance)
+					{
+						bestChance = ch;
+						best = item.Get("name");
+					}
+				}
+				if (best != "")
+					parts.Insert(best);
+			}
+		}
+		m_Parts.Set(low, parts);
+		return parts;
 	}
 
 	// The layer's view: base events and points with the project's state laid over them.

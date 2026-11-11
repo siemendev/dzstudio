@@ -21,6 +21,13 @@ class DZS_ProjTest : DZS_Plugin
 	protected ref array<string> m_SynChunks;
 	protected string m_LastFolder;
 	protected float m_FpsLeft;
+	protected vector m_FlyFrom;
+	protected vector m_FlyTo;
+	protected float m_FlyH;
+	protected float m_FlyLeft;
+	protected float m_FlyAll;
+	protected float m_FlyWorst;
+	protected int m_FlyFrames;
 	protected float m_FpsTime;
 	protected int m_FpsFrames;
 	protected float m_FpsWorst;
@@ -57,6 +64,8 @@ class DZS_ProjTest : DZS_Plugin
 			HeapTick();
 		if (m_FpsLeft > 0)
 			FpsTick(dt);
+		if (m_FlyLeft > 0)
+			FlyTick(dt);
 		if (m_SettleNext >= 0)
 			SettleTick();
 		m_Poll -= dt;
@@ -228,6 +237,41 @@ class DZS_ProjTest : DZS_Plugin
 			if (a.Count() > 2)
 				npMap = a[2];
 			pp0.RequestNew(a[1], npMap);
+			return;
+		}
+		if (c == "spawns")
+		{
+			// spawns status | near | stacked | event NAME | none — the Spawns layer's state, or a selection made
+			DZS_SpawnsPlugin spw = DZS_SpawnsPlugin.Cast(m_Kernel.GetPlugin("spawns"));
+			if (a.Count() > 1 && a[1] == "near")
+				Log("spawns near " + spw.SelectNearestCar());
+			else if (a.Count() > 1 && a[1] == "stacked")
+				Log("spawns stacked " + spw.SelectStacked());
+			else if (a.Count() > 2 && a[1] == "event")
+			{
+				spw.SetOpen(a[2], true);
+				spw.SelectEvent(a[2]);
+			}
+			else if (a.Count() > 3 && a[1] == "grid")
+				Log("spawns grid " + spw.TestGrid(a[2].ToInt(), a[3]));
+			else if (a.Count() > 1 && a[1] == "none")
+			{
+				spw.Select("");
+				spw.SelectEvent("");
+			}
+			Log("spawns " + spw.StatusLine());
+			return;
+		}
+		if (c == "fly")
+		{
+			// fly X1 Z1 X2 Z2 HEIGHT SECONDS — the camera along a straight line HEIGHT m above the terrain, looking ahead
+			m_FlyFrom = Vector(a[1].ToFloat(), 0, a[2].ToFloat());
+			m_FlyTo = Vector(a[3].ToFloat(), 0, a[4].ToFloat());
+			m_FlyH = a[5].ToFloat();
+			m_FlyLeft = a[6].ToFloat();
+			m_FlyAll = m_FlyLeft;
+			m_FlyWorst = 0;
+			m_FlyFrames = 0;
 			return;
 		}
 		if (c == "heap")
@@ -1221,6 +1265,23 @@ class DZS_ProjTest : DZS_Plugin
 		m_HeapLeft--;
 		float ms = (TickCount(0) - t0) / 10000.0;
 		Log("heap " + m_HeapMode + " " + m_HeapDone + " n " + n + " " + ms + " ms");
+	}
+
+	protected void FlyTick(float dt)
+	{
+		m_FlyLeft -= dt;
+		m_FlyFrames++;
+		if (m_FlyFrames > 1)
+			m_FlyWorst = Math.Max(m_FlyWorst, dt);
+		float f = Math.Clamp(1 - m_FlyLeft / m_FlyAll, 0, 1);
+		vector p = m_FlyFrom + (m_FlyTo - m_FlyFrom) * f;
+		p[1] = GetGame().SurfaceY(p[0], p[2]) + m_FlyH;
+		vector d = m_FlyTo - m_FlyFrom;
+		float yaw = Math.Atan2(d[0], d[2]) * Math.RAD2DEG;
+		DZS_CameraPlugin cam = DZS_CameraPlugin.Cast(m_Kernel.GetPlugin("camera"));
+		cam.SetPose(p, yaw, -20, false);
+		if (m_FlyLeft <= 0)
+			Log("fly done: " + m_FlyFrames + " frames, slowest " + (m_FlyWorst * 1000) + " ms, avg fps " + (m_FlyFrames / Math.Max(0.001, m_FlyAll)));
 	}
 
 	protected void FpsTick(float dt)

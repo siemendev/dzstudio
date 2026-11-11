@@ -7,6 +7,45 @@ class DZS_RayHit : Managed
 	float m_Dist;
 }
 
+// Objects shown as scenery only (the Spawns layer's cars): rays of the editor's tools pass through them. A plugin
+// that draws them says when one is the front thing under the pointer, so the Objects layer shows no hover behind it.
+class DZS_Scenery
+{
+	protected static ref array<Object> s_Objs;
+	static bool s_PointerOn;
+
+	static void Add(Object o)
+	{
+		if (!s_Objs)
+			s_Objs = new array<Object>();
+		if (o && s_Objs.Find(o) < 0)
+			s_Objs.Insert(o);
+	}
+
+	static void Remove(Object o)
+	{
+		if (!s_Objs)
+			return;
+		int at = s_Objs.Find(o);
+		if (at >= 0)
+			s_Objs.Remove(at);
+	}
+
+	// The object or the vehicle it is part of (a wheel, a door).
+	static bool Has(Object o)
+	{
+		if (!o || !s_Objs || s_Objs.Count() == 0)
+			return false;
+		if (s_Objs.Find(o) >= 0)
+			return true;
+		EntityAI e = EntityAI.Cast(o);
+		if (!e)
+			return false;
+		EntityAI root = e.GetHierarchyRoot();
+		return root && root != e && s_Objs.Find(root) >= 0;
+	}
+}
+
 class DZS_Rays
 {
 	// Everything a ray meets within len, nearest first. One cast reports only its nearest contact, so the ray
@@ -50,7 +89,7 @@ class DZS_Rays
 				}
 				break;
 			}
-			if (exclude.Find(o) < 0)
+			if (exclude.Find(o) < 0 && !DZS_Scenery.Has(o))
 			{
 				DZS_RayHit h = new DZS_RayHit();
 				h.m_Obj = o;

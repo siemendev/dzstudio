@@ -1,5 +1,6 @@
 // The list of a layer in the right bar (spawn points, effect areas, zones): list rows with colour swatch, title and a
-// muted detail; only the rows in view are built. A click selects, a double click flies the camera there.
+// muted detail; only the rows in view are built. A click selects, a double click flies the camera there. A source may
+// group its rows under header rows (chevron, bold title, count) and hears which row the pointer is over.
 class DZS_LayerListSource : Managed
 {
 	// changes whenever rows or the selection change
@@ -13,6 +14,10 @@ class DZS_LayerListSource : Managed
 	void SelectRow(string key) {}
 	void FocusRow(string key) {}
 	string EmptyText() { return ""; }
+	bool RowHeader(int i) { return false; }
+	bool RowOpen(int i) { return false; }
+	// the row under the pointer ("" for none), every frame
+	void HoverRow(string key) {}
 }
 
 class DZS_LayerRow : DZS_HitListener
@@ -25,6 +30,10 @@ class DZS_LayerRow : DZS_HitListener
 	protected Widget m_Swatch;
 	protected TextWidget m_Title;
 	protected TextWidget m_Sub;
+	protected TextWidget m_Head;
+	protected TextWidget m_Count;
+	protected ImageWidget m_Chevron;
+	protected bool m_Header;
 	string m_Key;
 	protected string m_Shown;
 	protected float m_Last = -10;
@@ -41,19 +50,43 @@ class DZS_LayerRow : DZS_HitListener
 		m_Swatch = DZS_W.Panel(f, DZS_Color.Get("accent"));
 		m_Title = DZS_W.Text(f, DZS_Font.READ, 13, DZS_Color.Get("text"));
 		m_Sub = DZS_W.Text(f, DZS_Font.MONO, 11, DZS_Color.Get("textQuiet"));
+		m_Head = DZS_W.Text(f, DZS_Font.READBOLD, 13, DZS_Color.Get("text"));
+		m_Count = DZS_W.Text(f, DZS_Font.MONO, 11, DZS_Color.Get("textQuiet"));
+		m_Chevron = DZS_W.Icon(f, "chevron-right", DZS_Color.Get("textMuted"));
 	}
 
-	void Bind(string key, string title, string sub, int color, float w)
+	bool IsHover() { return m_Hit.m_Hover; }
+
+	void Bind(string key, string title, string sub, int color, float w, bool header, bool open)
 	{
 		m_Key = key;
-		string sig = key + "|" + title + "|" + sub;
+		m_Header = header;
+		string sig = key + "|" + title + "|" + sub + "|" + DZS_Str.Bool(header) + "|" + DZS_Str.Bool(open);
 		if (sig != m_Shown)
 		{
 			m_Shown = sig;
-			DZS_W.FitText(m_Title, title, w - DZS_Scale.Px(44));
-			DZS_W.FitText(m_Sub, sub, w - DZS_Scale.Px(44));
+			if (header)
+			{
+				m_Count.SetText(DZS_W.Literal(sub));
+				DZS_W.FitText(m_Head, title, w - DZS_Scale.Px(44) - DZS_W.TextWidth(m_Count) - DZS_Scale.Px(12));
+				if (open)
+					DZS_W.SetIcon(m_Chevron, "chevron-down");
+				else
+					DZS_W.SetIcon(m_Chevron, "chevron-right");
+			}
+			else
+			{
+				DZS_W.FitText(m_Title, title, w - DZS_Scale.Px(44));
+				DZS_W.FitText(m_Sub, sub, w - DZS_Scale.Px(44));
+			}
 		}
 		m_Swatch.SetColor(color);
+		m_Title.Show(!header);
+		m_Sub.Show(!header);
+		m_Swatch.Show(!header);
+		m_Head.Show(header);
+		m_Count.Show(header);
+		m_Chevron.Show(header);
 	}
 
 	void Place(float y, float w, float h, bool selected)
@@ -68,6 +101,11 @@ class DZS_LayerRow : DZS_HitListener
 		float tx = pad + sw + DZS_Scale.Px(10);
 		DZS_W.Place(m_Title, tx, DZS_Scale.Px(3), w - tx - pad, DZS_Scale.Px(18));
 		DZS_W.Place(m_Sub, tx, DZS_Scale.Px(20), w - tx - pad, DZS_Scale.Px(16));
+		float ic = DZS_Scale.Px(16);
+		DZS_W.Place(m_Chevron, pad - DZS_Scale.Px(4), (h - ic) / 2, ic, ic);
+		float cw = DZS_W.TextWidth(m_Count);
+		DZS_W.Place(m_Count, w - pad - cw, 0, cw, h);
+		DZS_W.Place(m_Head, tx, 0, w - tx - pad - cw - DZS_Scale.Px(8), h);
 		m_Bg.Show(m_Hit.m_Hover && !selected);
 		m_Tint.Show(selected);
 		m_Bar.Show(selected);
@@ -194,6 +232,7 @@ class DZS_LayerList : DZS_PanelContent
 		while (m_Rows.Count() < visible)
 			m_Rows.Insert(new DZS_LayerRow(m_Root, this));
 		string sel = m_Src.SelectedKey();
+		string hover = "";
 		for (int k = 0; k < m_Rows.Count(); k++)
 		{
 			DZS_LayerRow row = m_Rows[k];
@@ -205,9 +244,12 @@ class DZS_LayerList : DZS_PanelContent
 			}
 			row.Show(true);
 			string key = m_Src.RowKey(idx);
-			row.Bind(key, m_Src.RowTitle(idx), m_Src.RowSub(idx), m_Src.RowColor(idx), m_W);
+			row.Bind(key, m_Src.RowTitle(idx), m_Src.RowSub(idx), m_Src.RowColor(idx), m_W, m_Src.RowHeader(idx), m_Src.RowOpen(idx));
 			row.Place(idx * rowH - m_Scroll, m_W, rowH, key == sel);
+			if (row.IsHover())
+				hover = key;
 		}
+		m_Src.HoverRow(hover);
 		float total = n * rowH;
 		bool bar = total > m_H;
 		m_ScrollBar.Show(bar);

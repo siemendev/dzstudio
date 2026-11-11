@@ -1117,8 +1117,9 @@ class DZS_PatchApply : Managed
 	}
 
 	// The folder the layers (spawns, effects, territories) show as the base: the mission folder remembered for the open
-	// project, else the map's vanilla mission, fetched once when it is not here yet ("" until then).
-	string LayerBase()
+	// project, else the map's vanilla mission, fetched once when it is not here yet ("" until then; without 'fetch'
+	// nothing is started).
+	string LayerBase(bool fetch = true)
 	{
 		DZS_ProjectsPlugin pp = Projects();
 		if (!pp || !pp.m_Open)
@@ -1129,7 +1130,7 @@ class DZS_PatchApply : Managed
 		string mk = MapKey();
 		if (DZS_LootVanilla.HaveMission(mk))
 			return DZS_LootVanilla.MissionDir(mk);
-		if (!m_Fetch && mk != "" && m_LayerFetchFailed != mk)
+		if (fetch && !m_Fetch && mk != "" && m_LayerFetchFailed != mk)
 		{
 			m_Fetch = new DZS_LootVanilla();
 			m_Fetch.m_OnDone.Insert(OnFetched);

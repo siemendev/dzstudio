@@ -1,5 +1,5 @@
-// Inspector of the Spawns layer: the event of the selected point — how many of it are on the map (with the base's
-// value next to it), its classes with their maximum, and removing the point (adding is "+ Spawn point" in the top bar).
+// Inspector of the Spawns layer: the event of the selected point, or of the event chosen in the list — how many of it
+// are on the map (with the base's value next to it), its classes with their maximum, and removing the point.
 class DZS_SpawnsPanel : DZS_PanelContent
 {
 	protected DZS_SpawnsPlugin m_P;
@@ -86,10 +86,12 @@ class DZS_SpawnsPanel : DZS_PanelContent
 		m_Root = DZS_W.Frame(m_Parent);
 		m_Y = DZS_Scale.Px(8);
 		DZS_SpawnPoint p = m_P.Selected();
-		if (!p)
-			Summary();
+		if (p)
+			EventView(p.m_Event, p);
+		else if (m_P.m_SelEvent != "")
+			EventView(m_P.m_SelEvent, null);
 		else
-			EventView(p);
+			Summary();
 		m_H = m_Y + DZS_Scale.Px(8);
 		DZS_W.Place(m_Root, 0, 0, m_Width, m_H);
 	}
@@ -107,21 +109,27 @@ class DZS_SpawnsPanel : DZS_PanelContent
 		}
 		Line(DZS_Texts.Pick("Fahrzeug-Spawnpunkte", "Vehicle spawn points"), "textMuted", 12, 18);
 		Line(m_P.m_Events.Count().ToString() + DZS_Texts.Pick(" Events · ", " events · ") + pts + DZS_Texts.Pick(" Punkte", " points"), "text", 14, 22);
-		Line(DZS_Texts.Pick("Punkt anklicken, um sein Event zu sehen.", "Click a point to see its event."), "textQuiet", 13, 20);
+		Line(DZS_Texts.Pick("Auto anklicken oder Event in der Liste wählen.", "Click a car or pick an event in the list."), "textQuiet", 13, 20);
 		Line(DZS_Texts.Pick("Grün: eigene Punkte · Gelb: verschobene", "Green: own points · Yellow: moved"), "textQuiet", 13, 20);
 		if (kept > 0)
 			Line(DZS_Texts.Pick("Blau: außerhalb angelegt, nur sichtbar", "Blue: made outside, shown only"), "textQuiet", 13, 20);
 	}
 
-	protected void EventView(DZS_SpawnPoint p)
+	protected void EventView(string ev, DZS_SpawnPoint p)
 	{
-		DZS_SpawnEvent e = m_P.m_Events.Get(p.m_Event);
-		m_Event = p.m_Event;
+		DZS_SpawnEvent e = m_P.m_Events.Get(ev);
+		m_Event = ev;
 		string kind = DZS_Texts.Pick("Event der Basis", "Base event");
 		if (e && e.m_Elem != "")
 			kind = DZS_Texts.Pick("Eigenes festes Fahrzeug", "Own fixed vehicle");
 		Line(kind, "textMuted", 12, 18);
-		Line(p.m_Event, "text", 15, 24);
+		Line(ev, "text", 15, 24);
+		if (!p)
+		{
+			m_Y += DZS_Scale.Px(6);
+			EventValues(ev, e);
+			return;
+		}
 		string where = "x " + Math.Round(p.m_X) + " · z " + Math.Round(p.m_Z) + " · " + Math.Round(p.m_A) + "°";
 		if (p.m_Kept)
 		{
@@ -135,7 +143,25 @@ class DZS_SpawnsPanel : DZS_PanelContent
 		else if (p.m_Moved)
 			where += DZS_Texts.Pick(" · verschoben", " · moved");
 		Line(where, "textQuiet", 13, 20);
+		int here = m_P.StackSize(p);
+		if (here > 1)
+		{
+			string hereText = m_P.HereText(here);
+			string next = DZS_Texts.Pick(" · Klick aufs Auto wechselt", " · click the car for the next");
+			Line(hereText + next, "textQuiet", 13, 20);
+		}
 		m_Y += DZS_Scale.Px(6);
+		EventValues(ev, e);
+		m_Y += DZS_Scale.Px(8);
+		DZS_Button rem = new DZS_Button(m_Root, "danger", DZS_Texts.Pick("Punkt entfernen", "Remove point"), "trash");
+		rem.Place(Pad(), m_Y);
+		rem.m_OnClick.Insert(OnRemove);
+		m_Buttons.Insert(rem);
+		m_Y += DZS_Scale.Px(32);
+	}
+
+	protected void EventValues(string ev, DZS_SpawnEvent e)
+	{
 		if (e)
 		{
 			string baseNote = "";
@@ -155,14 +181,8 @@ class DZS_SpawnsPanel : DZS_PanelContent
 			}
 			else
 				Line(e.m_Types[0], "textQuiet", 13, 20);
-			Line(m_P.PointsOf(p.m_Event).ToString() + DZS_Texts.Pick(" Spawnpunkte", " spawn points"), "textQuiet", 13, 20);
+			Line(m_P.PointsOf(ev).ToString() + DZS_Texts.Pick(" Spawnpunkte", " spawn points"), "textQuiet", 13, 20);
 		}
-		m_Y += DZS_Scale.Px(8);
-		DZS_Button rem = new DZS_Button(m_Root, "danger", DZS_Texts.Pick("Punkt entfernen", "Remove point"), "trash");
-		rem.Place(Pad(), m_Y);
-		rem.m_OnClick.Insert(OnRemove);
-		m_Buttons.Insert(rem);
-		m_Y += DZS_Scale.Px(32);
 	}
 
 	protected void ValueRow(string label, string field, string value, string note)

@@ -1431,9 +1431,15 @@ class DZS_PlacementPlugin : DZS_Plugin
 			m_HoverAnchorY = my;
 		}
 		m_HoverList.Clear();
+		m_HoverMapObj = null;
+		// a spawn car in front: it names itself, nothing behind it is hovered
+		if (DZS_Scenery.s_PointerOn)
+		{
+			m_Hover = "";
+			return;
+		}
 		DZS_SceneApi scene = DZS_SceneApi.Get();
 		array<ref DZS_RayHit> hits = PickRay(Excluded());
-		m_HoverMapObj = null;
 		if (hits.Count() > 0 && hits[0].m_Obj && scene.IdOf(hits[0].m_Obj) == "")
 			m_HoverMapObj = hits[0].m_Obj;
 		foreach (DZS_RayHit h : hits)
