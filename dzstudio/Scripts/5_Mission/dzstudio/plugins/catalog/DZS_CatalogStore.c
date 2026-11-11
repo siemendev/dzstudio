@@ -11,6 +11,9 @@ class DZS_CatalogStore : Managed
 	ref array<ref DZS_CatEntry> m_Templates;
 	ref map<string, DZS_CatEntry> m_ByLow;
 	ref array<DZS_CatEntry> m_All;          // objects and templates in the order without search text
+	ref array<ref DZS_CatGroup> m_Groups;   // in the order of the list
+	protected ref map<string, ref array<DZS_CatGroup>> m_GroupsByCat;
+	protected ref map<string, DZS_CatGroup> m_GroupByKey;
 	protected ref array<string> m_Lines;
 	protected int m_Next;
 	protected int m_Stage;                  // 0 read, 1 check, 2 index, 3 ready
@@ -29,6 +32,9 @@ class DZS_CatalogStore : Managed
 		m_Templates = new array<ref DZS_CatEntry>();
 		m_ByLow = new map<string, DZS_CatEntry>();
 		m_All = new array<DZS_CatEntry>();
+		m_Groups = new array<ref DZS_CatGroup>();
+		m_GroupsByCat = new map<string, ref array<DZS_CatGroup>>();
+		m_GroupByKey = new map<string, DZS_CatGroup>();
 		m_Words = new array<string>();
 		m_WordCodes = new array<ref array<int>>();
 		m_WordIndex = new map<string, int>();
@@ -48,7 +54,14 @@ class DZS_CatalogStore : Managed
 		m_Lines = new array<string>();
 		string path = LIST_IN_MOD;
 		if (FileExist(LIST_IN_PROFILE))
-			path = LIST_IN_PROFILE;
+		{
+			int own = ListFormat(LIST_IN_PROFILE);
+			int bundled = ListFormat(LIST_IN_MOD);
+			if (own >= bundled)
+				path = LIST_IN_PROFILE;
+			else
+				DZS_Log.Warn("catalog: " + LIST_IN_PROFILE + " is in an older format than the bundled list and is not used");
+		}
 		FileHandle fh = OpenFile(path, FileMode.READ);
 		if (!fh)
 		{
@@ -63,6 +76,26 @@ class DZS_CatalogStore : Managed
 		DZS_Log.Info("catalog: console list " + path + ", " + m_Lines.Count() + " lines");
 		m_Stage = 1;
 		m_Next = 0;
+	}
+
+	// Format number from the first line ("# dzstudio console-list 2 · …"); 1 without one.
+	static int ListFormat(string path)
+	{
+		FileHandle fh = OpenFile(path, FileMode.READ);
+		if (!fh)
+			return 0;
+		string line;
+		FGets(fh, line);
+		CloseFile(fh);
+		string head = "# dzstudio console-list ";
+		if (line.IndexOf(head) != 0)
+			return 1;
+		string rest = line.Substring(head.Length(), line.Length() - head.Length());
+		array<string> parts = new array<string>();
+		rest.Split(" ", parts);
+		if (parts.Count() == 0 || parts[0].ToInt() < 1)
+			return 1;
+		return parts[0].ToInt();
 	}
 
 	// One slice of work per frame.
@@ -90,11 +123,15 @@ class DZS_CatalogStore : Managed
 
 	protected void CheckLine(string line)
 	{
+		if (line.IndexOf("#group\t") == 0)
+		{
+			AddGroup(line);
+			return;
+		}
 		if (line == "" || line.IndexOf("#") == 0)
 			return;
 		line.Replace((13).AsciiToString(), "");
-		array<string> p = new array<string>();
-		line.Split("\t", p);
+		array<string> p = Fields(line);
 		if (p.Count() < 2)
 			return;
 		string key = p[0];
@@ -103,6 +140,8 @@ class DZS_CatalogStore : Managed
 		e.m_Low = key;
 		e.m_Low.ToLower();
 		e.m_Cat = p[1];
+		if (p.Count() >= 5)
+			e.m_Group = p[4];
 		if (key.Contains("\\") || key.Contains("/"))
 		{
 			if (!FileExist(key))
@@ -141,6 +180,73 @@ class DZS_CatalogStore : Managed
 		e.m_BaseName = e.m_Name;
 		m_Objects.Insert(e);
 		m_ByLow.Set(e.m_Low, e);
+	}
+
+	// Tab-separated fields with empty ones kept (Split drops them).
+	static array<string> Fields(string line)
+	{
+		array<string> r = new array<string>();
+		int at = 0;
+		int n = line.Length();
+		while (true)
+		{
+			int tab = line.IndexOfFrom(at, "\t");
+			if (tab < 0)
+			{
+				if (at < n)
+					r.Insert(line.Substring(at, n - at));
+				else
+					r.Insert("");
+				return r;
+			}
+			r.Insert(line.Substring(at, tab - at));
+			at = tab + 1;
+		}
+		return r;
+	}
+
+	// "#group<TAB>category<TAB>group<TAB>German<TAB>English"
+	protected void AddGroup(string line)
+	{
+		line.Replace((13).AsciiToString(), "");
+		array<string> p = Fields(line);
+		if (p.Count() < 5)
+			return;
+		string id = p[1] + "/" + p[2];
+		if (m_GroupByKey.Contains(id))
+			return;
+		DZS_CatGroup g = new DZS_CatGroup();
+		g.m_Cat = p[1];
+		g.m_Key = p[2];
+		if (m_German)
+			g.m_Name = p[3];
+		else
+			g.m_Name = p[4];
+		m_Groups.Insert(g);
+		m_GroupByKey.Set(id, g);
+		if (!m_GroupsByCat.Contains(g.m_Cat))
+			m_GroupsByCat.Set(g.m_Cat, new array<DZS_CatGroup>());
+		m_GroupsByCat.Get(g.m_Cat).Insert(g);
+	}
+
+	// Groups of a category in the order of the list; empty for a category without groups.
+	array<DZS_CatGroup> GroupsOf(string cat)
+	{
+		array<DZS_CatGroup> r = m_GroupsByCat.Get(cat);
+		if (!r)
+			return new array<DZS_CatGroup>();
+		return r;
+	}
+
+	// Name of the entry's group; "" if the list names none.
+	string GroupName(DZS_CatEntry e)
+	{
+		if (e.m_Group == "")
+			return "";
+		DZS_CatGroup g = m_GroupByKey.Get(e.m_Cat + "/" + e.m_Group);
+		if (!g)
+			return "";
+		return g.m_Name;
 	}
 
 	static string TrimSlash(string path)
@@ -376,7 +482,7 @@ class DZS_CatalogStore : Managed
 		return r;
 	}
 
-	// Entries of a scope ("all", "favorites", "recent", or a category key) matching the text, in the order
+	// Entries of a scope (all, favourites, recent, a category or one of its groups) matching the text, in the order
 	// of the search (weakest word counts, then the order without search text).
 	DZS_CatResult Search(string text, array<DZS_CatEntry> scope, bool keepScopeOrder)
 	{

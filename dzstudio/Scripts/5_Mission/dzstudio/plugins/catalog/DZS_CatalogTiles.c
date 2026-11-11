@@ -348,7 +348,10 @@ class DZS_CatTile : DZS_HitListener
 			m_Name.SetColor(DZS_Color.Get("text"));
 			if (m_Off)
 				m_Name.SetColor(DZS_Color.Get("textOff"));
-			m_Sub.SetText(subText);
+			if (m_Form == "card")
+				DZS_W.FitText(m_Sub, subText, m_W - DZS_Scale.Px(12));
+			else
+				DZS_W.FitText(m_Sub, subText, m_W - DZS_Scale.Px(80));
 			m_Mark.Show(m_InHand);
 		}
 		if (m_StarHit)

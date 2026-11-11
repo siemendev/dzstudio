@@ -7,43 +7,89 @@ class DZS_CatFullTiles : DZS_CatTileOwner
 	override void OnTileDrag(DZS_CatTile t) { m_F.PlaceEntry(t.m_Entry); }
 }
 
+// Who reacts to a click on a filter row (full-screen search, catalog bar).
+class DZS_CatFilterOwner : Managed
+{
+	void OnFilterRow(string key, string group) {}
+}
+
 // One line of the filter list: name left, count right in quiet text, the chosen one
-// with accent tint, accent text and the bar; count 0 greyed but visible.
+// with accent tint, accent text and the bar; count 0 greyed but visible. A category with groups carries a chevron
+// (right closed, down open); its group lines stand indented under it, and while one of them is chosen the category
+// keeps accent text without tint.
 class DZS_CatFilterRow : DZS_HitListener
 {
+	static const float ROW_H = 30;
+
 	string m_Key;
+	string m_Group;
+	float m_RowH = ROW_H;
 	ref DZS_Hit m_Hit;
 	protected Widget m_Tint;
 	protected Widget m_Bar;
+	protected ImageWidget m_Arrow;
+	protected int m_Expander = -1;
 	protected TextWidget m_Name;
 	protected TextWidget m_Count;
-	DZS_CatalogFull m_F;
+	protected string m_Label;
+	protected float m_FitW = -1;
+	DZS_CatFilterOwner m_Owner;
 
-	void DZS_CatFilterRow(Widget parent, DZS_CatalogFull f, string key, string label)
+	void DZS_CatFilterRow(Widget parent, DZS_CatFilterOwner owner, string key, string label, string group = "")
 	{
-		m_F = f;
+		m_Owner = owner;
 		m_Key = key;
+		m_Group = group;
 		m_Hit = new DZS_Hit(parent, this, "catalog.filter");
 		m_Hit.m_FocusKind = "";
 		m_Tint = DZS_W.Panel(m_Hit.m_W, DZS_Color.Get("accentTint"));
 		m_Bar = DZS_W.Panel(m_Hit.m_W, DZS_Color.Get("accent"));
+		m_Arrow = DZS_W.Icon(m_Hit.m_W, "chevron-right", DZS_Color.Get("textQuiet"));
+		m_Arrow.Show(false);
 		m_Name = DZS_W.Text(m_Hit.m_W, DZS_Font.READ, 13, DZS_Color.Get("text"));
+		m_Label = label;
 		m_Name.SetText(label);
 		m_Count = DZS_W.Text(m_Hit.m_W, DZS_Font.MONO, 11, DZS_Color.Get("textQuiet"), false, true);
 	}
 
-	void Place(float x, float y, float w, int count, bool chosen)
+	// -1 no chevron, 0 closed, 1 open.
+	void SetExpander(int state)
 	{
-		float h = DZS_Scale.Px(30);
+		if (state == m_Expander)
+			return;
+		m_Expander = state;
+		m_Arrow.Show(state >= 0);
+		if (state == 1)
+			DZS_W.SetIcon(m_Arrow, "chevron-down");
+		else if (state == 0)
+			DZS_W.SetIcon(m_Arrow, "chevron-right");
+	}
+
+	float Height() { return DZS_Scale.Px(m_RowH); }
+
+	void Place(float x, float y, float w, int count, bool chosen, bool open = false)
+	{
+		float h = Height();
+		float lead = DZS_Scale.Px(26);
+		if (m_Group != "")
+			lead += DZS_Scale.Px(16);
 		m_Hit.Place(x, y, w, h);
 		DZS_W.Place(m_Tint, 0, 0, w, h);
 		DZS_W.Place(m_Bar, 0, 0, DZS_Scale.Px(3), h);
 		m_Tint.Show(chosen || m_Hit.m_Hover);
 		m_Bar.Show(chosen);
-		DZS_W.Place(m_Name, DZS_Scale.Px(12), 0, w - DZS_Scale.Px(60), h);
+		float ic = DZS_Scale.Px(12);
+		DZS_W.Place(m_Arrow, DZS_Scale.Px(9), (h - ic) / 2, ic, ic);
+		float nameW = w - DZS_Scale.Px(48) - lead;
+		if (nameW != m_FitW)
+		{
+			m_FitW = nameW;
+			DZS_W.FitText(m_Name, m_Label, nameW);
+		}
+		DZS_W.Place(m_Name, lead, 0, nameW, h);
 		m_Count.SetText(count.ToString());
-		DZS_W.Place(m_Count, w - DZS_Scale.Px(60), 0, DZS_Scale.Px(50), h);
-		if (chosen)
+		DZS_W.Place(m_Count, w - DZS_Scale.Px(52), 0, DZS_Scale.Px(44), h);
+		if (chosen || open)
 			m_Name.SetColor(DZS_Color.Get("accentText"));
 		else if (count == 0)
 			m_Name.SetColor(DZS_Color.Get("textOff"));
@@ -56,7 +102,18 @@ class DZS_CatFilterRow : DZS_HitListener
 	override void OnHitClick(DZS_Hit h, int button)
 	{
 		if (button == MouseState.LEFT)
-			m_F.SetFilter(m_Key);
+			m_Owner.OnFilterRow(m_Key, m_Group);
+	}
+}
+
+// The filter column rolls with the wheel when the groups of a category make it longer than the screen.
+class DZS_CatFilterHit : DZS_HitListener
+{
+	DZS_CatalogFull m_F;
+
+	override bool OnHitWheel(DZS_Hit h, int delta)
+	{
+		return m_F.FilterWheel(delta);
 	}
 }
 
@@ -73,7 +130,7 @@ class DZS_CatGridHit : DZS_HitListener
 
 // Full-screen search: over the scene and both bars between the
 // top bar and the status bar. Its search field keeps the keyboard; arrows move the mark, Enter places, Esc closes.
-class DZS_CatalogFull : Managed
+class DZS_CatalogFull : DZS_CatFilterOwner
 {
 	void MarkDirty() { m_Dirty = true; }
 
@@ -99,6 +156,10 @@ class DZS_CatalogFull : Managed
 	protected TextWidget m_RangeHead;
 	protected TextWidget m_KindHead;
 	protected ref array<ref DZS_CatFilterRow> m_Filters;
+	protected ref array<ref DZS_CatFilterRow> m_GroupRows;
+	protected ref DZS_CatFilterHit m_FilterListener;
+	protected ref DZS_Hit m_FilterCol;
+	protected float m_FilterScroll;
 	protected ref DZS_CatGridHit m_GridListener;
 	protected ref DZS_Hit m_Grid;
 	protected ref array<ref DZS_CatTile> m_Cards;
@@ -118,6 +179,7 @@ class DZS_CatalogFull : Managed
 	protected ref array<TextWidget> m_FactValues;
 	protected ref DZS_Button m_Place;
 	protected string m_Filter = "all";
+	protected string m_FilterGroup = "";
 	protected ref DZS_CatResult m_All;
 	protected ref array<DZS_CatEntry> m_Shown;
 	protected ref map<string, int> m_Counts;
@@ -153,17 +215,24 @@ class DZS_CatalogFull : Managed
 		m_EscText = new DZS_RichLine(r, DZS_Font.READ, 13, DZS_Color.Get("textMuted"));
 		m_EscText.Set(DZS_Texts.Get("catalog.full.esc"));
 		m_Lines = DZS_W.Frame(r);
-		m_RangeHead = DZS_W.Text(r, DZS_Font.LABEL, 10, DZS_Color.Get("textQuiet"));
+		m_FilterListener = new DZS_CatFilterHit();
+		m_FilterListener.m_F = this;
+		m_FilterCol = new DZS_Hit(r, m_FilterListener, "catalog.filters");
+		m_FilterCol.m_Surface = true;
+		m_FilterCol.m_W.SetFlags(WidgetFlags.CLIPCHILDREN);
+		Widget fc = m_FilterCol.m_W;
+		m_RangeHead = DZS_W.Text(fc, DZS_Font.LABEL, 10, DZS_Color.Get("textQuiet"));
 		m_RangeHead.SetText(DZS_Texts.Upper(DZS_Texts.Get("catalog.full.range")));
-		m_KindHead = DZS_W.Text(r, DZS_Font.LABEL, 10, DZS_Color.Get("textQuiet"));
+		m_KindHead = DZS_W.Text(fc, DZS_Font.LABEL, 10, DZS_Color.Get("textQuiet"));
 		m_KindHead.SetText(DZS_Texts.Upper(DZS_Texts.Get("catalog.full.kind")));
 		m_Filters = new array<ref DZS_CatFilterRow>();
+		m_GroupRows = new array<ref DZS_CatFilterRow>();
 		array<string> keys = {"all", "favorites", "recent"};
 		array<string> cats = DZS_CatalogPlugin.Categories();
 		foreach (string c : cats)
 			keys.Insert(c);
 		foreach (string k : keys)
-			m_Filters.Insert(new DZS_CatFilterRow(r, this, k, p.CategoryName(k)));
+			m_Filters.Insert(new DZS_CatFilterRow(fc, this, k, p.CategoryName(k)));
 		m_GridListener = new DZS_CatGridHit();
 		m_GridListener.m_F = this;
 		m_Grid = new DZS_Hit(r, m_GridListener, "catalog.grid");
@@ -222,6 +291,8 @@ class DZS_CatalogFull : Managed
 		m_Filter = "all";
 		if (m_P.m_Cat != "all")
 			m_Filter = m_P.m_Cat;
+		m_FilterGroup = m_P.m_Group;
+		m_FilterScroll = 0;
 		m_Dirty = true;
 		m_Marked = null;
 		m_Scroll = 0;
@@ -247,13 +318,38 @@ class DZS_CatalogFull : Managed
 		DZS_Log.Info("catalog: full-screen search closed");
 	}
 
-	void SetFilter(string key)
+	override void OnFilterRow(string key, string group) { SetFilter(key, group); }
+
+	void SetFilter(string key, string group = "")
 	{
 		m_Filter = key;
+		m_FilterGroup = group;
 		m_Dirty = true;
 		m_Marked = null;
 		m_Scroll = 0;
-		DZS_Log.Info("catalog: full-screen filter " + key);
+		if (group != "")
+			DZS_Log.Info("catalog: full-screen filter " + key + "/" + group);
+		else
+			DZS_Log.Info("catalog: full-screen filter " + key);
+	}
+
+	bool FilterWheel(int delta)
+	{
+		m_FilterScroll -= delta * DZS_Scale.Px(30) * 3;
+		return true;
+	}
+
+	// One row per group, built once the list has named its groups.
+	protected void EnsureGroupRows()
+	{
+		array<ref DZS_CatGroup> groups = m_P.m_Store.m_Groups;
+		if (m_GroupRows.Count() == groups.Count())
+			return;
+		foreach (DZS_CatFilterRow old : m_GroupRows)
+			old.m_Hit.Destroy();
+		m_GroupRows.Clear();
+		foreach (DZS_CatGroup g : groups)
+			m_GroupRows.Insert(new DZS_CatFilterRow(m_FilterCol.m_W, this, g.m_Cat, g.m_Name, g.m_Key));
 	}
 
 	void OnEmptyClear(DZS_Button b)
@@ -325,6 +421,8 @@ class DZS_CatalogFull : Managed
 		{
 			hit.Set(e, true);
 			m_Counts.Set(e.m_Cat, m_Counts.Get(e.m_Cat) + 1);
+			string gk = e.m_Cat + "/" + e.m_Group;
+			m_Counts.Set(gk, m_Counts.Get(gk) + 1);
 			if (m_P.IsFavourite(e))
 				favs++;
 		}
@@ -347,7 +445,7 @@ class DZS_CatalogFull : Managed
 		{
 			foreach (DZS_CatEntry a : m_All.m_Items)
 			{
-				if (m_Filter == "all" || (m_Filter == "favorites" && m_P.IsFavourite(a)) || a.m_Cat == m_Filter)
+				if (m_Filter == "all" || (m_Filter == "favorites" && m_P.IsFavourite(a)) || (a.m_Cat == m_Filter && (m_FilterGroup == "" || a.m_Group == m_FilterGroup)))
 					m_Shown.Insert(a);
 			}
 		}
@@ -356,7 +454,10 @@ class DZS_CatalogFull : Managed
 			m_Marked = m_Shown[0];
 		m_Scroll = 0;
 		m_Dirty = false;
-		DZS_Log.Info("catalog: full-screen search '" + m_Text + "' in " + m_Filter + ": " + m_Shown.Count() + " of " + m_All.m_Items.Count() + " in " + (TickCount(0) - t0) / 10000.0 + " ms");
+		string where = m_Filter;
+		if (m_FilterGroup != "")
+			where = m_Filter + "/" + m_FilterGroup;
+		DZS_Log.Info("catalog: full-screen search '" + m_Text + "' in " + where + ": " + m_Shown.Count() + " of " + m_All.m_Items.Count() + " in " + (TickCount(0) - t0) / 10000.0 + " ms");
 	}
 
 	protected bool KeyEdge(string key)
@@ -475,11 +576,14 @@ class DZS_CatalogFull : Managed
 		}
 		float y0 = pad + fh + pad;
 		float colH = h - y0 - pad;
-		// filter list
+		// filter list: a tree, only the chosen category open with its groups
 		float fx = pad;
 		float fwid = DZS_Scale.Px(FILTER_W);
-		float y = y0;
-		DZS_W.Place(m_RangeHead, fx, y, fwid, DZS_Scale.Px(18));
+		m_FilterCol.Place(fx, y0, fwid, colH);
+		EnsureGroupRows();
+		bool tree = m_P.m_Store.GroupsOf(m_Filter).Count() > 1;
+		float y = -m_FilterScroll;
+		DZS_W.Place(m_RangeHead, 0, y, fwid, DZS_Scale.Px(18));
 		y += DZS_Scale.Px(22);
 		bool hasTemplates = m_P.m_Store.m_Templates.Count() > 0;
 		for (int i = 0; i < m_Filters.Count(); i++)
@@ -488,16 +592,49 @@ class DZS_CatalogFull : Managed
 			if (i == 3)
 			{
 				y += DZS_Scale.Px(10);
-				DZS_W.Place(m_KindHead, fx, y, fwid, DZS_Scale.Px(18));
+				DZS_W.Place(m_KindHead, 0, y, fwid, DZS_Scale.Px(18));
 				y += DZS_Scale.Px(22);
 			}
 			bool show = fr.m_Key != "templates" || hasTemplates;
 			fr.Show(show);
 			if (!show)
 				continue;
-			fr.Place(fx, y, fwid, m_Counts.Get(fr.m_Key), fr.m_Key == m_Filter);
+			bool mine = fr.m_Key == m_Filter;
+			if (i < 3 || !m_P.HasGroups(fr.m_Key))
+				fr.SetExpander(-1);
+			else if (mine)
+				fr.SetExpander(1);
+			else
+				fr.SetExpander(0);
+			bool whole = false;
+			if (mine && m_FilterGroup == "")
+				whole = true;
+			bool parent = false;
+			if (mine && tree)
+				parent = true;
+			fr.Place(0, y, fwid, m_Counts.Get(fr.m_Key), whole, parent);
 			y += DZS_Scale.Px(30);
+			if (!mine || !tree)
+				continue;
+			foreach (DZS_CatFilterRow gr : m_GroupRows)
+			{
+				if (gr.m_Key != m_Filter)
+					continue;
+				gr.Place(0, y, fwid, m_Counts.Get(gr.m_Key + "/" + gr.m_Group), gr.m_Group == m_FilterGroup);
+				y += DZS_Scale.Px(30);
+			}
 		}
+		foreach (DZS_CatFilterRow hide : m_GroupRows)
+		{
+			bool child = false;
+			if (tree && hide.m_Key == m_Filter)
+				child = true;
+			hide.Show(child);
+		}
+		float listH = y + m_FilterScroll;
+		float maxScroll = Math.Max(0, listH - colH);
+		if (m_FilterScroll > maxScroll || m_FilterScroll < 0)
+			m_FilterScroll = Math.Clamp(m_FilterScroll, 0, maxScroll);
 		// details
 		float dw = DZS_Scale.Px(DETAIL_W);
 		float dx = sw - pad - dw;

@@ -99,6 +99,8 @@ class DZS_CatalogPlugin : DZS_Plugin
 	protected ref DZS_CatalogEsc m_EscFull;
 	DZS_CatEntry m_Hand;
 	string m_Cat = "all";
+	string m_Group = "";                    // group of m_Cat; "" = the whole category
+	protected ref map<string, int> m_Counts = new map<string, int>();
 	protected string m_Query = "";
 	protected ref DZS_CatResult m_List;
 	protected bool m_Dirty = true;
@@ -353,12 +355,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 			}
 			return r;
 		}
-		foreach (DZS_CatEntry e : m_Store.m_All)
-		{
-			if (cat == "all" || (cat == "favorites" && m_Favs.Contains(e.m_Low)) || e.m_Cat == cat)
-				r.Insert(e);
-		}
-		return r;
+		return m_Store.m_All;
 	}
 
 	protected void Recompute()
@@ -373,9 +370,48 @@ class DZS_CatalogPlugin : DZS_Plugin
 			m_List = OwnSearch(m_Query, scope);
 		else
 			m_List = m_Store.Search(m_Query, scope, keepOrder);
+		m_Counts.Clear();
+		if (!layer && m_Cat != "recent")
+			CountAndNarrow();
 		m_LastSearchMs = (TickCount(0) - t0) / 10000.0;
 		m_Dirty = false;
-		DZS_Log.Info("catalog: search '" + m_Query + "' in " + m_Cat + ": " + m_List.m_Items.Count() + " hit(s) in " + m_LastSearchMs + " ms");
+		string where = m_Cat;
+		if (m_Group != "")
+			where = m_Cat + "/" + m_Group;
+		DZS_Log.Info("catalog: search '" + m_Query + "' in " + where + ": " + m_List.m_Items.Count() + " hit(s) in " + m_LastSearchMs + " ms");
+	}
+
+	// The search ran over everything: count the hits per category and group, keep those of the chosen one.
+	protected void CountAndNarrow()
+	{
+		array<DZS_CatEntry> kept = new array<DZS_CatEntry>();
+		int favs = 0;
+		foreach (DZS_CatEntry e : m_List.m_Items)
+		{
+			bool fav = m_Favs.Contains(e.m_Low);
+			if (fav)
+				favs++;
+			m_Counts.Set(e.m_Cat, m_Counts.Get(e.m_Cat) + 1);
+			string gk = e.m_Cat + "/" + e.m_Group;
+			m_Counts.Set(gk, m_Counts.Get(gk) + 1);
+			if (m_Cat == "all" || (m_Cat == "favorites" && fav) || (e.m_Cat == m_Cat && (m_Group == "" || e.m_Group == m_Group)))
+				kept.Insert(e);
+		}
+		m_Counts.Set("all", m_List.m_Items.Count());
+		m_Counts.Set("favorites", favs);
+		m_List.m_Items = kept;
+	}
+
+	// Hits under the current search text of "all", "favorites", a category or "category/group".
+	int Count(string key)
+	{
+		return m_Counts.Get(key);
+	}
+
+	// Only a category with more than one group opens in the tree.
+	bool HasGroups(string cat)
+	{
+		return m_Store.GroupsOf(cat).Count() > 1;
 	}
 
 	// The layer's own entries (no search index): every word of the query in the name.
@@ -443,9 +479,9 @@ class DZS_CatalogPlugin : DZS_Plugin
 			b2 = DZS_Texts.Get("catalog.none.all");
 	}
 
-	array<string> ChipKeys()
+	array<string> RowKeys()
 	{
-		array<string> r = {"all", "favorites", "buildings", "military", "walls", "furniture", "wrecks", "items", "lights", "plants", "rocks", "spawns", "other"};
+		array<string> r = {"all", "favorites", "buildings", "industry", "traffic", "military", "walls", "furniture", "wrecks", "items", "lights", "plants", "rocks", "spawns", "other"};
 		if (m_Store.m_Templates.Count() > 0)
 			r.Insert("templates");
 		return r;
@@ -453,7 +489,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 
 	static array<string> Categories()
 	{
-		array<string> r = {"buildings", "military", "walls", "furniture", "wrecks", "items", "lights", "plants", "rocks", "spawns", "other", "templates"};
+		array<string> r = {"buildings", "industry", "traffic", "military", "walls", "furniture", "wrecks", "items", "lights", "plants", "rocks", "spawns", "other", "templates"};
 		return r;
 	}
 
@@ -465,6 +501,8 @@ class DZS_CatalogPlugin : DZS_Plugin
 	static string CategoryIcon(string key)
 	{
 		if (key == "buildings") return "house";
+		if (key == "industry") return "zap";
+		if (key == "traffic") return "move-horizontal";
 		if (key == "military") return "shield";
 		if (key == "walls") return "brick-wall";
 		if (key == "furniture") return "armchair";
@@ -478,7 +516,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 		return "shapes";
 	}
 
-	// Second line of a tile: the category, for templates the number of objects.
+	// Second line of a tile: the group (else the category), for templates the number of objects.
 	string SubText(DZS_CatEntry e)
 	{
 		if (e.m_Sub != "")
@@ -487,6 +525,9 @@ class DZS_CatalogPlugin : DZS_Plugin
 			return ObjectsText(e.m_TplCount);
 		if (m_Store.NameCount(e.m_Name) > 1)
 			return e.m_Key;
+		string group = m_Store.GroupName(e);
+		if (group != "")
+			return group;
 		return CategoryName(e.m_Cat);
 	}
 
@@ -502,9 +543,20 @@ class DZS_CatalogPlugin : DZS_Plugin
 		if (key == m_Cat)
 			return;
 		m_Cat = key;
+		m_Group = "";
 		m_Dirty = true;
 		m_Panel.ResetScroll();
 		DZS_Log.Info("catalog: category " + key);
+	}
+
+	void SetGroup(string key)
+	{
+		if (key == m_Group)
+			return;
+		m_Group = key;
+		m_Dirty = true;
+		m_Panel.ResetScroll();
+		DZS_Log.Info("catalog: group " + m_Cat + "/" + key);
 	}
 
 	void ClearSearch()
@@ -1052,6 +1104,8 @@ class DZS_CatalogPlugin : DZS_Plugin
 		DZS_Texts.Add("catalog.cat.favorites", "Favoriten", "Favourites");
 		DZS_Texts.Add("catalog.cat.recent", "Zuletzt benutzt", "Recently used");
 		DZS_Texts.Add("catalog.cat.buildings", "Gebäude", "Buildings");
+		DZS_Texts.Add("catalog.cat.industry", "Industrie und Energie", "Industry and power");
+		DZS_Texts.Add("catalog.cat.traffic", "Straßen und Bahn", "Roads and rail");
 		DZS_Texts.Add("catalog.cat.military", "Militär", "Military");
 		DZS_Texts.Add("catalog.cat.walls", "Mauern und Zäune", "Walls and fences");
 		DZS_Texts.Add("catalog.cat.furniture", "Einrichtung", "Furnishing");
@@ -1059,7 +1113,7 @@ class DZS_CatalogPlugin : DZS_Plugin
 		DZS_Texts.Add("catalog.cat.items", "Gegenstände", "Items");
 		DZS_Texts.Add("catalog.cat.lights", "Licht", "Light");
 		DZS_Texts.Add("catalog.cat.plants", "Pflanzen", "Plants");
-		DZS_Texts.Add("catalog.cat.rocks", "Felsen", "Rocks");
+		DZS_Texts.Add("catalog.cat.rocks", "Felsen und Gelände", "Rocks and terrain");
 		DZS_Texts.Add("catalog.cat.spawns", "Fahrzeuge und KI", "Vehicles and AI");
 		DZS_Texts.Add("catalog.cat.other", "Sonstiges", "Other");
 		DZS_Texts.Add("catalog.cat.templates", "Vorlagen", "Templates");

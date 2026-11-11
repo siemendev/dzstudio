@@ -182,6 +182,21 @@ class DZS_CatTest : DZS_Plugin
 			Log("photo " + pp[0] + " -> " + pp[1]);
 			return;
 		}
+		if (c == "cat")
+		{
+			DZS_CatalogPlugin gp = Cat();
+			gp.SetCategory(a[1]);
+			if (a.Count() > 2)
+				gp.SetGroup(a[2]);
+			Log("cat " + gp.m_Cat + " group '" + gp.m_Group + "'");
+			return;
+		}
+		if (c == "full")
+		{
+			Cat().OpenFull();
+			Log("full open");
+			return;
+		}
 		if (c == "list")
 		{
 			DZS_CatalogPlugin cp = Cat();
@@ -193,7 +208,7 @@ class DZS_CatTest : DZS_Plugin
 			for (int i = 0; i < show; i++)
 			{
 				DZS_CatEntry e = cp.ListAt(i);
-				Log("  " + i + ": " + e.m_Name + " | " + e.m_Key + " | " + e.m_Cat);
+				Log("  " + i + ": " + e.m_Name + " | " + e.m_Key + " | " + e.m_Cat + "/" + e.m_Group);
 			}
 			return;
 		}
@@ -230,12 +245,17 @@ class DZS_CatTest : DZS_Plugin
 			map<string, int> per = new map<string, int>();
 			int named = 0;
 			foreach (DZS_CatEntry ce : kp.m_Store.m_Objects)
+			{
 				per.Set(ce.m_Cat, per.Get(ce.m_Cat) + 1);
+				string cg = ce.m_Cat + "/" + ce.m_Group;
+				per.Set(cg, per.Get(cg) + 1);
+			}
 			int sum = 0;
 			foreach (string ck, int cn2 : per)
 			{
 				Log("count " + ck + " " + cn2);
-				sum += cn2;
+				if (!ck.Contains("/"))
+					sum += cn2;
 			}
 			Log("count sum " + sum + ", offered " + kp.m_Store.CountObjects() + ", ready after " + kp.m_Store.m_ReadyAfter + " s");
 			return;

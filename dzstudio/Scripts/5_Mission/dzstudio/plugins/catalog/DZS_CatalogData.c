@@ -5,6 +5,7 @@ class DZS_CatEntry : Managed
 	string m_Low;          // m_Key in lower case: favourites, recent and "in the catalog" use it
 	string m_Root;         // config root of a class, "" for model paths and templates
 	string m_Cat;          // category key
+	string m_Group;        // group key within the category; "" in a list without groups
 	string m_Name;         // game name
 	string m_BaseName;     // name without image sources
 	string m_Model;        // model path of the class (for loadability and the preview)
@@ -199,6 +200,14 @@ class DZS_CatTypo
 		}
 		return false;
 	}
+}
+
+// A group inside a category, as the console list names it.
+class DZS_CatGroup : Managed
+{
+	string m_Cat;
+	string m_Key;
+	string m_Name;
 }
 
 // Result of one search: entries in order and, per entry, where the first search word hit the game name.
