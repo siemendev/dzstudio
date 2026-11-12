@@ -800,11 +800,11 @@ class DZS_PatcherJson : DZS_PatcherXml
 		return true;
 	}
 
-	// The spawner file of a group: "dzstudio/<slug>.<block id>.json" — the same on every run, whatever the group is called.
-	// Flat, because console servers do not find a mission file two folders deep; the dot cannot occur in either name.
+	// The spawner file of a group: "custom/dzstudio-<slug>.<block id>.json" — the same on every run, whatever the group is called.
+	// In custom/, because console servers load own mission files reliably only there; the dot cannot occur in either name.
 	string SpawnerPath(DZS_PatchBlock b)
 	{
-		return "dzstudio/" + m_Project.m_Slug + "." + b.m_Id + ".json";
+		return "custom/dzstudio-" + m_Project.m_Slug + "." + b.m_Id + ".json";
 	}
 
 	// The file text of an own spawner group, or null with 'err' set (DZS_PSpawnerText at once).

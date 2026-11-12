@@ -8,8 +8,8 @@ again, the same way dzbot keeps a server's files when it transfers mods. This is
 <mission folder>\
   cfggameplay.json
   cfggameplay.json.original          the file as it was before the first project changed it
-  dzstudio\my-arena.g-arena.json     a file a project created
-  dzstudio\my-arena.g-arena.json.original   zero bytes: the file did not exist
+  custom\dzstudio-my-arena.g-arena.json     a file a project created
+  custom\dzstudio-my-arena.g-arena.json.original   zero bytes: the file did not exist
   .dzstudio\
     applied.json                     the projects applied here, in order
     projects\my-arena.dzstudio.json  the project file as it was applied
@@ -45,9 +45,9 @@ again, the same way dzbot keeps a server's files when it transfers mods. This is
   "projects": [
     { "id": "My arena", "slug": "my-arena", "name": "My arena", "applied": "2026-11-09 18:42:07", "file": "projects/my-arena.dzstudio.json" }
   ],
-  "touched": ["cfggameplay.json", "dzstudio/my-arena.g-arena.json"],
-  "originals": ["cfggameplay.json", "dzstudio/my-arena.g-arena.json"],
-  "sums": { "cfggameplay.json": "3080:-1474745315", "dzstudio/my-arena.g-arena.json": "2051:90311244" }
+  "touched": ["cfggameplay.json", "custom/dzstudio-my-arena.g-arena.json"],
+  "originals": ["cfggameplay.json", "custom/dzstudio-my-arena.g-arena.json"],
+  "sums": { "cfggameplay.json": "3080:-1474745315", "custom/dzstudio-my-arena.g-arena.json": "2051:90311244" }
 }
 ```
 

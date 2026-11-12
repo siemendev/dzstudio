@@ -8,7 +8,7 @@
             "kind": "spawnerGroup",
             "id": "b-koth",
             "status": "applied",
-            "file": "dzstudio/test.b-koth.json"
+            "file": "custom/dzstudio-test.b-koth.json"
         },
         {
             "what": "block",
@@ -24,7 +24,7 @@
             "kind": "spawnerGroup",
             "id": "b-two",
             "status": "applied",
-            "file": "dzstudio/test.b-two.json"
+            "file": "custom/dzstudio-test.b-two.json"
         },
         {
             "what": "block",
@@ -52,7 +52,7 @@
             "what": "registration",
             "id": "b-koth",
             "field": "WorldsData.objectSpawnersArr",
-            "value": "dzstudio/test.b-koth.json",
+            "value": "custom/dzstudio-test.b-koth.json",
             "status": "applied",
             "file": "cfggameplay.json"
         },
@@ -60,7 +60,7 @@
             "what": "registration",
             "id": "b-two",
             "field": "WorldsData.objectSpawnersArr",
-            "value": "dzstudio/test.b-two.json",
+            "value": "custom/dzstudio-test.b-two.json",
             "status": "applied",
             "file": "cfggameplay.json"
         }
@@ -71,11 +71,11 @@
             "status": "written"
         },
         {
-            "path": "dzstudio/test.b-koth.json",
+            "path": "custom/dzstudio-test.b-koth.json",
             "status": "created"
         },
         {
-            "path": "dzstudio/test.b-two.json",
+            "path": "custom/dzstudio-test.b-two.json",
             "status": "created"
         }
     ],

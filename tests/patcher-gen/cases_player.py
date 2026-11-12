@@ -132,10 +132,10 @@ PRA_TEXT = '''{
 
 def own_files():
     base = vanilla('chernarusplus', GP)
-    KP = 'dzstudio/test.b-koth.json'
-    GF = 'dzstudio/test.b-gear.json'
-    PF = 'dzstudio/test.b-pra.json'
-    PO = 'dzstudio/test.b-poly.json'
+    KP = 'custom/dzstudio-test.b-koth.json'
+    GF = 'custom/dzstudio-test.b-gear.json'
+    PF = 'custom/dzstudio-test.b-pra.json'
+    PO = 'custom/dzstudio-test.b-poly.json'
     poly = {"PRAPolygons": [[[1, 2], [3, 4], [5, N("6.5")]]], "safePositions2D": [[10, 20]]}
     blocks = [
         {"id": "b-koth", "kind": "spawnerGroup", "parent": None, "data": SPAWNER},

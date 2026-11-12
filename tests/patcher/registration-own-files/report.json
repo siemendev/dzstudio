@@ -8,7 +8,7 @@
             "kind": "spawnerGroup",
             "id": "b-koth",
             "status": "applied",
-            "file": "dzstudio/test.b-koth.json"
+            "file": "custom/dzstudio-test.b-koth.json"
         },
         {
             "what": "block",
@@ -16,7 +16,7 @@
             "kind": "gearPreset",
             "id": "b-gear",
             "status": "applied",
-            "file": "dzstudio/test.b-gear.json"
+            "file": "custom/dzstudio-test.b-gear.json"
         },
         {
             "what": "block",
@@ -24,7 +24,7 @@
             "kind": "restrictedArea",
             "id": "b-pra",
             "status": "applied",
-            "file": "dzstudio/test.b-pra.json"
+            "file": "custom/dzstudio-test.b-pra.json"
         },
         {
             "what": "block",
@@ -32,7 +32,7 @@
             "kind": "restrictedArea",
             "id": "b-poly",
             "status": "applied",
-            "file": "dzstudio/test.b-poly.json"
+            "file": "custom/dzstudio-test.b-poly.json"
         },
         {
             "what": "block",
@@ -78,7 +78,7 @@
             "what": "registration",
             "id": "b-koth",
             "field": "WorldsData.objectSpawnersArr",
-            "value": "dzstudio/test.b-koth.json",
+            "value": "custom/dzstudio-test.b-koth.json",
             "status": "applied",
             "file": "cfggameplay.json"
         },
@@ -86,7 +86,7 @@
             "what": "registration",
             "id": "b-gear",
             "field": "PlayerData.spawnGearPresetFiles",
-            "value": "dzstudio/test.b-gear.json",
+            "value": "custom/dzstudio-test.b-gear.json",
             "status": "applied",
             "file": "cfggameplay.json"
         },
@@ -94,7 +94,7 @@
             "what": "registration",
             "id": "b-pra",
             "field": "WorldsData.playerRestrictedAreaFiles",
-            "value": "dzstudio/test.b-pra.json",
+            "value": "custom/dzstudio-test.b-pra.json",
             "status": "applied",
             "file": "cfggameplay.json"
         },
@@ -102,7 +102,7 @@
             "what": "registration",
             "id": "b-poly",
             "field": "WorldsData.playerRestrictedAreaFiles",
-            "value": "dzstudio/test.b-poly.json",
+            "value": "custom/dzstudio-test.b-poly.json",
             "status": "applied",
             "file": "cfggameplay.json"
         }
@@ -113,19 +113,19 @@
             "status": "written"
         },
         {
-            "path": "dzstudio/test.b-gear.json",
+            "path": "custom/dzstudio-test.b-gear.json",
             "status": "created"
         },
         {
-            "path": "dzstudio/test.b-koth.json",
+            "path": "custom/dzstudio-test.b-koth.json",
             "status": "created"
         },
         {
-            "path": "dzstudio/test.b-poly.json",
+            "path": "custom/dzstudio-test.b-poly.json",
             "status": "created"
         },
         {
-            "path": "dzstudio/test.b-pra.json",
+            "path": "custom/dzstudio-test.b-pra.json",
             "status": "created"
         }
     ],

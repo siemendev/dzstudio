@@ -8,13 +8,13 @@
             "kind": "spawnerGroup",
             "id": "b-koth",
             "status": "applied",
-            "file": "dzstudio/test.b-koth.json"
+            "file": "custom/dzstudio-test.b-koth.json"
         },
         {
             "what": "registration",
             "id": "b-koth",
             "field": "WorldsData.objectSpawnersArr",
-            "value": "dzstudio/test.b-koth.json",
+            "value": "custom/dzstudio-test.b-koth.json",
             "status": "applied",
             "file": "cfggameplay.json"
         }
@@ -25,7 +25,7 @@
             "status": "written"
         },
         {
-            "path": "dzstudio/test.b-koth.json",
+            "path": "custom/dzstudio-test.b-koth.json",
             "status": "created"
         }
     ],
