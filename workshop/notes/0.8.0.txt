@@ -1,0 +1,13 @@
+- Projects are one file each now (Documents\DayZ\dzstudio\Projects\<name>.dzstudio.json), made of building blocks and changes. Your old project folders are converted on the first start. The file format is public (docs/project-format.md), and other tools can keep their own data in it.
+- Apply to mission folder (Project menu): puts your project into your server's mission folder, or onto the map's vanilla mission. Only what the project changes is written: object spawner files are added to cfggameplay.json, loot is changed field by field, everything else on your server stays. A report shows what was applied and what your server had different. Each original file is kept beside it as .original, several projects can go into one folder, and Undo takes one out again. Copy your server's mission folder into Documents\DayZ\dzstudio\Missions first.
+- Layers: Objects, Spawns, Effects and Territories sit in a rail at the left edge (keys 1–4). The top bar shows only the active layer's tools. The left list offers what you can place in that layer, the right list shows what is there, with the details below it.
+- Spawns: vehicle spawn points show as the real cars that spawn there, complete with wheels and doors, up to a kilometre around the camera. Move or remove spawn points and change how many cars of a kind spawn. Placing a car from the catalog makes a fixed vehicle.
+- Effects: drag out gas zones, geysers, hot springs, volcanic vents, hearts or smoke as circles.
+- Territories: edit where herds of animals and infected spawn.
+- A minimap in the bottom-left corner shows where the camera is and the layer's objects, spawn points, areas or zones. Scroll to zoom, click to open the big map there (View › Minimap hides it).
+- The catalog has subcategories: pick a category in the tree and it opens into smaller groups with their counts. New categories: Industry and power, Roads and rail, Vehicles and AI. Power plants, dams and the solar tower no longer show up under plants.
+- Saving to dzbot: dzStudio edits dzbot project mods and placements built as projects, including their rules and settings (Project › dzbot rules …). Parts it has no editor for are kept when you save, and if the project was changed in dzbot meanwhile, dzStudio opens and keeps the newer one instead of overwriting it.
+- Large projects open, save and apply without freezing the game; long work shows a progress bar instead.
+- Buttons hide their keyboard shortcut while the key does nothing at that moment, for example while you type in a field.
+- The test character's gear that does not fit goes into a second backpack at its feet, or onto the ground.
+- Importing a .dze with plant or rock paths in lower case no longer needs "Correct spelling" afterwards.
