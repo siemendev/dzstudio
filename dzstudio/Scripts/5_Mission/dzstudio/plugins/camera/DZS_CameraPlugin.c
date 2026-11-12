@@ -119,6 +119,7 @@ class DZS_CameraPlugin : DZS_Plugin
 	protected ref DZS_NumberField m_FieldZ;
 	protected ref DZS_CameraGear m_Gear;
 	protected ref DZS_CameraMap m_Map;
+	protected ref DZS_CameraMiniMap m_Mini;
 	protected ref DZS_CameraChar m_Char;
 
 	static const int MODE_NONE = 0;
@@ -144,6 +145,8 @@ class DZS_CameraPlugin : DZS_Plugin
 		st.DefineSlider("camera.mouseSensitivity", "camera", "Mausempfindlichkeit", "Mouse sensitivity", "Wie weit die Kamera je Mausbewegung dreht", "How far the camera turns per mouse movement", 10, 200, 5, 0, " %", 100);
 		st.DefineToggle("camera.playerInvulnerable", "camera", "Spielfigur unverwundbar", "Character invulnerable", "Kein Schaden, Hunger, Durst, Hitze oder Kälte", "No damage, hunger, thirst, heat or cold", true);
 		st.Define("camera.speedStage", DZS_Json.Int(STAGE_DEFAULT));
+		st.Define(DZS_CameraMiniMap.SETTING_ON, DZS_Json.Boolean(true));
+		st.Define(DZS_CameraMiniMap.SETTING_SPAN, DZS_Json.Int(DZS_CameraMiniMap.SPAN_DEFAULT));
 
 		DZS_UiRegistry ui = m_Kernel.GetUi();
 		Hold(ui, "camera.forward", "Vorwärts fahren", "Drive forward", "W");
@@ -187,6 +190,9 @@ class DZS_CameraPlugin : DZS_Plugin
 		Press(ui, "camera.map", "Karte", "Map", "M");
 		ui.SetWhen("camera.map", "scene,map");
 		ui.AddMenuEntry("view", "camera.map", 160);
+		Press(ui, "camera.minimap", "Minikarte", "Minimap", "");
+		ui.SetWhen("camera.minimap", "scene,map");
+		ui.AddMenuEntry("view", "camera.minimap", 165, true);
 		Press(ui, "camera.copyPosition", "Position kopieren", "Copy position", "");
 		ui.SetListed("camera.copyPosition", false);
 		ui.SetWhen("camera.copyPosition", "scene,map");
@@ -219,6 +225,10 @@ class DZS_CameraPlugin : DZS_Plugin
 		DZS_Texts.Add("camera.ground.off", "Bodenschutz aus", "Ground protection off");
 		DZS_Texts.Add("camera.copied", "Position kopiert: %1", "Position copied: %1");
 		DZS_Texts.Add("camera.map.template", "Vorlagen nur in der Szene setzen", "Place templates in the scene only");
+		DZS_Texts.Add("camera.minimap.tip", "Klick: Karte hier öffnen · Mausrad zoomen", "Click: open the map here · wheel zooms");
+		DZS_Texts.Add("camera.minimap.hide", "Minikarte ausblenden", "Hide minimap");
+		DZS_Texts.Add("camera.minimap.show", "Minikarte zeigen", "Show minimap");
+		DZS_Texts.Add("camera.minimap.tab", "Karte", "Map");
 		DZS_Texts.Add("camera.map.help", "Doppelklick oder [%1]: Kamera hierhin · Mausrad zoomen · Ziehen verschieben · [%2] oder [Esc] schließen", "Double-click or [%1]: camera here · wheel zooms · drag pans · [%2] or [Esc] closes");
 	}
 
@@ -267,6 +277,9 @@ class DZS_CameraPlugin : DZS_Plugin
 		if (m_FreeLook)
 			SetFreeLook(false);
 		m_Kernel.GetSettings().Set("camera.speedStage", DZS_Json.Int(m_Stage));
+		if (m_Mini)
+			m_Mini.Destroy();
+		m_Mini = null;
 		if (m_Map)
 			m_Map.Destroy();
 		m_Map = null;
@@ -311,6 +324,7 @@ class DZS_CameraPlugin : DZS_Plugin
 	bool IsStarted() { return m_Started; }
 	DZS_Kernel Kernel() { return m_Kernel; }
 	DZS_CameraMap GetMap() { return m_Map; }
+	DZS_CameraMiniMap GetMiniMap() { return m_Mini; }
 
 	void GoToStart()
 	{
@@ -646,6 +660,8 @@ class DZS_CameraPlugin : DZS_Plugin
 			JumpToPointer();
 		else if (id == "camera.map" && m_Map)
 			m_Map.Toggle();
+		else if (id == "camera.minimap" && m_Mini)
+			m_Mini.SetOn(!m_Mini.IsOn());
 		else if (id == "camera.hideUi")
 			scr.SetUiHidden(!scr.IsUiHidden());
 		else if (id == "camera.copyPosition")
@@ -675,6 +691,8 @@ class DZS_CameraPlugin : DZS_Plugin
 			return m_LightOn;
 		if (id == "camera.anarchy")
 			return m_Anarchy;
+		if (id == "camera.minimap")
+			return m_Kernel.GetSettings().GetBool(DZS_CameraMiniMap.SETTING_ON, true);
 		return false;
 	}
 
@@ -877,18 +895,23 @@ class DZS_CameraPlugin : DZS_Plugin
 		scr.AddEscHandler(m_Esc, 30);
 		m_Gear = new DZS_CameraGear(scr.GetRoot());
 		m_Map = new DZS_CameraMap(this);
+		m_Mini = new DZS_CameraMiniMap(this);
 	}
 
 	override void OnOperationApplied(DZS_Instance inst, DZS_Operation op)
 	{
 		if (m_Map)
 			m_Map.PointsChanged();
+		if (m_Mini)
+			m_Mini.PointsChanged();
 	}
 
 	override void OnShownInstanceChanged(DZS_Instance inst)
 	{
 		if (m_Map)
 			m_Map.PointsChanged();
+		if (m_Mini)
+			m_Mini.PointsChanged();
 	}
 
 	protected void OnFieldCommit(DZS_NumberField f, string typed, DZS_FieldResult r)
@@ -972,6 +995,8 @@ class DZS_CameraPlugin : DZS_Plugin
 		if (!m_Started || !m_Cam)
 			return;
 		m_Time += dt;
+		if (m_Mini)
+			m_Mini.Update(dt);
 		if (m_Char)
 		{
 			m_Char.Update(dt);

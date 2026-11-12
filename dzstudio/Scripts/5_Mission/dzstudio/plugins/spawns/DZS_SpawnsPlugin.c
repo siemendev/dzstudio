@@ -134,6 +134,9 @@ class DZS_SpawnsLayer : DZS_Layer
 	}
 	override void Arm(string key, bool drag) { m_P.Arm(key, drag); }
 	override string Armed() { return m_P.m_PlaceClass; }
+	// the minimap shows the big map's marks: every point, the selected event larger, the selected point ringed
+	override string MiniMapSig() { return DZS_MapMarks.Stamp().ToString(); }
+	override void MiniMapMarks(array<ref DZS_MapMark> into) { DZS_MapMarks.Of("spawns", into); }
 }
 
 // The right list: one header row per event ("g:<event>", sorted by name, with its count), the points of an open event

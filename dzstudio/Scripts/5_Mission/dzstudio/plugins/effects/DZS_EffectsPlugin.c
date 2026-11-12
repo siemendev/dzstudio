@@ -108,6 +108,27 @@ class DZS_EffectsLayer : DZS_Layer
 			return "fx:" + m_P.m_AddPreset;
 		return "";
 	}
+
+	override string MiniMapSig() { return m_P.m_Gen.ToString() + "|" + m_P.m_Sel; }
+
+	// Every area as a circle of its radius in its preset's colour, the selected one on top.
+	override void MiniMapMarks(array<ref DZS_MapMark> into)
+	{
+		foreach (DZS_FxArea a : m_P.m_Areas)
+		{
+			if (a.m_Gone)
+				continue;
+			DZS_MapMark m = new DZS_MapMark();
+			m.m_Id = a.Key();
+			m.m_X = a.m_X;
+			m.m_Z = a.m_Z;
+			m.m_RadiusM = Math.Max(a.m_R, 1);
+			m.m_Color = DZS_EffectsPlugin.ColorOf(a.m_Preset);
+			m.m_Size = 6;
+			m.m_Ring = m.m_Id == m_P.m_Sel;
+			into.Insert(m);
+		}
+	}
 }
 
 class DZS_EffectsList : DZS_LayerListSource

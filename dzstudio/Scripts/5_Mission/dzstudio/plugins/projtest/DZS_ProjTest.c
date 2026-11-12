@@ -847,6 +847,32 @@ class DZS_ProjTest : DZS_Plugin
 				Log(line);
 			}
 		}
+		else if (c == "minimap")
+		{
+			// minimap [reset | on | off | span METRES | at X Z | bigmap] — state, cost and the screen point of a world point
+			DZS_CameraPlugin mmcam = DZS_CameraPlugin.Cast(m_Kernel.GetPlugin("camera"));
+			DZS_CameraMiniMap mm = mmcam.GetMiniMap();
+			string mmArg = "";
+			if (a.Count() > 1)
+				mmArg = a[1];
+			if (mmArg == "reset")
+				mm.ResetStats();
+			else if (mmArg == "on")
+				mm.SetOn(true);
+			else if (mmArg == "off")
+				mm.SetOn(false);
+			else if (mmArg == "span")
+				mm.SetSpan(a[2].ToFloat());
+			else if (mmArg == "at")
+			{
+				vector mmS = mm.ScreenOf(a[2].ToFloat(), a[3].ToFloat());
+				Log("minimap at " + mmS[0] + " " + mmS[1]);
+			}
+			else if (mmArg == "bigmap" && mmcam.GetMap())
+				Log(mmcam.GetMap().Describe());
+			Log(mm.Describe());
+			Log(mm.Stats());
+		}
 		else if (c == "fps")
 		{
 			m_FpsLeft = a[1].ToFloat();

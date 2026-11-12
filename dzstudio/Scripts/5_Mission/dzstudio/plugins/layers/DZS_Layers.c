@@ -1,7 +1,7 @@
 // The editor's layers (Objects, Spawns, Effects, Territories): a segmented switch at the front of the top bar, one on
 // at a time, keys 1–4. Objects is the normal editor; every other layer takes over the scene, the tool slot of the top
 // bar, the catalogue (only what it creates) and the right bar (its list and inspector instead of the project). The
-// switch is the rail at the left screen edge (DZS_LayerRail).
+// switch is the rail at the left screen edge (DZS_LayerRail). The minimap shows the marks of the active layer.
 class DZS_LayerEntry : Managed
 {
 	string m_Key;
@@ -24,6 +24,10 @@ class DZS_Layer : Managed
 	// A catalogue entry chosen: the next click in the scene (or the drop of a drag) creates it.
 	void Arm(string key, bool drag) {}
 	string Armed() { return ""; }
+	// The minimap while the layer is on: a text that changes whenever the marks change, and the marks (world x/z,
+	// colour, size; m_RadiusM for an area; m_Ring for the selection, drawn on top).
+	string MiniMapSig() { return ""; }
+	void MiniMapMarks(array<ref DZS_MapMark> into) {}
 }
 
 class DZS_Layers

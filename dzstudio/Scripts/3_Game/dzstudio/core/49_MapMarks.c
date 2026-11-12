@@ -10,6 +10,8 @@ class DZS_MapMark : Managed
 	bool m_Diamond;
 	// diameter in reference pixels
 	float m_Size = 10;
+	// an area: its radius in metres (the minimap draws it as a circle once that is larger than the point)
+	float m_RadiusM;
 	string m_Tip;
 }
 
@@ -59,6 +61,17 @@ class DZS_MapMarks
 	}
 
 	static int Stamp() { return s_Stamp; }
+
+	// The marks of one plugin (empty when it has none).
+	static void Of(string plugin, array<ref DZS_MapMark> into)
+	{
+		Init();
+		array<ref DZS_MapMark> list = s_Marks.Get(plugin);
+		if (!list)
+			return;
+		foreach (DZS_MapMark m : list)
+			into.Insert(m);
+	}
 
 	// Bottom to top.
 	static void All(array<DZS_MapMark> marks, array<DZS_MapMarkOwner> owners)

@@ -102,6 +102,27 @@ class DZS_TerrLayer : DZS_Layer
 	}
 	override void Arm(string key, bool drag) { m_P.Arm(key, drag); }
 	override string Armed() { return m_P.m_PlaceClass; }
+
+	override string MiniMapSig() { return m_P.m_Gen.ToString() + "|" + m_P.m_Sel; }
+
+	// Every zone as a circle of its radius in its kind's colour, the selected one on top.
+	override void MiniMapMarks(array<ref DZS_MapMark> into)
+	{
+		foreach (DZS_TerrZone z : m_P.m_Zones)
+		{
+			if (z.m_Gone)
+				continue;
+			DZS_MapMark m = new DZS_MapMark();
+			m.m_Id = z.Key();
+			m.m_X = z.m_X;
+			m.m_Z = z.m_Z;
+			m.m_RadiusM = Math.Max(z.m_R, 1);
+			m.m_Color = DZS_TerrPlugin.ColorOf(z.m_Kind);
+			m.m_Size = 5;
+			m.m_Ring = m.m_Id == m_P.m_Sel;
+			into.Insert(m);
+		}
+	}
 }
 
 class DZS_TerrList : DZS_LayerListSource

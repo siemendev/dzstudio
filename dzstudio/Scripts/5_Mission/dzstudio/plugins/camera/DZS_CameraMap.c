@@ -116,6 +116,12 @@ class DZS_CameraMap : Managed
 
 	void Open()
 	{
+		OpenAt(m_Cam.GetPosition());
+	}
+
+	// Opens the map centred on the world point p (the camera for M, a clicked point of the minimap).
+	void OpenAt(vector p)
+	{
 		if (m_Open)
 			return;
 		DZS_Screen scr = m_Cam.Kernel().GetScreen();
@@ -135,7 +141,7 @@ class DZS_CameraMap : Managed
 			m_Scale = ClampScale(1.5 / Math.Max(0.000001, m_MppPerScale));
 		}
 		m_Map.SetScale(m_Scale);
-		CenterOn(m_Cam.GetPosition());
+		CenterOn(p);
 		m_DrawnSig = "";
 		m_Down = false;
 		m_Dragging = false;
