@@ -1,4 +1,4 @@
-# dzstudio console-list 2 · DayZ 1.30 · 6796
+# dzstudio console-list 2 · DayZ 1.30 · 6899
 #group	buildings	public	Öffentliche Gebäude	Public buildings
 #group	buildings	blocks	Wohnblöcke	Apartment blocks
 #group	buildings	houses-large	Große Häuser	Large houses
@@ -100,11 +100,11 @@
 #group	plants	conifers	Nadelbäume	Conifers
 #group	plants	trees	Birken und weitere Laubbäume	Birches and other broadleaves
 #group	plants	grass	Gras und Getreide	Grass and crops
+#group	plants	clutter	Farne, Blumen, Laub	Ferns, flowers, leaves
 #group	plants	beech	Buchen und Eichen	Beeches and oaks
 #group	plants	deadwood	Totholz und Stümpfe	Deadwood and stumps
-#group	plants	clutter	Farne, Blumen, Laub	Ferns, flowers, leaves
-#group	plants	buildings	Pflanzen an Gebäuden	Plants on buildings
 #group	plants	bushes	Büsche	Bushes
+#group	plants	buildings	Pflanzen an Gebäuden	Plants on buildings
 #group	rocks	stones	Steine	Stones
 #group	rocks	water	Wasser und Bachbetten	Water and stream beds
 #group	rocks	spikes	Felsnadeln und Monolithe	Spikes and monoliths
@@ -4392,20 +4392,20 @@ DZ\plants\tree\t_FagusSylvatica_2f.p3d	plants	Buche t 2 f	beech t 2 f	beech
 DZ\plants\tree\t_FagusSylvatica_2fb.p3d	plants			beech
 DZ\plants\tree\t_FagusSylvatica_2fc.p3d	plants			beech
 DZ\plants\tree\t_FagusSylvatica_2s.p3d	plants	Buche t 2 s	beech t 2 s	beech
-DZ\plants\tree\t_FagusSylvatica_2sb.p3d	plants			beech
-DZ\plants\tree\t_FagusSylvatica_2sb_Trail_B.p3d	plants			beech
-DZ\plants\tree\t_FagusSylvatica_2sb_Trail_G.p3d	plants			beech
-DZ\plants\tree\t_FagusSylvatica_2sb_Trail_R.p3d	plants			beech
-DZ\plants\tree\t_FagusSylvatica_2sb_Trail_Y.p3d	plants			beech
+DZ\plants\tree\t_FagusSylvatica_2sb.p3d	plants	Buche t 2	beech t 2	beech
+DZ\plants\tree\t_FagusSylvatica_2sb_Trail_B.p3d	plants	Buche Pfad t 2 B	beech trail t 2 B	beech
+DZ\plants\tree\t_FagusSylvatica_2sb_Trail_G.p3d	plants	Buche Pfad t 2 G	beech trail t 2 G	beech
+DZ\plants\tree\t_FagusSylvatica_2sb_Trail_R.p3d	plants	Buche Pfad t 2 R	beech trail t 2 R	beech
+DZ\plants\tree\t_FagusSylvatica_2sb_Trail_Y.p3d	plants	Buche Pfad t 2 Y	beech trail t 2 Y	beech
 DZ\plants\tree\t_FagusSylvatica_3d.p3d	plants	Buche t 3 d	beech t 3 d	beech
 DZ\plants\tree\t_FagusSylvatica_3f.p3d	plants	Buche t 3 f	beech t 3 f	beech
 DZ\plants\tree\t_FagusSylvatica_3fb.p3d	plants			beech
 DZ\plants\tree\t_FagusSylvatica_3fb_test.p3d	plants			beech
 DZ\plants\tree\t_FagusSylvatica_3s.p3d	plants	Buche t 3 s	beech t 3 s	beech
-DZ\plants\tree\t_FraxinusExcelsior_2f.p3d	plants			beech
-DZ\plants\tree\t_FraxinusExcelsior_2s.p3d	plants			beech
-DZ\plants\tree\t_FraxinusExcelsior_2w.p3d	plants			beech
-DZ\plants\tree\t_FraxinusExcelsior_3s.p3d	plants			beech
+DZ\plants\tree\t_FraxinusExcelsior_2f.p3d	plants	Esche t 2 f	ash t 2 f	beech
+DZ\plants\tree\t_FraxinusExcelsior_2s.p3d	plants	Esche t 2 s	ash t 2 s	beech
+DZ\plants\tree\t_FraxinusExcelsior_2w.p3d	plants	Esche t 2 w	ash t 2 w	beech
+DZ\plants\tree\t_FraxinusExcelsior_3s.p3d	plants	Esche t 3 s	ash t 3 s	beech
 DZ\plants\tree\t_juglansRegia_2s.p3d	plants			trees
 DZ\plants\tree\t_juglansRegia_3s.p3d	plants			trees
 DZ\plants\tree\t_LarixDecidua_1f.p3d	plants			conifers
@@ -4450,7 +4450,7 @@ DZ\plants\tree\t_populusAlba_1f.p3d	plants			trees
 DZ\plants\tree\t_populusAlba_2s.p3d	plants			trees
 DZ\plants\tree\t_populusAlba_3s.p3d	plants			trees
 DZ\plants\tree\t_populusNigra_3s.p3d	plants			trees
-DZ\plants\tree\t_prunusDomestica_2s.p3d	plants			trees
+DZ\plants\tree\t_prunusDomestica_2s.p3d	plants	Pflaumenbaum t 2 s	plum tree t 2 s	trees
 DZ\plants\tree\t_pyrusCommunis_2s.p3d	plants			trees
 DZ\plants\tree\t_pyrusCommunis_3s.p3d	plants			trees
 DZ\plants\tree\t_pyrusCommunis_3sb.p3d	plants			trees
@@ -4780,6 +4780,95 @@ DZ\plants_sakhal\winter\t_PiceaAbies_2fb_winter.p3d	plants			conifers
 DZ\plants_sakhal\winter\t_PiceaAbies_2s_winter.p3d	plants			conifers
 DZ\plants_sakhal\winter\t_PiceaAbies_2sb_winter.p3d	plants			conifers
 DZ\plants_sakhal\winter\t_piceaabies_3d_winter.p3d	plants			conifers
+DZ\plants_takistan\Bush\b_Cycas_2s.p3d	plants	Palmfarn b 2 s	sago palm b 2 s	bushes
+DZ\plants_takistan\Bush\b_FicusBenjamina_2d.p3d	plants	Birkenfeige b 2 d	weeping fig b 2 d	bushes
+DZ\plants_takistan\Bush\b_FicusBenjamina_2s.p3d	plants	Birkenfeige b 2 s	weeping fig b 2 s	bushes
+DZ\plants_takistan\Bush\b_FicusBenjamina_2sb.p3d	plants	Birkenfeige b 2	weeping fig b 2	bushes
+DZ\plants_takistan\Bush\b_Gardenia_1s.p3d	plants	Gardenie b 1 s	gardenia b 1 s	bushes
+DZ\plants_takistan\Bush\b_NeriumOleander_1d.p3d	plants	Oleander b 1 d	oleander b 1 d	bushes
+DZ\plants_takistan\Bush\b_NeriumOleander_1s.p3d	plants	Oleander b 1 s	oleander b 1 s	bushes
+DZ\plants_takistan\Bush\b_NeriumOleander_1sb.p3d	plants	Oleander b 1	oleander b 1	bushes
+DZ\plants_takistan\Bush\b_OpuntiaFicusIndica_1s.p3d	plants	Kaktusfeige b 1 s	prickly pear b 1 s	bushes
+DZ\plants_takistan\Bush\b_OpuntiaFicusIndica_1sb.p3d	plants	Kaktusfeige b 1	prickly pear b 1	bushes
+DZ\plants_takistan\Bush\b_OpuntiaFicusIndica_2s.p3d	plants	Kaktusfeige b 2 s	prickly pear b 2 s	bushes
+DZ\plants_takistan\Bush\b_OpuntiaFicusIndica_2sb.p3d	plants	Kaktusfeige b 2	prickly pear b 2	bushes
+DZ\plants_takistan\Bush\b_OpuntiaFicusIndica_3s.p3d	plants	Kaktusfeige b 3 s	prickly pear b 3 s	bushes
+DZ\plants_takistan\Bush\b_OpuntiaFicusIndica_3sb.p3d	plants	Kaktusfeige b 3	prickly pear b 3	bushes
+DZ\plants_takistan\Bush\b_PeganumHarmala_1s.p3d	plants	Steppenraute b 1 s	Syrian rue b 1 s	bushes
+DZ\plants_takistan\Bush\b_PeganumHarmala_2s.p3d	plants	Steppenraute b 2 s	Syrian rue b 2 s	bushes
+DZ\plants_takistan\Bush\b_PeganumHarmala_2sb.p3d	plants	Steppenraute b 2	Syrian rue b 2	bushes
+DZ\plants_takistan\Bush\b_PinusBrutia_1s.p3d	plants	Kalabrische Kiefer b 1 s	Turkish pine b 1 s	conifers
+DZ\plants_takistan\Bush\p_ViciaSativa_1s.p3d	plants	Wicke p 1 s	vetch p 1 s	bushes
+DZ\plants_takistan\Bush\p_ViciaSativa_1sB.p3d	plants	Wicke p 1 s B	vetch p 1 s B	bushes
+DZ\plants_takistan\Bush\p_ViciaSativa_1sC.p3d	plants	Wicke p 1 s C	vetch p 1 s C	bushes
+DZ\plants_takistan\Clutter\c_MuscariNeglectum_1s.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_MuscariNeglectum_1sB.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_MuscariNeglectum_1sC.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_PeganumHarmala_1s.p3d	plants	Steppenraute c 1 s	Syrian rue c 1 s	clutter
+DZ\plants_takistan\Clutter\c_PeganumHarmala_1sb.p3d	plants	Steppenraute c 1	Syrian rue c 1	clutter
+DZ\plants_takistan\Clutter\c_TKAlpineGrass.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKAlpineGrass_clump.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKAlpineGrass_nohead.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKBluegrass.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKBluegrass_clumps.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKBluegrass_nohead.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKBluegrass_nohead_clumps.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKBluegrass_nohead_small.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKBluegrass_small.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKClustered_wheatgrass.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKClustered_wheatgrass_m.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKClustered_wheatgrass_s.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKCrested_wheatgrass.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKCrested_wheatgrass_m.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKCrested_wheatgrass_s.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKDesertGrass.p3d	plants	Gras, wüstenfarben c	grass, desert c	grass
+DZ\plants_takistan\Clutter\c_TKDesertGrass_small.p3d	plants	Gras, wüstenfarben klein c	grass, desert small c	grass
+DZ\plants_takistan\Clutter\c_TKDesertGrass_small2.p3d	plants	Gras, wüstenfarben klein c 2	grass, desert small c 2	grass
+DZ\plants_takistan\Clutter\c_TKDesertGrass_wide.p3d	plants	Gras, wüstenfarben breit c	grass, desert wide c	grass
+DZ\plants_takistan\Clutter\c_TKDryGrass.p3d	plants	Gras, trocken c	grass, dry c	grass
+DZ\plants_takistan\Clutter\c_TKDryGrass_Bunch.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKFlower_White1.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_TKFlower_White2.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_TKGreenGrass.p3d	plants	Gras, grün c	grass, green c	grass
+DZ\plants_takistan\Clutter\c_TKGreenPlant_Small.p3d	plants	Anlage, grün klein c	plant, green small c	clutter
+DZ\plants_takistan\Clutter\c_TKGreenShrub.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_TKPineBranch_Fallen1.p3d	plants			deadwood
+DZ\plants_takistan\Clutter\c_TKPineBranch_Fallen2.p3d	plants			deadwood
+DZ\plants_takistan\Clutter\c_TKPineBranch_Fallen3.p3d	plants			deadwood
+DZ\plants_takistan\Clutter\c_TKPlant_Dock.p3d	plants	Anlage Dock c	plant dock c	clutter
+DZ\plants_takistan\Clutter\c_TKPlant_Mullein.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_TKThistleYellowShrub.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_TKThornGreen.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_TKThornKhaki.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_TKWeedBrownTall.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_TKWeedGreenTall.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_TKWindgrass.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKWindgrass_m.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TKWindgrass_single.p3d	plants			grass
+DZ\plants_takistan\Clutter\c_TulipaClusiana_1s.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_TulipaClusiana_1sB.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_TulipaClusiana_1sC.p3d	plants			clutter
+DZ\plants_takistan\Clutter\c_ViciaSativa_1s.p3d	plants	Wicke c 1 s	vetch c 1 s	clutter
+DZ\plants_takistan\Clutter\c_ViciaSativa_1sB.p3d	plants	Wicke c 1 s B	vetch c 1 s B	clutter
+DZ\plants_takistan\Clutter\p_Papaver.p3d	plants			clutter
+DZ\plants_takistan\Clutter\p_Papaver_2s.p3d	plants			clutter
+DZ\plants_takistan\Clutter\p_Papaver_3s.p3d	plants			clutter
+DZ\plants_takistan\Tree\t_FicusBenjamina_1s.p3d	plants	Birkenfeige t 1 s	weeping fig t 1 s	trees
+DZ\plants_takistan\Tree\t_FicusBenjamina_2d.p3d	plants	Birkenfeige t 2 d	weeping fig t 2 d	trees
+DZ\plants_takistan\Tree\t_FicusBenjamina_2s.p3d	plants	Birkenfeige t 2 s	weeping fig t 2 s	trees
+DZ\plants_takistan\Tree\t_FraxinusExcelsior_2s_spring.p3d	plants	Esche, Frühling 2 s	ash, spring 2 s	beech
+DZ\plants_takistan\Tree\t_FraxinusExcelsior_2w_spring.p3d	plants	Esche, Frühling 2 w	ash, spring 2 w	beech
+DZ\plants_takistan\Tree\t_OleaEuropaea_1s.p3d	plants	Olivenbaum t 1 s	olive tree t 1 s	trees
+DZ\plants_takistan\Tree\t_OleaEuropaea_2s.p3d	plants	Olivenbaum t 2 s	olive tree t 2 s	trees
+DZ\plants_takistan\Tree\t_PhoenixRupicola_1s.p3d	plants	Palme t 1 s	palm t 1 s	trees
+DZ\plants_takistan\Tree\t_PhoenixRupicola_3s.p3d	plants	Palme t 3 s	palm t 3 s	trees
+DZ\plants_takistan\Tree\t_PinusBrutia_1s.p3d	plants	Kalabrische Kiefer t 1 s	Turkish pine t 1 s	conifers
+DZ\plants_takistan\Tree\t_PinusBrutia_2s.p3d	plants	Kalabrische Kiefer t 2 s	Turkish pine t 2 s	conifers
+DZ\plants_takistan\Tree\t_PinusBrutia_2sb.p3d	plants	Kalabrische Kiefer t 2	Turkish pine t 2	conifers
+DZ\plants_takistan\Tree\t_Populus_2s.p3d	plants	Pappel t 2 s	poplar t 2 s	trees
+DZ\plants_takistan\Tree\t_Populus_2sb.p3d	plants	Pappel t 2	poplar t 2	trees
+DZ\plants_takistan\Tree\t_PrunusDomestica_1s.p3d	plants	Pflaumenbaum t 1 s	plum tree t 1 s	trees
+DZ\plants_takistan\Tree\t_PrunusDomestica_2s.p3d	plants	Pflaumenbaum t 2 s	plum tree t 2 s	trees
 StaticObj_d_FagusSylvatica_fallen	plants			deadwood
 StaticObj_d_FagusSylvatica_fallen_DE	plants			deadwood
 StaticObj_d_FagusSylvatica_fallenb	plants			deadwood
@@ -4934,6 +5023,20 @@ DZ\rocks_sakhal\stones_erosion2.p3d	rocks			stones
 DZ\rocks_sakhal\stones_erosion2_snow.p3d	rocks			stones
 DZ\rocks_sakhal\stones_lava_cluster1.p3d	rocks			stones
 DZ\rocks_sakhal\stones_lava_cluster2.p3d	rocks			stones
+DZ\rocks_takistan\rock_sand_apart1.p3d	rocks			misc
+DZ\rocks_takistan\rock_sand_apart2.p3d	rocks			misc
+DZ\rocks_takistan\rock_sand_monolith1.p3d	rocks			spikes
+DZ\rocks_takistan\rock_sand_monolith2.p3d	rocks			spikes
+DZ\rocks_takistan\rock_sand_monolith3.p3d	rocks			spikes
+DZ\rocks_takistan\rock_sand_monolith4.p3d	rocks			spikes
+DZ\rocks_takistan\rock_sand_spike1.p3d	rocks			spikes
+DZ\rocks_takistan\rock_sand_spike2.p3d	rocks			spikes
+DZ\rocks_takistan\rock_sand_spike3.p3d	rocks			spikes
+DZ\rocks_takistan\rock_sand_wallh1.p3d	rocks			walls
+DZ\rocks_takistan\rock_sand_wallh2.p3d	rocks			walls
+DZ\rocks_takistan\rock_sand_wallh3.p3d	rocks			walls
+DZ\rocks_takistan\rock_sand_wallv.p3d	rocks			walls
+DZ\rocks_takistan\stone5_sand.p3d	rocks	Sand, Stein 5	sand, stone 5	stones
 Land_ErodedEmbankment_01_dirt_straight	rocks	Böschung Erde, verwittert gerade 01	embankment dirt, eroded straight 01	misc
 Land_ErodedEmbankment_01_dirt_turn	rocks	Böschung Erde Abzweig, verwittert 01	embankment dirt turn, eroded 01	misc
 Land_ErodedEmbankment_01_dirt_wave	rocks			misc
