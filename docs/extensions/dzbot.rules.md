@@ -60,24 +60,29 @@ mod's settings (below): `{"data": {"settings": [ … ]}}`.
   names the repeated block (`{"event": "StaticHeli"}`, `{"group": "…"}`) — they are repeated with it and their key
   names the copy.
   - `fields` — per path in the block's `data`, `{"setting": "<name>"}` (the setting's value as it is; a coordinate is a
-    whole position) or `{"formula": "<formula>"}` (a number; `base` is the value in the project). Settings are applied
-    before formulas. A block's paths stay outside list elements (`nominal`, `flags.deletable`); a value of an element
-    is set by the element's own rule.
+    whole position), `{"formula": "<formula>"}` (a number; `base` is the value in the project) or
+    `{"template": "<template>"}` (text, below). Settings and templates are applied before formulas. A block's paths
+    stay outside objects in lists (`nominal`, `flags.deletable`, `PRABoxes[0][2]`); a value of such an object is set by
+    its own rule.
 - On a **list element** of a block's data (an object of a group, an item of a preset — any object inside a list):
   `if`, `repeat` and `fields`, with paths in `fields` starting at the element (`pos`, `pos[0]`).
 - On a **change**: `if`, `formula` (only for `op: "set"`; names: the settings, `base` = the value found on the server,
-  `vanilla` = Bohemia's value) and `required`.
+  `vanilla` = Bohemia's value) or `template` (only for `op: "set"`, not beside a formula: the value is the text it
+  makes — a number where the change's `to` is a number and the text is one) and `required`.
 
 Members not listed here are kept by every program that rewrites the entry. Patchers ignore `extensions` everywhere —
 of the project, of blocks and changes and of elements inside block data — and never write them into a mission file.
 
 **Paths** name a value inside a block's data, or inside a list element for the element's own rule: keys joined with
-dots — `nominal`, `flags.deletable`, `pos` — and an index from 0 only into a list of plain values, like a position's
-numbers (`pos[1]`). No path reaches into a list element by its place (`objects[2].pos`, `children[0].max`): deleting an
-element before it would make it mean another one. dzbot refuses such a path: its preview names the element whose own
-rule takes the value, and on a server a block with one is left out, with the reason in the mod's log. Nothing else in the
-rules addresses an element by its place either: an element's rule is in its own `extensions`, and an `items` member in a
-block's rule is not read.
+dots — `nominal`, `flags.deletable`, `pos` — and indexes from 0 only into lists of plain values or of lists, like a
+position's numbers (`pos[1]`) or a restricted area's boxes, each `[[size x, y, z], [yaw, pitch, roll], [centre x, y, z]]`
+(`PRABoxes[0][2]` is the first box's centre, `PRABoxes[0][2][1]` its height; `safePositions3D[0]` a whole position).
+These are tuples of a fixed shape: their places do not shift. No path reaches into an object of a list by its place
+(`objects[2].pos`, `children[0].max`, `objects[2]`): deleting an object before it would make it mean another one. dzbot
+refuses such a path: its preview names the element whose own rule takes the value, and on a server a block with one is
+left out, with the reason in the mod's log. Without the block's data at hand an index followed by a key counts as such
+a path. Nothing else in the rules addresses an object by its place either: an element's rule is in its own
+`extensions`, and an `items` member in a block's rule is not read.
 
 **Conditions** are JSON trees: `{"field": "<setting>", "op": "<op>", "value": …}` with `op` one of `eq`, `neq`, `in`,
 `not_in` (value a list), `empty`, `not_empty` (no value), `gt`, `gte`, `lt`, `lte`, `contains`; groups
@@ -86,6 +91,26 @@ for a yes/no setting).
 
 **Formulas**: numbers, names (also with parts: `source.x`), `+ - * /`, parentheses and `min`, `max`, `round`,
 `floor`, `ceil`, `abs`, `clamp`; at most 500 characters.
+
+**Templates** build text: literal text with `{…}` parts, at most 1000 characters. A part is a name — a setting (also
+with parts: `source.x`), in a repeated block `index`, `item`, `item.<property>`, or a server value (below) — or a
+function of names and quoted text (`"…"` or `'…'`, `\` escapes the quote): `lower(x)`, `upper(x)`, `trim(x)`,
+`replace(x, "from", "to")` and `default(x, y, …)`, the first of its values that is not empty. `{{` and `}}` are a
+brace. A name without a value (unset, empty, `null`) gives empty text — use `default` for a fallback; yes/no gives
+`true`/`false`, a number is written as a mission file writes it (`2`, `4500.5`). A name that holds several values (a
+whole coordinate, a list) is an error: the block is left out, or the change is `invalid`, with the reason in the mod's
+log.
+
+```json
+{ "fields": { "areaName": { "template": "Teleport-{default(identifier, installation_id)}" } } }
+{ "fields": { "text": { "template": "Connect your account now: {manager_url}" } } }
+{ "if": { "field": "color", "op": "eq", "value": "custom" }, "template": "0xff{lower(replace(trim(custom_color), \"#\", \"\"))}" }
+```
+
+**Server values** are names every rule reads besides the settings — in templates, conditions, `setting` and formulas —
+filled in by dzbot for the server the mod is installed on: `manager_url` (the address of the server's dzbot site),
+`mission` (its mission folder, `dayzOffline.chernarusplus`) and `installation_id` (the mod's installation on that
+server, a number as text; `preview` in previews). A setting with one of these names is shadowed by the server value.
 
 ## Settings
 
@@ -137,12 +162,14 @@ groups with rules are marked "dzbot rules". A rule opens in its own dialog:
   "all apply" or "at least one applies". Nested groups and `not` are shown read-only.
 - **Formula for the value** (changes that set a value), **Target required** (changes, and blocks inside an existing
   entry).
-- **Repeat**, **Values from settings and formulas** (paths picked from the block's data outside its lists, or from the
-  element in an element's rule; a path typed through a list element is marked as not applied) and **Single elements**
-  (each with its own condition, repetition and values; the selected objects first).
+- **Text for the value** in place of the formula, for a change whose rule has a `template`.
+- **Repeat**, **Values from settings and formulas** (each value from a setting, a formula or a text; paths picked from
+  the block's data outside its lists, or from the element in an element's rule; a path typed through an object of a
+  list is marked as not applied) and **Single elements** (each with its own condition, repetition and values; the
+  selected objects first).
 
 Every edit — a rule, a setting added, changed or removed — is a step of the history and saved with the project.
-Renaming a setting renames it in every rule that names it in the same step, so undo puts back the settings and the rules
+Renaming a setting renames it in every rule that names it (inside a template only in its `{…}` parts) in the same step, so undo puts back the settings and the rules
 together. The dialogs hold on to their block, change, list element (by its element, not its place) or setting (by its
 identifier); one whose target is deleted meanwhile — by undo or by a partner in a live session — closes with "This
 element was deleted" and writes nothing.

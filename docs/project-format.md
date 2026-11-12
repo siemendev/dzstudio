@@ -59,7 +59,8 @@ Members a program does not know stay in the file when it rewrites it.
   (`{"event": "VehicleCivilianSedan"}`: an own spawn position in a vanilla event) or the `id` of an own block (a string:
   a child of an own event). Absent or `null` for top-level kinds.
 - `data` — the block's fields, named as in the mission file (XML attributes and elements, JSON members). Own blocks
-  are written complete: every field the game needs is required, nothing is left to engine defaults. An element of a
+  are written complete: every field the game needs is required, nothing is left to engine defaults — except the
+  optional fields of an effect area, which Bohemia's own areas leave out too (below). An element of a
   list in `data` (`objects[i]`, `children[i]` …) may carry `extensions` of its own; the patcher leaves it out.
 - `extensions` — optional, data of other programs and plugins for this block (below).
 
@@ -170,6 +171,17 @@ An own `effectArea` can stand a number of metres above the ground instead of at 
 - A value that is not a number is `invalid` (`bad-value`).
 
 The conformance runners use a flat ground at height 0 (case `effect-area-above-ground`).
+
+### Effect areas: what an own area needs
+
+An own `effectArea` needs what every one of Bohemia's areas has: `AreaName`, `Type`, `TriggerType` and `Data.Pos`,
+`Data.Radius`, `Data.PosHeight`, `Data.NegHeight`. Every other field — `InnerRingCount`, `InnerPartDist`,
+`OuterRingToggle`, `OuterPartDist`, `OuterOffset`, `VerticalLayers`, `VerticalOffset`, `ParticleName`,
+`EffectInterval`, `EffectDuration`, `EffectModifier` and the three of `PlayerData` — may be left out (or `null`), as
+Bohemia leaves them out of Badlands' oil pits and Sakhal's hot springs. The patcher then leaves it out too: it never
+writes a default, so the game reads its own (0, `false`, none); a `PlayerData` with no field is not written. A required
+field that is missing is `invalid` (`incomplete`), a field of the wrong type `invalid` (`bad-value`). Case
+`effect-area-optional`.
 
 ## Applying a project
 

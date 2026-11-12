@@ -374,7 +374,7 @@ class DZS_DzbotRules : DZS_ProjectExtension
 	}
 
 	// Names in a rule tree: "field" of a comparison, "setting" of a value, "over" of a repetition, names in
-	// "formula" and "count".
+	// "formula" and "count", and inside the braces of a "template".
 	static int RenameIn(DZS_Json node, string old, string nw)
 	{
 		if (!node)
@@ -405,9 +405,13 @@ class DZS_DzbotRules : DZS_ProjectExtension
 					v.m_Str = nw;
 					n++;
 				}
-				else if (key == "formula" || key == "count")
+				else if (key == "formula" || key == "count" || key == "template")
 				{
-					string renamed = RenameInFormula(v.m_Str, old, nw);
+					string renamed;
+					if (key == "template")
+						renamed = RenameInTemplate(v.m_Str, old, nw);
+					else
+						renamed = RenameInFormula(v.m_Str, old, nw);
 					if (renamed != v.m_Str)
 					{
 						v.m_Str = renamed;
@@ -428,6 +432,80 @@ class DZS_DzbotRules : DZS_ProjectExtension
 			return true;
 		string digits = "0123456789";
 		return !first && digits.IndexOf(c) >= 0;
+	}
+
+	// Names inside the {…} of a template, not in its text, its quoted values or a function's name; {{ and }} are braces.
+	static string RenameInTemplate(string t, string old, string nw)
+	{
+		string r = "";
+		int i = 0;
+		int len = t.Length();
+		bool inside = false;
+		while (i < len)
+		{
+			string c = t.Get(i);
+			string next = "";
+			if (i + 1 < len)
+				next = t.Get(i + 1);
+			if (!inside)
+			{
+				if ((c == "{" || c == "}") && next == c)
+				{
+					r += c + c;
+					i += 2;
+					continue;
+				}
+				if (c == "{")
+					inside = true;
+				r += c;
+				i++;
+				continue;
+			}
+			if (c == "}")
+			{
+				inside = false;
+				r += c;
+				i++;
+				continue;
+			}
+			if (c == "\"" || c == "'")
+			{
+				int q = i + 1;
+				while (q < len && t.Get(q) != c)
+				{
+					if (t.Get(q) == "\\")
+						q++;
+					q++;
+				}
+				int qEnd = q + 1;
+				if (qEnd > len)
+					qEnd = len;
+				r += t.Substring(i, qEnd - i);
+				i = qEnd;
+				continue;
+			}
+			if (!NameChar(c, true))
+			{
+				r += c;
+				i++;
+				continue;
+			}
+			int j = i;
+			while (j < len && NameChar(t.Get(j), false))
+				j++;
+			string word = t.Substring(i, j - i);
+			int k = j;
+			while (k < len && t.Get(k) == " ")
+				k++;
+			bool call = k < len && t.Get(k) == "(";
+			bool afterDot = i > 0 && t.Get(i - 1) == ".";
+			if (word == old && !afterDot && !call)
+				r += nw;
+			else
+				r += word;
+			i = j;
+		}
+		return r;
 	}
 
 	// Whole names (not the part after a dot: "source.x" renames "source", never "x").
@@ -584,6 +662,8 @@ class DZS_DzbotRules : DZS_ProjectExtension
 			s = Join(s, DZS_Texts.Pick("Bedingung", "Condition"));
 		if (rule.Has("formula"))
 			s = Join(s, DZS_Texts.Pick("Formel", "Formula"));
+		if (rule.Has("template"))
+			s = Join(s, DZS_Texts.Pick("Text", "Text"));
 		if (rule.GetBool("required"))
 			s = Join(s, DZS_Texts.Pick("Ziel nötig", "Target required"));
 		if (rule.Has("repeat"))
@@ -614,9 +694,10 @@ class DZS_DzbotRules : DZS_ProjectExtension
 	static string Short(DZS_Json v, int max) { return DZS_ProjectRefs.Short(v, max); }
 
 	// The list element a field path steps into by its place ("objects[2]" of "objects[2].pos"), "" when it addresses
-	// none: only keys, or an index into a list of plain values ("pos[1]"). dzbot refuses such a path: deleting an
-	// element before it would retarget it, so the value belongs into the element's own rule. data: where the path
-	// starts (a block's data or the element), null when unknown — then only an index with more after it counts.
+	// none: only keys, or indexes into lists of plain values or of lists ("pos[1]", "PRABoxes[0][2]"). dzbot refuses
+	// such a path: deleting an object before it would retarget it, so the value belongs into the object's own rule.
+	// data: where the path starts (a block's data or the element), null when unknown — then only an index followed by
+	// a key counts.
 	static string ByPlace(string path, DZS_Json data)
 	{
 		DZS_Json at = data;
@@ -654,17 +735,21 @@ class DZS_DzbotRules : DZS_ProjectExtension
 				return "";
 			string num = path.Substring(c + 1, close - c - 1);
 			shown += "[" + num + "]";
-			if (close < len - 1)
+			if (close < len - 1 && path.Get(close + 1) == ".")
 				return shown;
 			if (HoldsElements(at))
 				return shown;
-			at = null;
+			int idx = num.ToInt();
+			if (at && at.IsArr() && idx >= 0 && idx < at.Count())
+				at = at.At(idx);
+			else
+				at = null;
 			c = close + 1;
 		}
 		return "";
 	}
 
-	// whether a list holds elements (objects, lists) rather than plain values like a position's numbers
+	// whether a list holds objects (elements with rules of their own) rather than plain values or tuples like a position
 	static bool HoldsElements(DZS_Json list)
 	{
 		if (!list)
@@ -674,7 +759,7 @@ class DZS_DzbotRules : DZS_ProjectExtension
 		for (int i = 0; i < list.Count(); i++)
 		{
 			DZS_Json el = list.At(i);
-			if (el && (el.IsObj() || el.IsArr()))
+			if (el && el.IsObj())
 				return true;
 		}
 		return false;

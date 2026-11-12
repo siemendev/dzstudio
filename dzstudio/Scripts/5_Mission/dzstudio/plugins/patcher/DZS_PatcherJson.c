@@ -22,33 +22,34 @@ class DZS_PatcherJson : DZS_PatcherXml
 		if (s_AreaFields)
 			return s_AreaFields;
 		s_AreaFields = new array<ref DZS_PField>();
-		A("AreaName", DZS_PField.STR);
-		A("Type", DZS_PField.STR);
-		A("TriggerType", DZS_PField.STR);
-		A("Data/Pos", DZS_PField.VEC3);
-		A("Data/Radius", DZS_PField.NUM);
-		A("Data/PosHeight", DZS_PField.NUM);
-		A("Data/NegHeight", DZS_PField.NUM);
-		A("Data/InnerRingCount", DZS_PField.INT);
-		A("Data/InnerPartDist", DZS_PField.INT);
-		A("Data/OuterRingToggle", DZS_PField.BOOL);
-		A("Data/OuterPartDist", DZS_PField.INT);
-		A("Data/OuterOffset", DZS_PField.INT);
-		A("Data/VerticalLayers", DZS_PField.INT);
-		A("Data/VerticalOffset", DZS_PField.INT);
-		A("Data/ParticleName", DZS_PField.STR);
-		A("Data/EffectInterval", DZS_PField.INT);
-		A("Data/EffectDuration", DZS_PField.INT);
-		A("Data/EffectModifier", DZS_PField.BOOL);
-		A("PlayerData/AroundPartName", DZS_PField.STR);
-		A("PlayerData/TinyPartName", DZS_PField.STR);
-		A("PlayerData/PPERequesterType", DZS_PField.STR);
+		A("AreaName", DZS_PField.STR, true);
+		A("Type", DZS_PField.STR, true);
+		A("TriggerType", DZS_PField.STR, true);
+		A("Data/Pos", DZS_PField.VEC3, true);
+		A("Data/Radius", DZS_PField.NUM, true);
+		A("Data/PosHeight", DZS_PField.NUM, true);
+		A("Data/NegHeight", DZS_PField.NUM, true);
+		A("Data/InnerRingCount", DZS_PField.INT, false);
+		A("Data/InnerPartDist", DZS_PField.INT, false);
+		A("Data/OuterRingToggle", DZS_PField.BOOL, false);
+		A("Data/OuterPartDist", DZS_PField.INT, false);
+		A("Data/OuterOffset", DZS_PField.INT, false);
+		A("Data/VerticalLayers", DZS_PField.INT, false);
+		A("Data/VerticalOffset", DZS_PField.INT, false);
+		A("Data/ParticleName", DZS_PField.STR, false);
+		A("Data/EffectInterval", DZS_PField.INT, false);
+		A("Data/EffectDuration", DZS_PField.INT, false);
+		A("Data/EffectModifier", DZS_PField.BOOL, false);
+		A("PlayerData/AroundPartName", DZS_PField.STR, false);
+		A("PlayerData/TinyPartName", DZS_PField.STR, false);
+		A("PlayerData/PPERequesterType", DZS_PField.STR, false);
 		return s_AreaFields;
 	}
 
-	protected static void A(string path, int fmt)
+	// req: every one of Bohemia's areas has the field; the others an own area may leave out, and then they are not written
+	protected static void A(string path, int fmt, bool req)
 	{
-		DZS_PField f = new DZS_PField(path, fmt, true);
+		DZS_PField f = new DZS_PField(path, fmt, req);
 		s_AreaFields.Insert(f);
 	}
 
@@ -481,6 +482,8 @@ class DZS_PatcherJson : DZS_PatcherXml
 			DZS_Json given = JsonPath(b.m_Data, fld.m_Name);
 			if (groundPos && fld.m_Name == "Data.Pos")
 				given = groundPos;
+			if (!fld.m_Req && (!given || given.m_Type == DZS_Json.NUL))
+				continue;
 			string err;
 			DZS_Json v = JsonValue(fld, given, err);
 			if (err != "")

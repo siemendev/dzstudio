@@ -1,0 +1,64 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "effectArea",
+            "id": "b-smoke",
+            "status": "applied",
+            "file": "cfgeffectarea.json"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "effectArea",
+            "id": "b-pit",
+            "status": "applied",
+            "file": "cfgeffectarea.json"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "effectArea",
+            "id": "b-geyser",
+            "status": "applied",
+            "file": "cfgeffectarea.json"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "effectArea",
+            "id": "b-no-radius",
+            "status": "invalid",
+            "file": "cfgeffectarea.json",
+            "detail": "incomplete"
+        },
+        {
+            "what": "block",
+            "index": 4,
+            "kind": "effectArea",
+            "id": "b-no-trigger",
+            "status": "invalid",
+            "file": "cfgeffectarea.json",
+            "detail": "incomplete"
+        },
+        {
+            "what": "block",
+            "index": 5,
+            "kind": "effectArea",
+            "id": "b-bad",
+            "status": "invalid",
+            "file": "cfgeffectarea.json",
+            "detail": "bad-value"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgeffectarea.json",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

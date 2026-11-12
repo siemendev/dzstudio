@@ -458,7 +458,7 @@ class DZS_CondRow : Managed
 	DZS_TextField m_Value;
 }
 
-// One value of a block or element from a setting or a formula.
+// One value of a block or element from a setting, a formula or a text template.
 class DZS_FieldRow : Managed
 {
 	ref DZS_Json m_Rule;
@@ -483,6 +483,7 @@ class DZS_RuleDialog : DZS_RulesBase
 	protected ref array<ref DZS_CondRow> m_Conds = new array<ref DZS_CondRow>();
 	protected ref array<ref DZS_FieldRow> m_FieldRows = new array<ref DZS_FieldRow>();
 	protected DZS_TextField m_Formula;
+	protected DZS_TextField m_Template;
 	protected DZS_TextField m_Count;
 	protected DZS_TextField m_Over;
 	// repeat: the copies' name template and the preview of their first names
@@ -856,10 +857,23 @@ class DZS_RuleDialog : DZS_RulesBase
 
 	protected void BuildFormula()
 	{
+		if (m_Work.Has("template"))
+		{
+			Heading(DZS_Texts.Pick("Text für den Wert", "Text for the value"));
+			DZS_RLine tl = Line(0, 28);
+			m_Template = Field(tl, m_Work.GetStr("template"), DZS_Texts.Pick("z. B. Teleport-{identifier}", "e.g. Teleport-{identifier}"), 0);
+			Note(TemplateNote());
+			return;
+		}
 		Heading(DZS_Texts.Pick("Formel für den Wert", "Formula for the value"));
 		DZS_RLine l = Line(0, 28);
 		m_Formula = Field(l, m_Work.GetStr("formula"), DZS_Texts.Pick("leer = der Wert des Projekts, z. B. round(vanilla * boost)", "empty = the project's value, e.g. round(vanilla * boost)"), 0);
 		Note(DZS_Texts.Pick("Namen: base (Wert auf dem Server), vanilla (Bohemias Wert), ", "Names: base (the server's value), vanilla (Bohemia's value), ") + SettingNames() + DZS_Texts.Pick(" · Funktionen: min max round floor ceil abs clamp", " · functions: min max round floor ceil abs clamp"));
+	}
+
+	protected string TemplateNote()
+	{
+		return DZS_Texts.Pick("{name}: deine Einstellungen, manager_url, mission, installation_id · lower() upper() trim() replace(x, \"a\", \"b\") default(x, y) · ohne Wert bleibt es leer", "{name}: your settings, manager_url, mission, installation_id · lower() upper() trim() replace(x, \"a\", \"b\") default(x, y) · a name without a value stays empty");
 	}
 
 	protected string SettingNames()
@@ -997,6 +1011,7 @@ class DZS_RuleDialog : DZS_RulesBase
 				row.m_Path = Field(l, path, hint, 200);
 				Knob(l, "ghost", "", "fieldPath:" + i, "chevron-down");
 				bool formula = rule && rule.IsObj() && rule.Has("formula");
+				bool tpl = rule && rule.IsObj() && rule.Has("template");
 				string modeText = DZS_Texts.Pick("Einstellung", "Setting");
 				string value = "";
 				if (rule && rule.IsObj())
@@ -1006,9 +1021,14 @@ class DZS_RuleDialog : DZS_RulesBase
 					modeText = DZS_Texts.Pick("Formel", "Formula");
 					value = rule.GetStr("formula");
 				}
+				else if (tpl)
+				{
+					modeText = DZS_Texts.Pick("Text", "Text");
+					value = rule.GetStr("template");
+				}
 				Knob(l, "side", modeText, "fieldMode:" + i);
 				row.m_Value = Field(l, value, modeText, 0);
-				if (!formula)
+				if (!formula && !tpl)
 					Knob(l, "ghost", "", "fieldSetting:" + i, "chevron-down");
 				Knob(l, "ghost", "", "fieldDel:" + i, "x");
 				m_FieldRows.Insert(row);
@@ -1029,6 +1049,7 @@ class DZS_RuleDialog : DZS_RulesBase
 		if (Repeated(true))
 			names += ", item";
 		Note(DZS_Texts.Pick("Eine Koordinate gibt eine ganze Position; Formeln lesen ", "A coordinate gives a whole position; formulas read ") + names + DZS_Texts.Pick(" und die Einstellungen (source.x …).", " and the settings (source.x …)."));
+		Note(TemplateNote());
 		if (m_Kind == "block")
 			Note(DZS_Texts.Pick("Werte eines Objekts oder Elements einer Liste (seine Position) setzt du in seinen eigenen Regeln unter Einzelne Elemente.", "Values of an object or other list element (its position) go into its own rules under Single elements."));
 	}
@@ -1214,7 +1235,12 @@ class DZS_RuleDialog : DZS_RulesBase
 				cr.m_Cond.Set("value", vv);
 			}
 		}
-		if (m_Formula)
+		if (m_Template)
+		{
+			DZS_Json tj = DZS_Json.Str(m_Template.GetText());
+			m_Work.Set("template", tj);
+		}
+		else if (m_Formula)
 		{
 			string f = m_Formula.GetText();
 			f.TrimInPlace();
@@ -1273,6 +1299,11 @@ class DZS_RuleDialog : DZS_RulesBase
 				DZS_Json valueJ = DZS_Json.Str(value);
 				if (rule.Has("formula"))
 					rule.Set("formula", valueJ);
+				else if (rule.Has("template"))
+				{
+					DZS_Json textJ = DZS_Json.Str(fr.m_Value.GetText());
+					rule.Set("template", textJ);
+				}
 				else
 					rule.Set("setting", valueJ);
 				fields.Set(path, rule);
@@ -1386,6 +1417,8 @@ class DZS_RuleDialog : DZS_RulesBase
 					DZS_Json flipped = DZS_Json.Obj();
 					DZS_Json empty = DZS_Json.Str("");
 					if (rule.Has("formula"))
+						flipped.Set("template", empty);
+					else if (rule.Has("template"))
 						flipped.Set("setting", empty);
 					else
 						flipped.Set("formula", empty);

@@ -171,6 +171,69 @@ def effect_area_sakhal():
     case("effect-area-sakhal", {EA: base}, {"blocks": blocks}, {EA: out},
          {"entries": entries, "files": [fl(EA, "written")]})
 
+def area_text(d, ind, unit):
+    # an own area as the patcher writes it: its members in the patcher's order, those the data leaves out left out
+    order = [("AreaName", None), ("Type", None), ("TriggerType", None)]
+    data = ["Pos", "Radius", "PosHeight", "NegHeight", "InnerRingCount", "InnerPartDist", "OuterRingToggle",
+            "OuterPartDist", "OuterOffset", "VerticalLayers", "VerticalOffset", "ParticleName", "EffectInterval",
+            "EffectDuration", "EffectModifier"]
+    player = ["AroundPartName", "TinyPartName", "PPERequesterType"]
+    def val(k, v):
+        if k == "Pos":
+            return '[' + ', '.join('%.6f' % float(str(x).strip('#N')) for x in v) + ']'
+        return json.dumps(v)
+    i1, i2 = ind + unit, ind + unit + unit
+    lines = [i1 + '"%s": %s' % (k, json.dumps(d[k])) for k, _ in order if d.get(k) is not None]
+    for top, names in (("Data", data), ("PlayerData", player)):
+        sub = [i2 + '"%s": %s' % (k, val(k, d[top][k])) for k in names if d.get(top, {}).get(k) is not None]
+        if sub:
+            lines.append(i1 + '"%s": {\n' % top + ',\n'.join(sub) + '\n' + i1 + '}')
+    return ind + '{\n' + ',\n'.join(lines) + '\n' + ind + '}'
+
+def effect_area_optional():
+    # Bohemia's own areas leave out every field but AreaName, Type, TriggerType and Pos, Radius, PosHeight, NegHeight
+    # (Badlands' oil pits, Sakhal's hot springs): an own area may too, and what it leaves out is not written
+    base = vanilla('nasdara', EA)
+    E = "effectArea"
+    smoke = {"AreaName": "Smoke-Red", "Type": "SpookyArea", "TriggerType": "EffectTrigger",
+             "Data": {"Pos": [6956, 0, 881], "Radius": 1, "PosHeight": 20, "NegHeight": 10, "InnerRingCount": 0,
+                      "InnerPartDist": 100, "OuterRingToggle": False, "OuterPartDist": 100, "OuterOffset": 0,
+                      "VerticalLayers": 0, "VerticalOffset": 10, "ParticleName": "graphics/particles/smoke_M18_red_02"},
+             "PlayerData": {"AroundPartName": "", "TinyPartName": "", "PPERequesterType": ""}}
+    pit = {"AreaName": "Pit-Own", "Type": "OilPitArea", "TriggerType": "OilPitTrigger",
+           "Data": {"Pos": [12000, N("176.5"), 6000], "Radius": 2, "PosHeight": 20, "NegHeight": 5}}
+    geyser = {"AreaName": "Geyser-Own", "Type": "GeyserArea", "TriggerType": "GeyserTrigger",
+              "Data": {"Pos": [100, 0, 200], "Radius": 3, "PosHeight": 6, "NegHeight": 2, "ParticleName": None,
+                       "EffectInterval": 600, "EffectDuration": 45}, "PlayerData": {}}
+    no_radius = {"AreaName": "No-Radius", "Type": "OilPitArea", "TriggerType": "OilPitTrigger",
+                 "Data": {"Pos": [1, 0, 2], "PosHeight": 20, "NegHeight": 5}}
+    no_trigger = {"AreaName": "No-Trigger", "Type": "OilPitArea",
+                  "Data": {"Pos": [1, 0, 2], "Radius": 2, "PosHeight": 20, "NegHeight": 5}}
+    bad = {"AreaName": "Bad-Optional", "Type": "SpookyArea", "TriggerType": "EffectTrigger",
+           "Data": {"Pos": [1, 0, 2], "Radius": 2, "PosHeight": 20, "NegHeight": 5, "VerticalLayers": "two"}}
+    blocks = [
+        {"id": "b-smoke", "kind": E, "parent": None, "data": smoke},
+        {"id": "b-pit", "kind": E, "parent": None, "data": pit},
+        {"id": "b-geyser", "kind": E, "parent": None, "data": geyser},
+        {"id": "b-no-radius", "kind": E, "parent": None, "data": no_radius},
+        {"id": "b-no-trigger", "kind": E, "parent": None, "data": no_trigger},
+        {"id": "b-bad", "kind": E, "parent": None, "data": bad},
+    ]
+    tail = '\t\t}\n\t],\n\n\t"SafePositions":[\n\t]\n}'
+    assert base.endswith(tail)
+    own = ',\n'.join(area_text(d, '\t\t', '\t') for d in (smoke, pit, geyser))
+    out = base[:-len(tail)] + '\t\t},\n' + own + '\n\t],\n\n\t"SafePositions":[\n\t]\n}'
+    entries = [
+        bl(0, E, "b-smoke", "applied", EA),
+        bl(1, E, "b-pit", "applied", EA),
+        bl(2, E, "b-geyser", "applied", EA),
+        bl(3, E, "b-no-radius", "invalid", EA, "incomplete"),
+        bl(4, E, "b-no-trigger", "invalid", EA, "incomplete"),
+        bl(5, E, "b-bad", "invalid", EA, "bad-value"),
+    ]
+    case("effect-area-optional", {EA: base}, {"blocks": blocks, "map": "nasdara"}, {EA: out},
+         {"entries": entries, "files": [fl(EA, "written")]})
+
 def effect_area_broken():
     good = area_file([area("Ship-Bow", 13917, 11178)])
     variants = {
@@ -386,6 +449,7 @@ def run():
     effect_areas()
     effect_area_above_ground()
     effect_area_sakhal()
+    effect_area_optional()
     effect_area_broken()
     effect_area_refused()
     gameplay_settings()

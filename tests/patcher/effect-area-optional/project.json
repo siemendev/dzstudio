@@ -1,0 +1,144 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "nasdara",
+    "blocks": [
+        {
+            "id": "b-smoke",
+            "kind": "effectArea",
+            "parent": null,
+            "data": {
+                "AreaName": "Smoke-Red",
+                "Type": "SpookyArea",
+                "TriggerType": "EffectTrigger",
+                "Data": {
+                    "Pos": [
+                        6956,
+                        0,
+                        881
+                    ],
+                    "Radius": 1,
+                    "PosHeight": 20,
+                    "NegHeight": 10,
+                    "InnerRingCount": 0,
+                    "InnerPartDist": 100,
+                    "OuterRingToggle": false,
+                    "OuterPartDist": 100,
+                    "OuterOffset": 0,
+                    "VerticalLayers": 0,
+                    "VerticalOffset": 10,
+                    "ParticleName": "graphics/particles/smoke_M18_red_02"
+                },
+                "PlayerData": {
+                    "AroundPartName": "",
+                    "TinyPartName": "",
+                    "PPERequesterType": ""
+                }
+            }
+        },
+        {
+            "id": "b-pit",
+            "kind": "effectArea",
+            "parent": null,
+            "data": {
+                "AreaName": "Pit-Own",
+                "Type": "OilPitArea",
+                "TriggerType": "OilPitTrigger",
+                "Data": {
+                    "Pos": [
+                        12000,
+                        176.5,
+                        6000
+                    ],
+                    "Radius": 2,
+                    "PosHeight": 20,
+                    "NegHeight": 5
+                }
+            }
+        },
+        {
+            "id": "b-geyser",
+            "kind": "effectArea",
+            "parent": null,
+            "data": {
+                "AreaName": "Geyser-Own",
+                "Type": "GeyserArea",
+                "TriggerType": "GeyserTrigger",
+                "Data": {
+                    "Pos": [
+                        100,
+                        0,
+                        200
+                    ],
+                    "Radius": 3,
+                    "PosHeight": 6,
+                    "NegHeight": 2,
+                    "ParticleName": null,
+                    "EffectInterval": 600,
+                    "EffectDuration": 45
+                },
+                "PlayerData": {}
+            }
+        },
+        {
+            "id": "b-no-radius",
+            "kind": "effectArea",
+            "parent": null,
+            "data": {
+                "AreaName": "No-Radius",
+                "Type": "OilPitArea",
+                "TriggerType": "OilPitTrigger",
+                "Data": {
+                    "Pos": [
+                        1,
+                        0,
+                        2
+                    ],
+                    "PosHeight": 20,
+                    "NegHeight": 5
+                }
+            }
+        },
+        {
+            "id": "b-no-trigger",
+            "kind": "effectArea",
+            "parent": null,
+            "data": {
+                "AreaName": "No-Trigger",
+                "Type": "OilPitArea",
+                "Data": {
+                    "Pos": [
+                        1,
+                        0,
+                        2
+                    ],
+                    "Radius": 2,
+                    "PosHeight": 20,
+                    "NegHeight": 5
+                }
+            }
+        },
+        {
+            "id": "b-bad",
+            "kind": "effectArea",
+            "parent": null,
+            "data": {
+                "AreaName": "Bad-Optional",
+                "Type": "SpookyArea",
+                "TriggerType": "EffectTrigger",
+                "Data": {
+                    "Pos": [
+                        1,
+                        0,
+                        2
+                    ],
+                    "Radius": 2,
+                    "PosHeight": 20,
+                    "NegHeight": 5,
+                    "VerticalLayers": "two"
+                }
+            }
+        }
+    ],
+    "changes": []
+}
