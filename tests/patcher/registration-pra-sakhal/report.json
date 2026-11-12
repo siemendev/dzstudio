@@ -8,13 +8,13 @@
             "kind": "restrictedArea",
             "id": "b-pra",
             "status": "applied",
-            "file": "dzstudio/test/b-pra.json"
+            "file": "dzstudio/test.b-pra.json"
         },
         {
             "what": "registration",
             "id": "b-pra",
             "field": "WorldsData.playerRestrictedAreaFiles",
-            "value": "dzstudio/test/b-pra.json",
+            "value": "dzstudio/test.b-pra.json",
             "status": "applied",
             "file": "cfggameplay.json"
         }
@@ -25,7 +25,7 @@
             "status": "written"
         },
         {
-            "path": "dzstudio/test/b-pra.json",
+            "path": "dzstudio/test.b-pra.json",
             "status": "created"
         }
     ],

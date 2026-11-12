@@ -3,6 +3,6 @@
 	"WorldsData":
 	{
 		"lightingConfig": 1,
-		"objectSpawnersArr": ["spawners/a.json", "spawners/b.json", "dzstudio/test/b-koth.json", "dzstudio/test/b-two.json"]
+		"objectSpawnersArr": ["spawners/a.json", "spawners/b.json", "dzstudio/test.b-koth.json", "dzstudio/test.b-two.json"]
 	}
 }

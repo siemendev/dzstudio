@@ -505,17 +505,21 @@ class DZS_ProjectBar : DZS_PanelContent
 		r.m_LockB.SetOn(locked);
 	}
 
-	// A group's own file as the next save writes it: a local project's slug follows its name, so Save As moves it.
+	// A group's own file as the next save writes it, from its file in the working folder (dzstudio/<slug>/<block id>.json):
+	// dzstudio/<slug>.<block id>.json, where a local project's slug follows its name, so Save As moves it.
 	protected string ShownFile(string file)
 	{
 		DZS_OpenProject o = m_P.m_Open;
-		if (!o || o.m_Folder.IndexOf("@") == 0 || o.m_Provider == "shared" || file.IndexOf("dzstudio/") != 0)
+		if (!o || file.IndexOf("dzstudio/") != 0)
 			return file;
 		string rest = file.Substring(9, file.Length() - 9);
 		int slash = rest.IndexOf("/");
 		if (slash < 0)
 			return file;
-		return "dzstudio/" + DZS_ProjectV2.Slug(o.m_Name) + rest.Substring(slash, rest.Length() - slash);
+		string slug = rest.Substring(0, slash);
+		if (o.m_Folder.IndexOf("@") != 0 && o.m_Provider != "shared")
+			slug = DZS_ProjectV2.Slug(o.m_Name);
+		return "dzstudio/" + slug + "." + rest.Substring(slash + 1, rest.Length() - slash - 1);
 	}
 
 	// hits: objects of the group the filter matches, -1 without a filter

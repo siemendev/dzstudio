@@ -934,7 +934,7 @@ class DZS_ProjectFile
 	}
 
 	// ComposeV2 without the text, on root itself (a copy of the blocks, or ShareTop of them).
-	// keepSlug: a slug the root has stays (a provider's project: its own files stay in dzstudio/<slug>/ on the server).
+	// keepSlug: a slug the root has stays (a provider's project: its own files keep their names on the server).
 	static DZS_Json ComposeV2Root(DZS_Json root, string name, string mapKey, string base, string projectPart, string viewPart, DZS_Json extensions = null, bool keepSlug = false)
 	{
 		if (!keepSlug || root.GetStr("slug") == "")

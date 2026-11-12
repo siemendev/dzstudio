@@ -23,7 +23,7 @@ class DZS_AppliedProject : Managed
 {
 	// the project's id (its file name, "@…" for a provider's project); "" in a list written before ids
 	string m_Id;
-	// the slug its own files lie under (dzstudio/<slug>/), unique in the folder
+	// the slug its own files start with (dzstudio/<slug>.<block id>.json), unique in the folder
 	string m_Slug;
 	string m_Name;
 	string m_Stamp;

@@ -54,6 +54,8 @@ class DZS_WorkFolder
 		return ROOT + "\\" + safe;
 	}
 
+	// Only in the working folder: the file's stem is the block id again on saving (DZS_ProjectV2.StemOf). On a server
+	// the file is flat (DZS_PatcherJson.SpawnerPath).
 	static string SpawnerPath(string slug, string blockId)
 	{
 		return "dzstudio/" + slug + "/" + blockId + ".json";

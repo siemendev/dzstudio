@@ -37,7 +37,7 @@ dzStudio and [dzbot](https://dzbot.de) implement the patcher and are checked aga
 | `format` | string | Always `"dzstudio-project"`. |
 | `version` | integer | The format version, `2`. Keys, tolerances and patcher rules belong to it; changing any of them is a new version. A reader refuses a version it does not know. |
 | `map` | string | The map the project was made for, lower case (`chernarusplus`, `enoch`, `sakhal`, `deerisle` …). |
-| `slug` | string | Lower-case name used for the project's own files: `dzstudio/<slug>/<block id>.json`. |
+| `slug` | string | Lower-case name used for the project's own files: `dzstudio/<slug>.<block id>.json`. |
 | `blocks` | array | Own blocks, in order (below). |
 | `changes` | array | Changes to existing entries, applied in order (below). |
 | `extensions` | object | Data of other programs and plugins for the whole project (below). The patcher ignores it. |
@@ -51,7 +51,9 @@ Members a program does not know stay in the file when it rewrites it.
 ```
 
 - `id` — unique in the project, `[A-Za-z0-9_-]`. A block that is a file of its own is written to
-  `dzstudio/<slug>/<id>.json`, so renaming a group never makes a new file.
+  `dzstudio/<slug>.<id>.json`, so renaming a group never makes a new file. The file lies flat in `dzstudio/`
+  because console servers do not find a mission file two folders deep; the dot cannot occur in a slug or an id, so
+  two projects never share a file.
 - `kind` — one of the kinds below.
 - `parent` — for kinds that live inside another entry: either the **key** of an entry of the base
   (`{"event": "VehicleCivilianSedan"}`: an own spawn position in a vanilla event) or the `id` of an own block (a string:
@@ -67,8 +69,8 @@ are the exception to the second rule: several of them may share a text (the same
 are written; a text the base already has still collides.
 
 A program that rewrites a project keeps the blocks and changes it does not edit exactly as they are, `extensions`
-included, and keeps the file's `slug` when the project belongs to a server (its own files are already there under
-`dzstudio/<slug>/`). dzStudio carries such entries through every save and lists their rules read-only. Its
+included, and keeps the file's `slug` when the project belongs to a server (its own files are already there as
+`dzstudio/<slug>.<id>.json`). dzStudio carries such entries through every save and lists their rules read-only. Its
 layers (spawns, effect areas, territories) take the entries they edit from the file's blocks and changes at every
 open — never from the copy in dzStudio's own extension, which other programs leave as it is — and show the entries of
 their kinds they cannot write back unchanged read-only.

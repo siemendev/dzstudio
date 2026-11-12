@@ -298,7 +298,7 @@ def reg_case(name, base_files, blocks, expected, entries, files, notes, slug="te
     case(name, base_files, proj, expected,
          {"entries": entries, "files": files, "notes": notes})
 
-KP = 'dzstudio/test/b-koth.json'
+KP = 'dzstudio/test.b-koth.json'
 
 def registrations():
     blk = {"id": "b-koth", "kind": "spawnerGroup", "parent": None, "data": SPAWNER}
@@ -330,7 +330,7 @@ def registrations():
     ]
 }
 '''
-    TP = 'dzstudio/test/b-two.json'
+    TP = 'dzstudio/test.b-two.json'
     reg_case("registration-duplicated", {GP: base}, [blk, bad, blk2, badid],
              {GP: SMALL % (',\n\t\t"objectSpawnersArr": ["spawners/a.json", "spawners/b.json", "%s", "%s"]' % (KP, TP)),
               KP: SPAWNER_TEXT, TP: two},

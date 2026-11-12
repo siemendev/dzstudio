@@ -8,8 +8,8 @@ again, the same way dzbot keeps a server's files when it transfers mods. This is
 <mission folder>\
   cfggameplay.json
   cfggameplay.json.original          the file as it was before the first project changed it
-  dzstudio\my-arena\g-arena.json     a file a project created
-  dzstudio\my-arena\g-arena.json.original   zero bytes: the file did not exist
+  dzstudio\my-arena.g-arena.json     a file a project created
+  dzstudio\my-arena.g-arena.json.original   zero bytes: the file did not exist
   .dzstudio\
     applied.json                     the projects applied here, in order
     projects\my-arena.dzstudio.json  the project file as it was applied
@@ -45,15 +45,15 @@ again, the same way dzbot keeps a server's files when it transfers mods. This is
   "projects": [
     { "id": "My arena", "slug": "my-arena", "name": "My arena", "applied": "2026-11-09 18:42:07", "file": "projects/my-arena.dzstudio.json" }
   ],
-  "touched": ["cfggameplay.json", "dzstudio/my-arena/g-arena.json"],
-  "originals": ["cfggameplay.json", "dzstudio/my-arena/g-arena.json"],
-  "sums": { "cfggameplay.json": "3080:-1474745315", "dzstudio/my-arena/g-arena.json": "2051:90311244" }
+  "touched": ["cfggameplay.json", "dzstudio/my-arena.g-arena.json"],
+  "originals": ["cfggameplay.json", "dzstudio/my-arena.g-arena.json"],
+  "sums": { "cfggameplay.json": "3080:-1474745315", "dzstudio/my-arena.g-arena.json": "2051:90311244" }
 }
 ```
 
 | Member | Meaning |
 | --- | --- |
-| `projects` | The applied projects in the order they are applied: `id` (the project's id in dzStudio: its file name, or the provider's id), `slug` (the folder its own files go in: the project's `slug`, with `-2`, `-3` … when another project here has it), `name`, `applied` (when it was last applied, local time) and `file` (its copy, relative to `.dzstudio`). An entry without `id` (written by an earlier dzStudio) belongs to the project whose name gives its slug. |
+| `projects` | The applied projects in the order they are applied: `id` (the project's id in dzStudio: its file name, or the provider's id), `slug` (what its own files are named after: the project's `slug`, with `-2`, `-3` … when another project here has it), `name`, `applied` (when it was last applied, local time) and `file` (its copy, relative to `.dzstudio`). An entry without `id` (written by an earlier dzStudio) belongs to the project whose name gives its slug. |
 | `touched` | The files (relative to the mission folder, `/` as separator) the last rebuild wrote. |
 | `originals` | The files whose `.original` dzStudio wrote — and may delete again. |
 | `sums` | Per touched file, the length and a hash of what the last rebuild wrote, to tell an outside change. Missing while a rebuild is under way, and in lists of an earlier dzStudio: then the files are not compared. |

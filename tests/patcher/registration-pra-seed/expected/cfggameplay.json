@@ -3,6 +3,6 @@
 	"WorldsData":
 	{
 		"lightingConfig": 1,
-		"playerRestrictedAreaFiles": ["pra/warheadstorage.json", "dzstudio/test/b-pra.json"]
+		"playerRestrictedAreaFiles": ["pra/warheadstorage.json", "dzstudio/test.b-pra.json"]
 	}
 }

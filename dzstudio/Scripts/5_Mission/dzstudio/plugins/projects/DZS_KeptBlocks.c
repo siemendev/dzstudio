@@ -220,8 +220,8 @@ class DZS_KeptBlocks
 
 	// The kept entries after the editor's own in the project file; one the editor writes itself now (the same block id
 	// or change ref — loot turned on after opening, a loot type made after all) is not written twice. keepSlug: the
-	// file's slug stays (a project saved to a provider — dzbot, a hosted session: the files of its own blocks stay in
-	// dzstudio/<slug>/ on the server); a local project's slug follows its name.
+	// file's slug stays (a project saved to a provider — dzbot, a hosted session: the files of its own blocks keep
+	// their names on the server); a local project's slug follows its name.
 	static void AddTo(DZS_Json kept, DZS_Json root, bool keepSlug)
 	{
 		if (!kept)
