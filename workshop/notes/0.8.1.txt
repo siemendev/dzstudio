@@ -1,0 +1,2 @@
+- The catalog now has the plants and rocks of Badlands: palms, olive, plum and fig trees, oleander, prickly pear and more bushes, desert grass and sand-coloured rocks. 103 new entries under Plants and Rocks and terrain.
+- Several server messages with the same text but different timing (on connect, delayed, repeated) are now all written when you apply a project.
