@@ -99,6 +99,8 @@ class DZS_PKind : Managed
 	bool m_RemoveAll;
 	// own blocks may repeat an existing key (a second container named like the first)
 	bool m_Repeats;
+	// own blocks may share a key among themselves, never with the base (one message text at several times)
+	bool m_OwnDups;
 	// the file is part of the key ("file": "env/wolf_territories.xml"): one kind for every territory file
 	bool m_FileInKey;
 	// a key without its parent part searches the members of every parent element (a zone anywhere in its file)
@@ -598,6 +600,7 @@ class DZS_PKinds
 		ms.m_KeyAttr = "text";
 		ms.m_KeyChild = true;
 		ms.m_RemoveAll = true;
+		ms.m_OwnDups = true;
 		ms.m_Skeleton = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<messages>\n</messages>\n";
 		ms.F("deadline", DZS_PField.INT, false);
 		ms.F("shutdown", DZS_PField.BOOL01, false);

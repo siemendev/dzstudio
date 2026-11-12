@@ -1,0 +1,45 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-1",
+            "kind": "message",
+            "parent": null,
+            "data": {
+                "onconnect": 1,
+                "text": "Join our Discord"
+            }
+        },
+        {
+            "id": "b-2",
+            "kind": "message",
+            "parent": null,
+            "data": {
+                "delay": 2,
+                "onconnect": 1,
+                "text": "Join our Discord"
+            }
+        },
+        {
+            "id": "b-base",
+            "kind": "message",
+            "parent": null,
+            "data": {
+                "repeat": 5,
+                "text": "Welcome to my server #name"
+            }
+        },
+        {
+            "id": "b-3",
+            "kind": "message",
+            "parent": null,
+            "data": {
+                "repeat": 5,
+                "text": "Join our Discord"
+            }
+        }
+    ],
+    "changes": []
+}

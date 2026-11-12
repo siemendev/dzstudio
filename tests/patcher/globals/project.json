@@ -42,6 +42,16 @@
                 "type": 2,
                 "value": 1
             }
+        },
+        {
+            "id": "b-v2",
+            "kind": "global",
+            "parent": null,
+            "data": {
+                "name": "MyServerVar",
+                "type": 0,
+                "value": 7
+            }
         }
     ],
     "changes": [

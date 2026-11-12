@@ -146,6 +146,14 @@
             "status": "invalid",
             "file": "db/globals.xml",
             "detail": "bad-value"
+        },
+        {
+            "what": "block",
+            "index": 4,
+            "kind": "global",
+            "id": "b-v2",
+            "status": "collision",
+            "file": "db/globals.xml"
         }
     ],
     "files": [

@@ -27,6 +27,8 @@ def globals_case():
         {"id": "b-dup", "kind": K, "parent": None, "data": {"name": "AnimalMaxCount", "type": 0, "value": 5}},
         {"id": "b-int", "kind": K, "parent": None, "data": {"name": "Other", "type": 0, "value": N("1.5")}},
         {"id": "b-type", "kind": K, "parent": None, "data": {"name": "Other", "type": 2, "value": 1}},
+        # two own globals of one name would leave the game one of them: the second is refused
+        {"id": "b-v2", "kind": K, "parent": None, "data": {"name": "MyServerVar", "type": 0, "value": 7}},
     ]
     out = rep(base, '<var name="AnimalMaxCount" type="0" value="200"/>', '<var name="AnimalMaxCount" type="0" value="250"/>')
     out = rep(out, '<var name="LootDamageMax" type="1" value="0.82"/>', '<var name="LootDamageMax" type="1" value="0.9"/>')
@@ -47,6 +49,7 @@ def globals_case():
         bl(1, K, "b-dup", "collision", GL),
         bl(2, K, "b-int", "invalid", GL, "bad-value"),
         bl(3, K, "b-type", "invalid", GL, "bad-value"),
+        bl(4, K, "b-v2", "collision", GL),
     ]
     case("globals", {GL: base}, {"changes": changes, "blocks": blocks}, {GL: out},
          {"entries": entries, "files": [fl(GL, "written")]})
@@ -103,6 +106,33 @@ def messages():
     ]
     case("messages", {MS: base}, {"changes": changes, "blocks": blocks}, {MS: out},
          {"entries": entries, "files": [fl(MS, "written")]})
+
+    # own messages may share a text (one text at several times), all are written; a text of the base still clashes
+    D = "Join our Discord"
+    blocks = [
+        {"id": "b-1", "kind": K, "parent": None, "data": {"onconnect": 1, "text": D}},
+        {"id": "b-2", "kind": K, "parent": None, "data": {"delay": 2, "onconnect": 1, "text": D}},
+        {"id": "b-base", "kind": K, "parent": None, "data": {"repeat": 5, "text": "Welcome to my server #name"}},
+        {"id": "b-3", "kind": K, "parent": None, "data": {"repeat": 5, "text": D}},
+    ]
+    out = rep(base, '</messages>', """    <message>
+        <onconnect>1</onconnect>
+        <text>Join our Discord</text>
+    </message>
+    <message>
+        <delay>2</delay>
+        <onconnect>1</onconnect>
+        <text>Join our Discord</text>
+    </message>
+    <message>
+        <repeat>5</repeat>
+        <text>Join our Discord</text>
+    </message>
+""".replace('\n', '\r\n') + '</messages>')
+    case("messages-own-duplicates", {MS: base}, {"changes": [], "blocks": blocks}, {MS: out},
+         {"entries": [bl(0, K, "b-1", "applied", MS), bl(1, K, "b-2", "applied", MS),
+                      bl(2, K, "b-base", "collision", MS), bl(3, K, "b-3", "applied", MS)],
+          "files": [fl(MS, "written")]})
 
     # Sakhal ships no messages.xml: an own message creates it, a change still finds nothing
     made = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

@@ -62,7 +62,9 @@ Members a program does not know stay in the file when it rewrites it.
 - `extensions` — optional, data of other programs and plugins for this block (below).
 
 An own block whose key already exists in the base (an own event named like an existing one) is not written
-(`collision`).
+(`collision`), and neither is an own block with the key of an earlier own block of the project. Own `message` blocks
+are the exception to the second rule: several of them may share a text (the same message at different times), and all
+are written; a text the base already has still collides.
 
 A program that rewrites a project keeps the blocks and changes it does not edit exactly as they are, `extensions`
 included, and keeps the file's `slug` when the project belongs to a server (its own files are already there under
@@ -193,7 +195,7 @@ One entry per change, own block and registration:
 | `orphaned` | The target of a change, or the parent of a block, was not found; nothing written. |
 | `overrode` | Written over a value that differed from `from` (something else had changed it). |
 | `ambiguous` | More than one target; nothing written. |
-| `collision` | An own block's key already exists; not written. |
+| `collision` | An own block's key already exists (in the base, or for most kinds in an earlier own block); not written. |
 | `invalid` | A value or block the game would not accept; not written. |
 | `deduplicated` | A registration that was listed more than once. |
 

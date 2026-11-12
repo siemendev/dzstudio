@@ -1,0 +1,45 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "message",
+            "id": "b-1",
+            "status": "applied",
+            "file": "db/messages.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "message",
+            "id": "b-2",
+            "status": "applied",
+            "file": "db/messages.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "message",
+            "id": "b-base",
+            "status": "collision",
+            "file": "db/messages.xml"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "message",
+            "id": "b-3",
+            "status": "applied",
+            "file": "db/messages.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "db/messages.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

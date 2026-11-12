@@ -741,7 +741,7 @@ class DZS_Patcher : DZS_PatcherJson
 		bool taken = t.m_Nodes.Count() > 0;
 		foreach (DZS_POwn other : m_Owns)
 		{
-			if (other.m_Ok && other.m_Kind == k && !other.m_Into && SameKey(k, values, other.m_Values))
+			if (!k.m_OwnDups && other.m_Ok && other.m_Kind == k && !other.m_Into && SameKey(k, values, other.m_Values))
 				taken = true;
 		}
 		if (taken)
