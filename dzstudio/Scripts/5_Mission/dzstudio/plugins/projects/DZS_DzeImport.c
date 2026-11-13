@@ -1,5 +1,6 @@
 // .dze import: binary format version 8 only, read whole
 // before anything changes; objects become one Object-Spawner group, read values kept like the spawner format does.
+// An Object-Spawner .json is read by the spawner format itself; it names no map, so it takes the one it is imported into.
 class DZS_DzeObject : Managed
 {
 	string m_Type;
@@ -483,7 +484,9 @@ class DZS_DzeImport : Managed
 	ref DZS_ReadResult m_Read = new DZS_ReadResult();
 	ref array<bool> m_Hidden = new array<bool>();
 	ref array<bool> m_Locked = new array<bool>();
+	bool m_Json;
 	protected ref DZS_DzeReader m_Reader;
+	protected ref DZS_FormatReader m_JsonReader;
 	protected ref DZS_SpawnerFormat m_Conv;
 	protected int m_ConvI;
 	protected bool m_Done;
@@ -523,9 +526,17 @@ class DZS_DzeImport : Managed
 		return leaf;
 	}
 
-	static DZS_DzeImport From(string path, string displayName)
+	static bool IsJson(string file)
 	{
-		DZS_DzeImport im = Start(path, displayName);
+		string low = file;
+		low.ToLower();
+		int n = low.Length();
+		return n > 5 && low.Substring(n - 5, 5) == ".json";
+	}
+
+	static DZS_DzeImport From(string path, string displayName, string mapKey)
+	{
+		DZS_DzeImport im = Start(path, displayName, mapKey);
 		while (!im.Step(0))
 		{
 		}
@@ -533,12 +544,33 @@ class DZS_DzeImport : Managed
 	}
 
 	// Reading in slices (Step per frame) so the dialog can show progress.
-	static DZS_DzeImport Start(string path, string displayName)
+	// mapKey: the map a .json goes to; a .dze names its own.
+	static DZS_DzeImport Start(string path, string displayName, string mapKey)
 	{
 		DZS_DzeImport im = new DZS_DzeImport();
 		im.m_Path = path;
 		im.m_File = displayName;
 		im.m_Base = BaseOf(displayName);
+		if (IsJson(displayName))
+		{
+			im.m_Json = true;
+			im.m_MapKey = mapKey;
+			im.m_Data = new DZS_DzeData();
+			im.m_Data.m_Map = mapKey;
+			im.m_Conv = new DZS_SpawnerFormat();
+			array<string> chunks = DZS_Files.Read(path);
+			if (!chunks)
+			{
+				im.m_Read.m_ErrorDe = "die Datei lässt sich nicht öffnen";
+				im.m_Read.m_ErrorEn = "the file cannot be opened";
+				im.m_Data.m_Error = "json";
+				im.m_Done = true;
+				return im;
+			}
+			im.m_Data.m_Error = "";
+			im.m_JsonReader = im.m_Conv.BeginRead(chunks);
+			return im;
+		}
 		im.m_Reader = new DZS_DzeReader();
 		im.m_Reader.Begin(path);
 		im.m_Data = im.m_Reader.Data();
@@ -550,6 +582,8 @@ class DZS_DzeImport : Managed
 	{
 		if (m_Done)
 			return 1;
+		if (m_JsonReader)
+			return m_JsonReader.Progress();
 		if (m_Reader)
 			return 0.5 * m_Reader.Share();
 		if (!m_Data || m_Data.m_Objects.Count() == 0)
@@ -562,6 +596,8 @@ class DZS_DzeImport : Managed
 	{
 		if (m_Done)
 			return true;
+		if (m_JsonReader)
+			return StepJson(ticks);
 		int t0 = TickCount(0);
 		if (m_Reader)
 		{
@@ -593,8 +629,38 @@ class DZS_DzeImport : Managed
 		return true;
 	}
 
+	protected bool StepJson(int ticks)
+	{
+		float ms = 1000000;
+		if (ticks > 0)
+			ms = ticks / 10000.0;
+		if (!m_JsonReader.Step(ms))
+			return false;
+		m_Read = m_JsonReader.Result();
+		m_JsonReader = null;
+		m_Done = true;
+		if (!m_Read.m_Readable)
+		{
+			m_Data.m_Error = "json";
+			return true;
+		}
+		for (int i = 0; i < m_Read.m_Objects.Count(); i++)
+		{
+			m_Hidden.Insert(false);
+			m_Locked.Insert(false);
+		}
+		DZS_Log.Info("dze: " + m_File + " (spawner json, " + m_MapKey + "), " + m_Read.m_Objects.Count() + " object(s), issues " + m_Read.m_Issues.Total() + " [" + m_Read.m_Issues.Title() + "]");
+		return true;
+	}
+
 	string ErrorText()
 	{
+		if (m_Data.m_Error == "json")
+		{
+			string jde = "Diese .json ist keine lesbare Object-Spawner-Datei: " + m_Read.m_ErrorDe + ". Es wurde nichts importiert.";
+			string jen = "This .json is not a readable object spawner file: " + m_Read.m_ErrorEn + ". Nothing was imported.";
+			return DZS_Texts.Pick(jde, jen);
+		}
 		if (m_Data.m_Error == "param")
 		{
 			string de = "Diese .dze enthält einen Zusatzwert, den der Import nicht lesen kann (" + m_Data.m_ParamType + "). Es wurde nichts importiert.";
@@ -713,6 +779,44 @@ class DZS_DzeImport : Managed
 		vector c = m_Data.m_Cam;
 		return c[0] >= 0 && c[2] >= 0 && c[0] <= size && c[2] <= size;
 	}
+
+	// A .json names no camera: the new project looks at the box of its objects inside the map.
+	bool ObjectBox(out vector lo, out vector hi)
+	{
+		float size = DZS_Maps.Size(m_MapKey);
+		bool any = false;
+		float x0 = 0;
+		float y0 = 0;
+		float z0 = 0;
+		float x1 = 0;
+		float y1 = 0;
+		float z1 = 0;
+		for (int i = 0; i < m_Read.m_Objects.Count(); i++)
+		{
+			DZS_ReadObject ro = m_Read.m_Objects[i];
+			float x = ro.m_FileX;
+			float y = ro.m_FileY;
+			float z = ro.m_FileZ;
+			if (x < 0 || z < 0 || x > size || z > size)
+				continue;
+			if (!any || x < x0)
+				x0 = x;
+			if (!any || y < y0)
+				y0 = y;
+			if (!any || z < z0)
+				z0 = z;
+			if (!any || x > x1)
+				x1 = x;
+			if (!any || y > y1)
+				y1 = y;
+			if (!any || z > z1)
+				z1 = z;
+			any = true;
+		}
+		lo = Vector(x0, y0, z0);
+		hi = Vector(x1, y1, z1);
+		return any;
+	}
 }
 
 // Dialog "Import .dze": every .dze under $saves: and its subfolders (not the project list), path and size,
@@ -744,14 +848,16 @@ class DZS_DzeFileDialog : DZS_Dialog
 		{
 			string low = f;
 			low.ToLower();
-			if (low.IndexOf("dzstudio/projects/") == 0)
+			if (low.IndexOf("dzstudio/") == 0)
 				continue;
 			int n = low.Length();
 			if (n > 4 && low.Substring(n - 4, 4) == ".dze")
 				m_Files.Insert(f);
+			else if (DZS_DzeImport.IsJson(low))
+				m_Files.Insert(f);
 		}
 		m_Files.Sort();
-		Setup(LARGE, DZS_Texts.Pick("Projekt", "Project"), DZS_Texts.Pick(".dze importieren", "Import .dze"), true);
+		Setup(LARGE, DZS_Texts.Pick("Projekt", "Project"), DZS_Texts.Pick("Datei importieren", "Import file"), true);
 		AddFootButton("cancel", DZS_Texts.Get("core.dialog.cancel"), "side");
 		AddFootButton("import", DZS_Texts.Pick("Importieren", "Import"), "main");
 		DZS_Log.Info("dze dialog: " + m_Files.Count() + " file(s) under $saves:");
@@ -770,11 +876,11 @@ class DZS_DzeFileDialog : DZS_Dialog
 	override void BuildContent(Widget inner)
 	{
 		m_Where = DZS_W.Text(inner, DZS_Font.READ, 13, DZS_Color.Get("textMuted"));
-		string w1 = DZS_Texts.Pick("Der Editor sucht .dze-Dateien in ", "The editor looks for .dze files in ");
+		string w1 = DZS_Texts.Pick("Der Editor sucht .dze- und Object-Spawner-.json-Dateien in ", "The editor looks for .dze and object spawner .json files in ");
 		string w2 = SavesShown();
 		string w3 = DZS_Texts.Pick(" und den Unterordnern.", " and its subfolders.");
 		m_Where.SetText(DZS_W.Literal(w1 + w2 + w3));
-		m_Search = new DZS_SearchField("projects.dzsSearch", DZS_Texts.Pick(".dze suchen", "Search .dze"));
+		m_Search = new DZS_SearchField("projects.dzsSearch", DZS_Texts.Pick("Datei suchen", "Search files"));
 		m_Search.SetWidth(300);
 		m_Search.Build(inner);
 		AddFocusField(m_Search);
@@ -793,7 +899,7 @@ class DZS_DzeFileDialog : DZS_Dialog
 			AddFocusHit(r.m_Hit);
 		}
 		m_Empty = DZS_W.Text(inner, DZS_Font.READ, 14, DZS_Color.Get("textMuted"));
-		m_Empty.SetText(DZS_Texts.Pick("Keine .dze-Datei gefunden", "No .dze file found"));
+		m_Empty.SetText(DZS_Texts.Pick("Keine .dze- oder .json-Datei gefunden", "No .dze or .json file found"));
 		if (m_Rows.Count() > 0)
 			Choose(m_Rows[0].m_Key);
 		AddFootFocus();
@@ -886,7 +992,7 @@ class DZS_DzeFileDialog : DZS_Dialog
 			return;
 		int cut = m_Chosen.LastIndexOf("/") + 1;
 		m_JobLeaf = m_Chosen.Substring(cut, m_Chosen.Length() - cut);
-		m_Job = DZS_DzeImport.Start(path, m_JobLeaf);
+		m_Job = DZS_DzeImport.Start(path, m_JobLeaf, m_P.CurrentMapForDialogs());
 		m_JobT = 0;
 		DZS_Log.Info("dze: import of " + m_JobLeaf + " starts");
 	}
@@ -944,7 +1050,10 @@ class DZS_DzeNameDialog : DZS_NameDialog
 		m_P = p;
 		m_Import = im;
 		string info = DZS_Texts.Pick("Karte: ", "Map: ") + DZS_Maps.Display(im.m_MapKey) + " · " + im.m_Read.m_Objects.Count() + DZS_Texts.Pick(" Objekte", " objects");
-		SetupName(DZS_Texts.Pick("Projekt", "Project"), DZS_Texts.Pick(".dze als neues Projekt", ".dze as new project"), im.m_Base, info, "create", DZS_Texts.Pick("Anlegen", "Create"));
+		string kind = ".dze";
+		if (im.m_Json)
+			kind = ".json";
+		SetupName(DZS_Texts.Pick("Projekt", "Project"), kind + DZS_Texts.Pick(" als neues Projekt", " as new project"), im.m_Base, info, "create", DZS_Texts.Pick("Anlegen", "Create"));
 	}
 
 	override void OnFoot(string tag)

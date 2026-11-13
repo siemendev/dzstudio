@@ -433,7 +433,7 @@ class DZS_BrowserDialog : DZS_Dialog
 		string tx115 = DZS_Texts.Pick("Projekte", "Projects");
 		Setup(LARGE, tx114, tx115, false);
 		AddFootButton("new", DZS_Texts.Pick("Neues Projekt …", "New project …"), "side");
-		AddFootButton("import", DZS_Texts.Pick(".dze importieren …", "Import .dze …"), "side");
+		AddFootButton("import", DZS_Texts.Pick("Importieren …", "Import …"), "side");
 		AddFootButton("rename", DZS_Texts.Pick("Umbenennen …", "Rename …"), "side");
 		AddFootButton("delete", DZS_Texts.Pick("Löschen …", "Delete …"), "danger");
 		AddFootButton("close", DZS_Texts.Get("core.dialog.close"), "side");

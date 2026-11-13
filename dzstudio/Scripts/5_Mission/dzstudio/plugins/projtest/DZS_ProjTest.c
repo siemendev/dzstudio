@@ -1438,7 +1438,8 @@ class DZS_ProjTest : DZS_Plugin
 	{
 		string path = "$saves:dze-test\\" + file;
 		float t0 = GetGame().GetTickTime();
-		DZS_DzeImport im = DZS_DzeImport.From(path, file);
+		DZS_ProjectsPlugin dp = DZS_ProjectsPlugin.Cast(m_Kernel.GetPlugin("projects"));
+		DZS_DzeImport im = DZS_DzeImport.From(path, file, dp.CurrentMapForDialogs());
 		float ms = (GetGame().GetTickTime() - t0) * 1000;
 		if (im.m_Data.m_Error != "")
 		{

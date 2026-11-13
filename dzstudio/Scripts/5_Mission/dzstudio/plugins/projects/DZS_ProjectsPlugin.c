@@ -402,10 +402,11 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		{
 			string ifolder = DZS_Handover.s_Folder;
 			string ipath = DZS_Handover.s_Backup;
+			string imap = DZS_Handover.s_MapKey;
 			DZS_Handover.Clear();
 			int cut = ipath.LastIndexOf("\\") + 1;
 			string leaf = ipath.Substring(cut, ipath.Length() - cut);
-			m_ImportNew = DZS_DzeImport.From(ipath, leaf);
+			m_ImportNew = DZS_DzeImport.From(ipath, leaf, imap);
 			FinishNew(ifolder);
 		}
 		else if (kind == "restore")
@@ -704,8 +705,8 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				return false;
 			if (GroupsFixedReason() != "")
 			{
-				de = "Eine Platzierung hat nur eine Gruppe — .dze als neues Projekt importieren";
-				en = "A placement has only one group — import the .dze as a new project";
+				de = "Eine Platzierung hat nur eine Gruppe — die Datei als neues Projekt importieren";
+				en = "A placement has only one group — import the file as a new project";
 				return false;
 			}
 			return true;
@@ -766,7 +767,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	// After choosing a file: read it whole; nothing changes when it cannot be read.
 	void ImportFile(string path, string leaf, bool intoOpen)
 	{
-		DZS_DzeImport im = DZS_DzeImport.From(path, leaf);
+		DZS_DzeImport im = DZS_DzeImport.From(path, leaf, CurrentMapForDialogs());
 		ImportRead(im, leaf, intoOpen);
 	}
 
@@ -875,6 +876,8 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		gf.Set(DZS_Obj.GROUP_FORMAT, "spawner");
 		array<ref DZS_Companion> gcomp = new array<ref DZS_Companion>();
 		gcomp.Insert(new DZS_Companion(DZS_LocalStore.GROUP_PLUGINS, 1, "[]"));
+		foreach (DZS_Companion rc : im.m_Read.m_GroupCompanions)
+			gcomp.Insert(rc);
 		string gid = b.Create(DZS_KIND_GROUP, DZS_PROJECT_ID, DZS_END, gf, false, false, gcomp);
 		AddImported(b, gid, im);
 		string de = im.m_File + " importieren";
@@ -2291,8 +2294,12 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		if (cam && pf.m_Status == "ok" && pf.m_RawView == "")
 		{
 			cam.GoToStart();
+			vector blo;
+			vector bhi;
 			if (m_ImportNew && m_ImportNew.CameraInside())
 				cam.SetPose(m_ImportNew.m_Data.m_Cam, cam.GetYaw(), cam.GetPitch(), false);
+			else if (m_ImportNew && m_ImportNew.m_Json && m_ImportNew.ObjectBox(blo, bhi))
+				cam.FocusOn(blo, bhi, false);
 			array<string> withView = DZS_ProjectFile.RewriteV2(cur, "", "", CameraView());
 			if (!withView)
 				withView = DZS_ProjectFile.Compose(pf.m_Name, pf.m_MapKey, pf.m_RawProject, CameraView());

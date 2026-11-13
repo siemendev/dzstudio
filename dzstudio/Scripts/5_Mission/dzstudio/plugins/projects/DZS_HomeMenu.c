@@ -787,7 +787,7 @@ class DZS_HomeMenu : DZS_HitListener
 			m_EmptyIcon = DZS_W.Icon(m_Plate, "folder-open", DZS_Color.Get("textMuted"));
 			m_EmptyText = DZS_W.Text(m_Plate, DZS_Font.READ, 14, DZS_Color.Get("textMuted"));
 			string mapName = DZS_Maps.Display(s.m_Key);
-			m_EmptyText.SetText(DZS_Texts.Pick("Noch kein Projekt auf " + mapName + " — leg eins an oder importiere eine .dze", "No project on " + mapName + " yet — create one or import a .dze"));
+			m_EmptyText.SetText(DZS_Texts.Pick("Noch kein Projekt auf " + mapName + " — leg eins an oder importiere eine .dze- oder .json-Datei", "No project on " + mapName + " yet — create one or import a .dze or .json file"));
 		}
 		m_New = new DZS_Button(m_Plate, "side", DZS_Texts.Pick("Neues Projekt …", "New project …"));
 		m_New.SetCapsAction("projects.new");
@@ -797,7 +797,7 @@ class DZS_HomeMenu : DZS_HitListener
 		m_All.SetCapsAction("projects.browse");
 		m_All.SetTipAction(DZS_Texts.Pick("Alle Projekte …", "All projects …"), "projects.browse");
 		m_All.m_OnClick.Insert(OnAll);
-		m_Import = new DZS_Button(m_Plate, "side", DZS_Texts.Pick(".dze importieren …", "Import .dze …"));
+		m_Import = new DZS_Button(m_Plate, "side", DZS_Texts.Pick("Importieren …", "Import …"));
 		m_Import.m_OnClick.Insert(OnImport);
 		m_PlateFor = m_Open;
 		if (m_Focus >= 0 && m_Focus < 100)
