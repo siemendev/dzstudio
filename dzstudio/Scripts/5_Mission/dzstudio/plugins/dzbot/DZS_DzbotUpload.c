@@ -317,6 +317,8 @@ class DZS_DzbotUpload : DZS_MessageListener
 		if (pp)
 			pp.RequestOpen(DZS_DzbotPlugin.FolderOf(m_Ref));
 		string t = DZS_Texts.Pick("Hochgeladen: „" + name + "“ ist jetzt eine dzbot-Mod.", "Uploaded: “" + name + "” is now a dzbot mod.");
+		if (!m_New)
+			t = DZS_Texts.Pick("Hochgeladen: der Entwurf von „" + name + "“ ist ersetzt.", "Uploaded: the draft of “" + name + "” is replaced.");
 		DZS_Screen scr = m_P.Kernel().GetScreen();
 		if (m_DoneUrl != "")
 			scr.ShowMessageWithButton("dzbot.upload", "success", DZS_W.Literal(t), 15.0, DZS_Texts.Pick("In dzbot fertig einrichten", "Finish setting it up in dzbot"), this);
