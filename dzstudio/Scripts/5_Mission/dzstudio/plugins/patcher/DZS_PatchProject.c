@@ -134,7 +134,8 @@ class DZS_PatchProject : Managed
 		if (!b.m_Data)
 			b.m_Data = DZS_Json.Obj();
 		DZS_Json dup = bj.Get("duplicate");
-		b.m_Duplicate = dup && dup.IsBool() && dup.m_Bool;
+		if (dup && dup.IsBool())
+			b.m_Duplicate = dup.m_Bool;
 		m_Blocks.Insert(b);
 	}
 
