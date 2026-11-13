@@ -161,11 +161,11 @@ class DZS_ExtCopy
 
 // What dzStudio copied to the clipboard beside the spawner JSON: per object its extension fields, and the project they
 // came from. The clipboard keeps only the spawner text (other tools read it); this sidecar lives in dzStudio's memory,
-// found again by the SHA-256 of the trimmed text, so pasting that text brings the extensions along while any other text
-// (or the same text after a restart) pastes without them.
+// found again by the exact text (without surrounding whitespace), so pasting that text brings the extensions along
+// while any other text (or the same text after a restart) pastes without them.
 class DZS_ExtClipEntry : Managed
 {
-	string m_Hash;
+	string m_Text;
 	string m_Project;
 	// per object of the text, in its order: field -> JSON text
 	ref array<ref map<string, string>> m_Objects = new array<ref map<string, string>>();
@@ -176,10 +176,33 @@ class DZS_ExtClip
 	static const int KEEP = 16;
 	protected static ref array<ref DZS_ExtClipEntry> s_Entries;
 
-	static string HashOf(string clipText)
+	// Equal apart from surrounding whitespace; compared piece by piece, since string.Trim() and Substring() return at
+	// most 8191 characters.
+	static bool SameCore(string a, string b)
 	{
-		string t = clipText.Trim();
-		return DZS_Sha256.OfText(t);
+		int af, at, bf, bt;
+		Bounds(a, af, at);
+		Bounds(b, bf, bt);
+		int len = at - af;
+		if (len != bt - bf)
+			return false;
+		for (int p = 0; p < len; p += 8000)
+		{
+			int n = Math.Min(8000, len - p);
+			if (a.Substring(af + p, n) != b.Substring(bf + p, n))
+				return false;
+		}
+		return true;
+	}
+
+	protected static void Bounds(string t, out int from, out int to)
+	{
+		from = 0;
+		to = t.Length();
+		while (from < to && " \t\r\n".IndexOf(t.Get(from)) >= 0)
+			from++;
+		while (to > from && " \t\r\n".IndexOf(t.Get(to - 1)) >= 0)
+			to--;
 	}
 
 	// A copy was put on the clipboard: the extension fields of its objects (empty maps for objects without any).
@@ -187,10 +210,9 @@ class DZS_ExtClip
 	{
 		if (!s_Entries)
 			s_Entries = new array<ref DZS_ExtClipEntry>();
-		string h = HashOf(clipText);
 		for (int i = s_Entries.Count() - 1; i >= 0; i--)
 		{
-			if (s_Entries[i].m_Hash == h)
+			if (SameCore(s_Entries[i].m_Text, clipText))
 				s_Entries.RemoveOrdered(i);
 		}
 		bool any = false;
@@ -202,7 +224,7 @@ class DZS_ExtClip
 		if (!any)
 			return;
 		DZS_ExtClipEntry e = new DZS_ExtClipEntry();
-		e.m_Hash = h;
+		e.m_Text = clipText;
 		e.m_Project = project;
 		foreach (map<string, string> src : objects)
 		{
@@ -224,11 +246,10 @@ class DZS_ExtClip
 	{
 		if (!s_Entries)
 			return null;
-		string h = HashOf(clipText);
 		for (int i = s_Entries.Count() - 1; i >= 0; i--)
 		{
 			DZS_ExtClipEntry e = s_Entries[i];
-			if (e.m_Hash == h && e.m_Objects.Count() == objectCount)
+			if (e.m_Objects.Count() == objectCount && SameCore(e.m_Text, clipText))
 				return e;
 		}
 		return null;

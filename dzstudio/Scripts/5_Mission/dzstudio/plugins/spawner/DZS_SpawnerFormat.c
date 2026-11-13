@@ -299,12 +299,27 @@ class DZS_SpawnerFormat : DZS_Format
 		return res;
 	}
 
+	// Pairwise, so a long text is not copied once per chunk.
 	static string Join(array<string> chunks)
 	{
-		string s = "";
+		array<string> level = new array<string>();
 		foreach (string c : chunks)
-			s += c;
-		return s;
+			level.Insert(c);
+		while (level.Count() > 1)
+		{
+			array<string> next = new array<string>();
+			for (int i = 0; i < level.Count(); i += 2)
+			{
+				string ab = level[i];
+				if (i + 1 < level.Count())
+					ab += level[i + 1];
+				next.Insert(ab);
+			}
+			level = next;
+		}
+		if (level.Count() == 0)
+			return "";
+		return level[0];
 	}
 
 	protected DZS_ReadObject ReadEntry(DZS_SrcDoc doc, DZS_SrcNode e, int index, DZS_Issues issues, float worldSize, DZS_ReadResult res)

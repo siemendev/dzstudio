@@ -4427,44 +4427,64 @@ class DZS_PlacementPlugin : DZS_Plugin
 		Msg("placement.copy", "success", m);
 	}
 
+	protected ref DZS_PasteJob m_PasteJob;
+
 	protected void Paste(DZS_Instance inst, bool atOrigin)
 	{
+		if (DZS_Jobs.Running(m_PasteJob))
+			return;
 		string clip;
 		GetGame().CopyFromClipboard(clip);
-		// string.Trim() keeps only the first 8191 characters
-		int from = 0;
-		int to = clip.Length();
-		while (from < to && " \t\r\n".IndexOf(clip.Get(from)) >= 0)
-			from++;
-		while (to > from && " \t\r\n".IndexOf(clip.Get(to - 1)) >= 0)
-			to--;
-		string first = "";
-		if (from < to)
-			first = clip.Get(from);
 		DZS_Format fmt = m_Kernel.GetFormat("spawner");
-		DZS_ReadResult rr = null;
-		if (fmt && (first == "{" || first == "["))
+		DZS_PasteJob j = null;
+		if (fmt)
+			j = DZS_PasteJob.For(fmt, clip);
+		if (!j)
 		{
-			array<string> chunks = new array<string>();
-			if (first == "[")
-				chunks.Insert("{\"Objects\": ");
-			int at = from;
-			while (at < to)
-			{
-				int len = Math.Min(900, to - at);
-				chunks.Insert(clip.Substring(at, len));
-				at += len;
-			}
-			if (first == "[")
-				chunks.Insert("}");
-			rr = fmt.Read(chunks);
-		}
-		if (!rr || !rr.m_Readable || rr.m_Objects.Count() == 0)
-		{
-			Msg("placement.paste", "warning", DZS_Texts.Get("placement.nothingToPaste"));
-			DZS_Log.Info("placement: nothing to paste");
+			NothingToPaste();
 			return;
 		}
+		if (!ActiveGroupOpen(inst))
+			return;
+		vector target;
+		if (!atOrigin && !GroundAtPointer(target))
+			return;
+		j.m_Inst = inst;
+		j.m_AtOrigin = atOrigin;
+		j.m_Target = target;
+		j.m_OnDone.Insert(PasteRead);
+		m_PasteJob = j;
+		if (clip.Length() < DZS_PasteJob.AT_ONCE)
+			DZS_Jobs.RunNow(j);
+		else
+			DZS_Jobs.Start(j);
+	}
+
+	protected void NothingToPaste()
+	{
+		Msg("placement.paste", "warning", DZS_Texts.Get("placement.nothingToPaste"));
+		DZS_Log.Info("placement: nothing to paste");
+	}
+
+	void PasteRead(DZS_Job job)
+	{
+		DZS_PasteJob j = DZS_PasteJob.Cast(job);
+		if (!j || j.m_Cancelled)
+			return;
+		DZS_Instance inst = j.m_Inst;
+		if (!inst || inst != m_Kernel.GetShown())
+		{
+			DZS_Log.Info("placement: paste dropped, the project changed while reading");
+			return;
+		}
+		DZS_ReadResult rr = j.Result();
+		if (!rr || !rr.m_Readable || rr.m_Objects.Count() == 0)
+		{
+			NothingToPaste();
+			return;
+		}
+		bool atOrigin = j.m_AtOrigin;
+		string clip = j.m_Clip;
 		if (!ActiveGroupOpen(inst))
 			return;
 		DZS_ExtClipEntry own = DZS_ExtClip.Find(clip, rr.m_Objects.Count());
@@ -4500,7 +4520,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 			objs.Insert(o);
 			datas.Insert(d);
 		}
-		InsertSet(inst, objs, datas, null, !atOrigin, Txt("Einfügen", "Paste"));
+		InsertSetAt(inst, objs, datas, null, !atOrigin, j.m_Target, Txt("Einfügen", "Paste"));
 	}
 
 	// Creates a set of objects at the end of the active group; at the pointer: the middle of the common box
@@ -4509,28 +4529,44 @@ class DZS_PlacementPlugin : DZS_Plugin
 	{
 		if (!ActiveGroupOpen(inst))
 			return false;
+		vector target;
+		if (atPointer && !GroundAtPointer(target))
+			return false;
+		return InsertSetAt(inst, objs, datas, extra, atPointer, target, nameDe);
+	}
+
+	// The surface under the pointer, else under the screen centre.
+	protected bool GroundAtPointer(out vector target)
+	{
+		vector from = GetGame().GetCurrentCameraPosition();
+		vector dir = PointerDir();
+		if (!PointerInScene())
+			dir = GetGame().GetCurrentCameraDirection();
+		array<ref DZS_RayHit> hits = DZS_Rays.Ray(from, dir, ViewDist(), Excluded());
+		if (hits.Count() == 0 && PointerInScene())
+		{
+			dir = GetGame().GetCurrentCameraDirection();
+			hits = DZS_Rays.Ray(from, dir, ViewDist(), Excluded());
+		}
+		if (hits.Count() == 0)
+		{
+			Msg("placement.noGround", "warning", DZS_Texts.Get("placement.noGroundHere"));
+			DZS_Log.Info("placement: no ground, nothing inserted");
+			return false;
+		}
+		target = hits[0].m_Pos;
+		return true;
+	}
+
+	protected bool InsertSetAt(DZS_Instance inst, array<ref DZS_PlaceObj> objs, array<ref DZS_ElementData> datas, array<ref map<string, string>> extra, bool atPointer, vector target, string nameDe)
+	{
+		if (!ActiveGroupOpen(inst))
+			return false;
 		if (atPointer)
 		{
 			vector mn, mx;
 			BoundsOf(objs, mn, mx);
 			vector bottom = Vector((mn[0] + mx[0]) * 0.5, mn[1], (mn[2] + mx[2]) * 0.5);
-			vector from = GetGame().GetCurrentCameraPosition();
-			vector dir = PointerDir();
-			if (!PointerInScene())
-				dir = GetGame().GetCurrentCameraDirection();
-			array<ref DZS_RayHit> hits = DZS_Rays.Ray(from, dir, ViewDist(), Excluded());
-			if (hits.Count() == 0 && PointerInScene())
-			{
-				dir = GetGame().GetCurrentCameraDirection();
-				hits = DZS_Rays.Ray(from, dir, ViewDist(), Excluded());
-			}
-			if (hits.Count() == 0)
-			{
-				Msg("placement.noGround", "warning", DZS_Texts.Get("placement.noGroundHere"));
-				DZS_Log.Info("placement: no ground, nothing inserted");
-				return false;
-			}
-			vector target = hits[0].m_Pos;
 			vector shift = target - bottom;
 			foreach (DZS_PlaceObj o : objs)
 				o.m_Pos = o.m_Pos + shift;
