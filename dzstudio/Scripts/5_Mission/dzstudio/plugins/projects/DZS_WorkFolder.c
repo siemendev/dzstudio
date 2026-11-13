@@ -77,15 +77,10 @@ class DZS_WorkFolder
 		return "";
 	}
 
-	// Whether opening needs the base's files: loot is on in the editor part (a file without one: it has loot blocks or
-	// changes).
+	// Whether opening needs the base's files: the project has loot blocks or changes.
 	static bool NeedsBase(DZS_Json root)
 	{
-		DZS_Json proj = ProjectOf(root);
-		if (!proj)
-			return HasLoot(root);
-		DZS_Json loot = proj.Get("loot");
-		return loot && loot.IsObj() && loot.GetBool("enabled");
+		return HasLoot(root);
 	}
 
 	static DZS_Json ProjectOf(DZS_Json root)
@@ -256,8 +251,6 @@ class DZS_WorkFolder
 		{
 			proj = DZS_Json.Obj();
 			DZS_Json loot = DZS_Json.Obj();
-			DZS_Json on = DZS_Json.Boolean(HasLoot(root));
-			loot.Set("enabled", on);
 			proj.Set("loot", loot);
 		}
 		DZS_Json part = PartV1(proj, paths);
@@ -357,8 +350,6 @@ class DZS_WorkFolder
 		if (!loot || !loot.IsObj())
 		{
 			loot = DZS_Json.Obj();
-			DZS_Json off = DZS_Json.Boolean(false);
-			loot.Set("enabled", off);
 			part.Set("loot", loot);
 		}
 		if (!loot.Has("hidden"))

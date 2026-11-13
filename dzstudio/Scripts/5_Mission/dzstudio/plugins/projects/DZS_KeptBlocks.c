@@ -1,9 +1,8 @@
 // Blocks and changes of a project file that no part of the editor takes over when it opens — kinds it has no editor
 // for (events without positions, items, globals, presets, restricted areas …, written by another tool, an AI or
-// another program), loot entries while the loot editor is off for the project, layer entries a layer would not write
-// back as they are (DZS_LayerTake), loot entries the loot editor does not take over (DZS_LootKeep: not fitting the base,
-// or no loot files of the base). They are carried over unchanged, extensions included, and written back at every
-// save, so a save never drops what the editor cannot show.
+// another program), layer entries a layer would not write back as they are (DZS_LayerTake), loot entries the loot
+// editor does not take over (DZS_LootKeep: not fitting the base, or no loot files of the base). They are carried over
+// unchanged, extensions included, and written back at every save, so a save never drops what the editor cannot show.
 //
 // Opening puts them into the project's plugin entries under NAME (the working folder's project part, then the
 // projects:plugins companion); every build of the project file appends them after the editor's own blocks and changes.
@@ -13,13 +12,9 @@ class DZS_KeptBlocks
 	static const string NAME = "kept";
 
 	// {blocks, changes, slug?} of the root that the open leaves to nobody, null when there are none. part: the editor
-	// part the open goes on with (its "loot" and "plugins"); lootKeep: loot entries kept although loot is on.
+	// part the open goes on with (its "plugins"); lootKeep: loot entries the loot editor does not take over.
 	static DZS_Json Of(DZS_Json root, DZS_Json part, DZS_LootKeep lootKeep = null)
 	{
-		bool lootOn = false;
-		DZS_Json loot = part.Get("loot");
-		if (loot && loot.IsObj())
-			lootOn = loot.GetBool("enabled");
 		map<string, bool> layerBlocks = new map<string, bool>();
 		map<string, bool> layerChanges = new map<string, bool>();
 		DZS_Json plugins = part.Get("plugins");
@@ -65,7 +60,7 @@ class DZS_KeptBlocks
 				if (!block.IsObj())
 					continue;
 				string kind = block.GetStr("kind");
-				bool lootTaken = lootOn && kind.IndexOf("loot") == 0 && !(lootKeep && lootKeep.Keeps(true, b));
+				bool lootTaken = kind.IndexOf("loot") == 0 && !(lootKeep && lootKeep.Keeps(true, b));
 				if (kind == "spawnerGroup" || lootTaken || layerBlocks.Contains(block.GetStr("id")))
 					continue;
 				blocks.Add(block);
@@ -79,7 +74,7 @@ class DZS_KeptBlocks
 				DZS_Json change = rc.At(c);
 				if (!change.IsObj())
 					continue;
-				bool lootChanged = lootOn && change.GetStr("block").IndexOf("loot") == 0 && !(lootKeep && lootKeep.Keeps(false, c));
+				bool lootChanged = change.GetStr("block").IndexOf("loot") == 0 && !(lootKeep && lootKeep.Keeps(false, c));
 				if (lootChanged || layerChanges.Contains(DZS_ProjectRefs.ChangeRef(change)))
 					continue;
 				changes.Add(change);

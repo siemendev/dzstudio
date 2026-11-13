@@ -733,6 +733,33 @@ class DZS_ProjTest : DZS_Plugin
 			qb.Create(DZS_KIND_OBJECT, FirstGroup(inst), DZS_END, Fields(a[1], qx, qbase + qdy, qz, qyaw, qpitch, qroll, qscale, qcustom));
 			Log("place " + a[1] + ": " + qb.Commit("Objekt anlegen", "Add object").Ok());
 		}
+		else if (c == "hand")
+		{
+			// hand CLASS — the catalogue's hand takes CLASS, as a click on its tile does; "hand at X Z" places it there
+			DZS_CatalogApi hcat = DZS_CatalogApi.Get();
+			DZS_SelectionApi hsel = DZS_SelectionApi.Get();
+			if (a[1] == "at" && hsel)
+				Log("hand at " + a[2] + " " + a[3] + ": " + hsel.PlaceHandAt(a[2].ToFloat(), a[3].ToFloat()));
+			else if (hcat)
+			{
+				hcat.TakeInHand(a[1]);
+				Log("hand " + hcat.GetHand());
+			}
+		}
+		else if (c == "lootof")
+		{
+			// lootof i|last — the loot setting of object i of the first group ("" when it has none stored)
+			int loi = a[1].ToInt();
+			if (a[1] == "last")
+				loi = inst.GetChildren(FirstGroup(inst)).Count() - 1;
+			string loid = ObjectAt(inst, loi);
+			int lov;
+			string los;
+			inst.GetCompanion(loid, DZS_LootPlugin.SETTING, lov, los);
+			string lon;
+			inst.GetField(loid, DZS_Obj.NAME, lon);
+			Log("lootof " + a[1] + " (" + loid + " " + lon + "): '" + los + "'");
+		}
 		else if (c == "sel")
 		{
 			// sel 0,2,3 — select objects by index (first is the lead)

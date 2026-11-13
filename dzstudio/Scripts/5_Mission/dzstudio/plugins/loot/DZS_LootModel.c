@@ -82,6 +82,15 @@ class DZS_LootFiles : Managed
 		return f;
 	}
 
+	// The working folder's files are read ahead and there to take.
+	static bool HasReady(string folder)
+	{
+		string a = DZS_LocalStore.Path(folder, PROTO);
+		string b = DZS_LocalStore.Path(folder, POS);
+		string c = DZS_LocalStore.Path(folder, LIMITS);
+		return s_Ready && s_Ready.Contains(ReadyKey(a, b, c, true));
+	}
+
 	// From texts fetched in a shared session (no folder); the name lists from the vanilla state of the map, if fetched.
 	static DZS_LootFiles FromChunks(array<string> pc, array<string> qc, string limitsPath)
 	{
@@ -899,16 +908,18 @@ class DZS_LootFiles : Managed
 	}
 }
 
-// Reading the loot files ahead over several frames (opening a project with loot on, switching loot on): the project
-// folder's files and its base's, each checksummed and parsed in steps; DZS_LootFiles.Read and ReadBase then take them
-// instead of reading them in one frame (seconds for a map's 2.8 MB).
+// Reading the loot files ahead over several frames (while a project opens, or after it for one without loot of its
+// own): the project folder's files and its base's, each checksummed and parsed in steps; DZS_LootFiles.Read and
+// ReadBase then take them instead of reading them in one frame (seconds for a map's 2.8 MB).
 class DZS_LootPrefetch : DZS_Job
 {
 	protected ref array<ref DZS_LootFiles> m_Reads = new array<ref DZS_LootFiles>();
 	protected int m_At;
+	string m_Folder;
 
 	void DZS_LootPrefetch(string folder, string baseProto, string baseLimits)
 	{
+		m_Folder = folder;
 		m_De = "Loot wird gelesen";
 		m_En = "Reading the loot";
 		m_Cancelable = true;

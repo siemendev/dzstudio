@@ -88,6 +88,8 @@ class DZS_OpenJob : Managed
 	bool m_WorkBuilt;
 	// the loot files read ahead while the groups are read
 	ref DZS_LootPrefetch m_LootRead;
+	// the opening waits for m_LootRead (the project has loot of its own)
+	bool m_LootWait;
 	// the index for the file's entity extensions, built while the scene shows the objects (started in the frame after
 	// the load while m_IndexDue)
 	ref DZS_ProjectBuild m_Index;
@@ -1604,7 +1606,8 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		DZS_OpBuilder b = inst.BeginOperation("core:load", 1);
 		j.m_B = b;
 		map<string, string> pfields = new map<string, string>();
-		pfields.Set("lootEnabled", DZS_Str.Bool(pf.m_LootEnabled));
+		pfields.Set("lootEnabled", "false");
+		pfields.Set("lootPlace", DZS_Str.Bool(pf.m_LootPlace));
 		pfields.Set("lootHidden", DZS_Str.Bool(pf.m_LootHidden));
 		pfields.Set("lootLocked", DZS_Str.Bool(pf.m_LootLocked));
 		pfields.Set("writtenTypes", WrittenJson(pf.m_WrittenTypes, pf.m_WrittenOrig));
@@ -1624,11 +1627,6 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		DZS_StoreProvider chp = ProviderOf(folder);
 		if (chp && chp.PartChanged(folder))
 			manifestMissing = true;
-		if (!pf.m_LootEnabled && pf.m_WrittenTypes.Count() > 0)
-		{
-			issues.Add(DZS_Issue.WARNING, "Loot ist aus, aber " + pf.m_WrittenTypes.Count() + " geschriebene Typen sind noch nicht zurückgesetzt — das nächste Speichern setzt sie zurück", "Loot is off, but " + pf.m_WrittenTypes.Count() + " written types are not reset yet — the next save resets them");
-			manifestMissing = true;
-		}
 		j.m_ManifestMissing = manifestMissing;
 		if (!sliced)
 		{
@@ -1642,10 +1640,11 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		j.m_Phase = DZS_OpenJob.GROUPS;
 		// the loot files the loot plugin reads when the project is shown: read ahead while the groups are read
 		DZS_LootFiles.DropReady();
-		if (pf.m_LootEnabled && j.m_Skip == 0 && DZS_LootFiles.Present(src))
+		if (j.m_Skip == 0 && DZS_LootFiles.Present(src))
 		{
 			j.m_LootRead = DZS_LootPlugin.StartPrefetch(src, op.m_MapKey);
-			j.m_LootRead.m_Quiet = true;
+			j.m_LootWait = pf.m_LootEnabled || pf.m_WrittenTypes.Count() > 0 || pf.m_ProjectId != "" || (op.m_Origin && op.m_Origin.m_OwnTypes.Count() + op.m_Origin.m_OwnRows.Count() > 0);
+			j.m_LootRead.m_Quiet = j.m_LootWait;
 		}
 		if (j.m_Progress)
 		{
@@ -1757,14 +1756,14 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			float gs = j.Share();
 			if (grouped)
 				gs = 1;
-			bool lootRead = !j.m_LootRead || j.m_LootRead.m_Done;
+			bool lootRead = !j.m_LootRead || j.m_LootRead.m_Done || !j.m_LootWait;
 			if (grouped && lootRead)
 			{
 				j.m_Phase = DZS_OpenJob.LOAD;
 				j.m_Progress.SetShare(j.Scaled(0.9));
 				j.m_Progress.AllowCancel(false);
 			}
-			else if (j.m_LootRead)
+			else if (j.m_LootRead && j.m_LootWait)
 				j.m_Progress.SetShare(j.Scaled(0.9 * (0.4 * gs + 0.6 * j.m_LootRead.m_Share)));
 			else
 				j.m_Progress.SetShare(j.Scaled(0.9 * gs));
@@ -2066,8 +2065,12 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			j.m_Lp.Opened(folder);
 		m_Kernel.AddLoaded(inst);
 		tk = TickCount(0);
+		bool reading = j.m_LootRead && !j.m_LootRead.m_Done;
+		if (reading)
+			DZS_LootPlugin.Hand(j.m_LootRead);
 		m_Kernel.ShowInstance(inst);
-		DZS_LootFiles.DropReady();
+		if (!reading)
+			DZS_LootFiles.DropReady();
 		// the file's entity extensions go to the model by the index of the loaded state: a big project's is built over
 		// the next frames while the scene shows its objects, and the extensions follow when it is there
 		if (j.m_Sliced && DZS_EntityExts.Pending() > 0)
@@ -3123,18 +3126,15 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		DZS_SavePlan plan = b.m_Plan;
 		bool noLoot = b.m_NoLoot;
 		array<string> entries = b.m_Entries;
-		string le, lh, ll;
-		inst.GetField(DZS_PROJECT_ID, "lootEnabled", le);
+		string lp, lh, ll;
+		inst.GetField(DZS_PROJECT_ID, "lootPlace", lp);
 		inst.GetField(DZS_PROJECT_ID, "lootHidden", lh);
 		inst.GetField(DZS_PROJECT_ID, "lootLocked", ll);
 		array<string> types = new array<string>();
 		array<string> origs = new array<string>();
 		DZS_SaveContributor contributor = DZS_SaveContributor.Cast(m_Kernel.GetService("save.loot"));
 		if (noLoot)
-		{
 			contributor = null;
-			le = "false";
-		}
 		if (contributor)
 		{
 			array<ref DZS_SaveFileOut> extra = new array<ref DZS_SaveFileOut>();
@@ -3145,7 +3145,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		inst.GetCompanion(DZS_PROJECT_ID, DZS_LocalStore.GROUP_PLUGINS, pv, pplugins);
 		pplugins = DZS_ProjectSections.Merge(inst, pplugins);
 		array<string> none = new array<string>();
-		b.m_ProjectPart = DZS_ProjectFile.ProjectPart(entries, le == "true", lh == "true", ll == "true", "", none, none, true, pplugins);
+		b.m_ProjectPart = DZS_ProjectFile.ProjectPart(entries, lp == "true", lh == "true", ll == "true", "", none, none, true, pplugins);
 		b.m_Build = DZS_ProjectBuild.Make(m_Kernel, inst, m_Open.m_Name, m_Open.m_MapKey, noLoot, false);
 		b.m_Build.m_KeepSlug = m_Open.m_Folder.IndexOf("@") == 0 || m_Open.m_Provider == "shared";
 		b.m_Build.StampGen(b.m_Gen);

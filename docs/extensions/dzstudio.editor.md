@@ -5,7 +5,7 @@ Extension URL: `https://developers.dzbot.de/specs/dzstudio/editor/1.json` (spec 
 What only dzStudio needs to show a project the way it was left: its name, the base it is applied to, its groups as
 the project bar shows them, the loot editor's switches, plugin state and the camera. dzStudio writes it on every save;
 other programs keep it as it is. Not `required`: without it, dzStudio opens the project with defaults (each spawner
-block becomes a group named after the block, loot off, the camera at the map's default).
+block becomes a group named after the block, new objects placed without loot, the camera at the map's default).
 
 ```json
 "extensions": {
@@ -19,7 +19,7 @@ block becomes a group named after the block, loot off, the camera at the map's d
             "objects": [ { "index": 3, "name": "Land_Mil_Tower_Small", "pos": [4520.5, 312.25, 10210.0], "hidden": true, "locked": false } ],
             "plugins": {} }
         ],
-        "loot": { "enabled": false, "hidden": false, "locked": false, "projectId": null, "writtenTypes": [] },
+        "loot": { "placeWithLoot": false, "hidden": false, "locked": false, "projectId": null, "writtenTypes": [] },
         "plugins": {}
       },
       "view": { "camera": { "pos": [4500.0, 340.0, 10180.0], "heading": 45.0, "pitch": -20.0 } }
@@ -39,8 +39,11 @@ block becomes a group named after the block, loot off, the camera at the map's d
   - `groups` — one entry per group, in the bar's order: `block` (the id of its `spawnerGroup` block), `name`, `color`
     (`#RRGGBB`), `hidden`, `locked`, `objectCount`; `objects` lists only objects that are hidden or locked (`index` in
     the block's `objects`, `name`, `pos`); `plugins` holds per-group data of plugins by plugin name.
-  - `loot` — the loot editor: `enabled`, `hidden`, `locked`; `projectId` and `writtenTypes` are kept for files that
-    came from older versions.
+  - `loot` — the loot editor: `placeWithLoot` (the placement mode: objects placed new from the catalogue get loot —
+    the type's own points, else the base's — only while it is `true`; missing means `false`), `hidden`, `locked`;
+    `projectId` and `writtenTypes` are kept for files that came from older versions. Loot itself is not switched per
+    project: dzStudio edits it wherever it can read the base's loot files. An `enabled` written by an older version is
+    read without effect and not written again.
   - `plugins` — per-project data of plugins by plugin name.
 - `view` — `camera`: `pos` `[x, y, z]`, `heading` and `pitch` in degrees.
 

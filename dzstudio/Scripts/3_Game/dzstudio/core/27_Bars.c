@@ -1,3 +1,72 @@
+// Segments in the tool slot (group "segments"): a muted label, then one segment per action in a common frame; the
+// checked action's segment shows in the active tool's accent.
+class DZS_TopSegments : Managed
+{
+	string m_Id;
+	protected Widget m_Frame;
+	protected TextWidget m_Label;
+	protected ref DZS_Border m_Border;
+	ref array<ref DZS_Button> m_Buttons = new array<ref DZS_Button>();
+	ref array<string> m_Ids = new array<string>();
+
+	void DZS_TopSegments(Widget parent, DZS_ToolInfo t)
+	{
+		m_Id = t.m_Id;
+		m_Frame = DZS_W.Frame(parent);
+		m_Label = DZS_W.Text(m_Frame, DZS_Font.LABEL, 11, DZS_Color.Get("textMuted"));
+		string name = DZS_Texts.Pick(t.m_NameDe, t.m_NameEn);
+		m_Label.SetText(DZS_Texts.Upper(name));
+		m_Border = new DZS_Border(m_Frame, DZS_Color.Get("lineStrong"));
+		for (int i = 0; i < t.m_Segments.Count(); i++)
+		{
+			string label = DZS_Texts.Pick(t.m_SegmentsDe[i], t.m_SegmentsEn[i]);
+			DZS_Button b = new DZS_Button(m_Frame, "ghost", label, "", 32);
+			b.m_Tag = t.m_Segments[i];
+			b.m_Hit.m_FocusKind = "";
+			m_Buttons.Insert(b);
+			m_Ids.Insert(t.m_Segments[i]);
+		}
+	}
+
+	float Width()
+	{
+		float w = DZS_W.TextWidth(m_Label) + DZS_Scale.Px(8);
+		foreach (DZS_Button b : m_Buttons)
+			w += b.GetWidth();
+		return w;
+	}
+
+	// Placed at x in a bar of height h with the buttons at y; returns the right edge.
+	float Place(float x, float y, float h)
+	{
+		float w = Width();
+		DZS_W.Place(m_Frame, x, 0, w, h);
+		float lw = DZS_W.TextWidth(m_Label);
+		DZS_W.Place(m_Label, 0, 0, lw + 2, h);
+		float bx = lw + DZS_Scale.Px(8);
+		float x0 = bx;
+		float bh = 0;
+		foreach (DZS_Button b : m_Buttons)
+		{
+			b.Place(bx, y);
+			bx += b.GetWidth();
+			bh = b.GetHeight();
+		}
+		m_Border.Place(x0, y, bx - x0, bh);
+		return x + w;
+	}
+
+	void Destroy()
+	{
+		foreach (DZS_Button b : m_Buttons)
+			b.Destroy();
+		m_Buttons.Clear();
+		if (m_Frame)
+			m_Frame.Unlink();
+		m_Frame = null;
+	}
+}
+
 // The fixed bars of the screen layout: the top bar (brand, menus, the active layer's tools, global switches,
 // undo/redo, provider plate, "Save"), the layer rail at the left edge and the two side bars with their sections.
 class DZS_TopBar : DZS_HitListener
@@ -18,6 +87,7 @@ class DZS_TopBar : DZS_HitListener
 	protected ref array<string> m_ToolIds;
 	protected ref map<string, ref DZS_Button> m_Arrows;
 	protected ref array<string> m_ToolIcons;
+	protected ref array<ref DZS_TopSegments> m_Segs;
 	protected ref array<ref DZS_Button> m_Switches;
 	protected ref array<string> m_SwitchIds;
 	protected Widget m_Sep;
@@ -58,6 +128,7 @@ class DZS_TopBar : DZS_HitListener
 		m_ToolIds = new array<string>();
 		m_Arrows = new map<string, ref DZS_Button>();
 		m_ToolIcons = new array<string>();
+		m_Segs = new array<ref DZS_TopSegments>();
 		m_Switches = new array<ref DZS_Button>();
 		m_SwitchIds = new array<string>();
 		m_Globals = new array<ref DZS_Button>();
@@ -110,6 +181,9 @@ class DZS_TopBar : DZS_HitListener
 			os.Destroy();
 		foreach (DZS_Button og : m_Globals)
 			og.Destroy();
+		foreach (DZS_TopSegments osg : m_Segs)
+			osg.Destroy();
+		m_Segs.Clear();
 		m_Arrows.Clear();
 		m_ToolIcons.Clear();
 		m_Tools.Clear();
@@ -124,6 +198,16 @@ class DZS_TopBar : DZS_HitListener
 		{
 			if (DZS_UiRegistry.ToolLayer(t) == layer)
 				AddTool(t, m_Tools, m_ToolIds);
+		}
+		array<DZS_ToolInfo> segs = m_Ui.GetTools("segments");
+		foreach (DZS_ToolInfo sgt : segs)
+		{
+			if (DZS_UiRegistry.ToolLayer(sgt) != layer)
+				continue;
+			DZS_TopSegments sg = new DZS_TopSegments(m_Surface.m_W, sgt);
+			foreach (DZS_Button sb : sg.m_Buttons)
+				sb.m_OnClick.Insert(OnSegmentClick);
+			m_Segs.Insert(sg);
 		}
 		array<DZS_ToolInfo> sw = m_Ui.GetTools("switches");
 		foreach (DZS_ToolInfo s : sw)
@@ -172,6 +256,11 @@ class DZS_TopBar : DZS_HitListener
 		m_Ui.m_FromArrow = false;
 	}
 
+	void OnSegmentClick(DZS_Button b)
+	{
+		m_Ui.Trigger(b.m_Tag);
+	}
+
 	void OnToolClick(DZS_Button b)
 	{
 		DZS_ToolInfo t = m_Ui.GetTool(b.m_Tag);
@@ -214,6 +303,8 @@ class DZS_TopBar : DZS_HitListener
 			if (ab)
 				RefreshToolButton(ab, ab.m_Tag, blockedWhy);
 		}
+		foreach (DZS_TopSegments sg : m_Segs)
+			RefreshSegments(sg, blockedWhy);
 		RefreshSwitches(m_Switches, m_SwitchIds, blockedWhy);
 		RefreshSwitches(m_Globals, m_GlobalIds, blockedWhy);
 		string rd, re;
@@ -247,6 +338,36 @@ class DZS_TopBar : DZS_HitListener
 			DZS_Button sa = m_Arrows.Get(sid);
 			if (sa)
 				RefreshToolButton(sa, sa.m_Tag, blockedWhy);
+		}
+	}
+
+	protected void RefreshSegments(DZS_TopSegments sg, string blockedWhy)
+	{
+		DZS_ToolInfo t = m_Ui.GetTool(sg.m_Id);
+		for (int i = 0; i < sg.m_Buttons.Count(); i++)
+		{
+			DZS_Button b = sg.m_Buttons[i];
+			string id = sg.m_Ids[i];
+			string rd, re;
+			bool on = m_Ui.IsActionEnabled(id, rd, re);
+			string reason = DZS_Texts.Pick(rd, re);
+			if (blockedWhy != "")
+			{
+				on = false;
+				reason = blockedWhy;
+			}
+			b.SetOn(m_Ui.IsActionChecked(id));
+			b.SetEnabled(on, reason);
+			string tip = "";
+			if (t && t.m_TipDe != "")
+				tip = DZS_Texts.Pick(t.m_TipDe, t.m_TipEn);
+			else
+			{
+				DZS_Action a = m_Ui.GetAction(id);
+				if (a)
+					tip = a.Name();
+			}
+			b.SetTipAction(tip, id);
 		}
 	}
 
@@ -389,6 +510,8 @@ class DZS_TopBar : DZS_HitListener
 
 		// the active layer's tool slot: its tools, then its switches and commands
 		x = PlaceRow(m_Tools, m_ToolIds, x, y, gap);
+		foreach (DZS_TopSegments psg : m_Segs)
+			x = psg.Place(x + DZS_Scale.Px(10), y, h) + gap;
 		int shownSwitches = 0;
 		foreach (DZS_Button cs : m_Switches)
 		{

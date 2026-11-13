@@ -86,3 +86,28 @@ class DZS_SelectionApi : Managed
 	bool HandIsTemplate() { return false; }
 	bool PlaceHandAt(float x, float z) { return false; }
 }
+
+// Companions a plugin gives an object placed new from the catalogue or a template (not a copy, paste or brush stroke).
+class DZS_PlaceCompanions : Managed
+{
+	protected static ref map<string, ref DZS_PlaceCompanions> s_All;
+
+	static void Set(string key, DZS_PlaceCompanions c)
+	{
+		if (!s_All)
+			s_All = new map<string, ref DZS_PlaceCompanions>();
+		s_All.Set(key, c);
+	}
+
+	static array<ref DZS_Companion> For(DZS_Instance inst, string name)
+	{
+		array<ref DZS_Companion> r = new array<ref DZS_Companion>();
+		if (!s_All)
+			return r;
+		foreach (string k, DZS_PlaceCompanions c : s_All)
+			c.Add(inst, name, r);
+		return r;
+	}
+
+	void Add(DZS_Instance inst, string name, array<ref DZS_Companion> into) {}
+}

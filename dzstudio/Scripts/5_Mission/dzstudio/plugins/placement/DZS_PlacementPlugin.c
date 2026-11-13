@@ -1155,7 +1155,10 @@ class DZS_PlacementPlugin : DZS_Plugin
 			id = b.Create(DZS_KIND_OBJECT, group, DZS_END, d.m_Fields, false, false, comps);
 		}
 		else
-			id = b.Create(DZS_KIND_OBJECT, group, DZS_END, Fields(m_HandObj.m_Name, m_HandObj.m_Pos, m_HandObj.m_Ypr, m_HandScale));
+		{
+			array<ref DZS_Companion> fresh = DZS_PlaceCompanions.For(inst, m_HandObj.m_Name);
+			id = b.Create(DZS_KIND_OBJECT, group, DZS_END, Fields(m_HandObj.m_Name, m_HandObj.m_Pos, m_HandObj.m_Ypr, m_HandScale), false, false, fresh);
+		}
 		DZS_SubmitResult r = b.Commit(DZS_Texts.Get("placement.op.place") + ": " + Shown(m_HandObj.m_Name), "Place: " + m_HandObj.m_Name);
 		if (!r.Ok())
 			return;
@@ -4547,6 +4550,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 				for (int c = 0; c < d.m_Companions.Count(); c++)
 					comps.Insert(d.m_Companions.GetElement(c));
 			}
+			else
+				comps = DZS_PlaceCompanions.For(inst, p.m_Name);
 			if (extra)
 			{
 				map<string, string> ef = extra[i];

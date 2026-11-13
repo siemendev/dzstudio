@@ -2469,12 +2469,6 @@ class DZS_CollabPlugin : DZS_Plugin
 	{
 		if (!m_S || !m_S.m_Ready)
 			return false;
-		if (m_S.IsGuest() && id == "loot.toggle" && !m_Kernel.GetUi().IsActionChecked("loot.toggle"))
-		{
-			de = "Loot einschalten kann nur " + m_S.m_HostName;
-			en = "Only " + m_S.m_HostName + " can turn loot on";
-			return true;
-		}
 		if (!m_S.m_Lost)
 			return false;
 		array<string> free = {"placement.selectAll", "placement.selectSame", "placement.deselect", "placement.invert", "placement.focus", "placement.copy", "placement.copyText", "placement.tab", "placement.tool.select", "placement.tool.move", "placement.tool.rotate", "placement.tool.scale", "placement.toolCycle", "placement.followSlope", "placement.axis"};

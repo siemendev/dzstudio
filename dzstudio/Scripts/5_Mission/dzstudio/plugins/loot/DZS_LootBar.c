@@ -6,7 +6,7 @@ class DZS_LootBarGroup : DZS_BarGroup
 	protected string m_MenuType;
 
 	override string GetKey() { return "loot"; }
-	override bool IsShown(DZS_Instance inst) { return m_P.IsOn(); }
+	override bool IsShown(DZS_Instance inst) { return m_P.IsOn() && (m_P.m_Editor.IsOn() || m_P.ListedTypes(inst).Count() > 0); }
 	override string GetName() { return DZS_Texts.Get("loot.row"); }
 
 	override string GetSub(DZS_Instance inst)

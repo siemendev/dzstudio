@@ -201,7 +201,9 @@ class DZS_PFData : Managed
 	string m_MapRaw;
 	bool m_HasProject;
 	ref array<ref DZS_PFGroup> m_Groups;
+	// "enabled" of a file from an older version
 	bool m_LootEnabled;
+	bool m_LootPlace;
 	bool m_LootHidden;
 	bool m_LootLocked;
 	ref array<string> m_WrittenTypes;
@@ -591,8 +593,8 @@ class DZS_ProjectFile
 		DZS_SrcNode loot = proj.Get("loot");
 		if (loot && loot.IsObj())
 		{
-			if (!Bool(loot.Get("enabled"), d.m_LootEnabled))
-				d.m_Issues.Add(DZS_Issue.WARNING, "project.loot.enabled ist ungültig — Loot aus", "project.loot.enabled is invalid — loot off");
+			Bool(loot.Get("enabled"), d.m_LootEnabled);
+			Bool(loot.Get("placeWithLoot"), d.m_LootPlace);
 			Bool(loot.Get("hidden"), d.m_LootHidden);
 			Bool(loot.Get("locked"), d.m_LootLocked);
 			DZS_SrcNode pid = loot.Get("projectId");
@@ -639,7 +641,7 @@ class DZS_ProjectFile
 				d.m_Issues.Add(DZS_Issue.WARNING, "project.loot.writtenTypes ist ungültig", "project.loot.writtenTypes is invalid");
 		}
 		else
-			d.m_Issues.Add(DZS_Issue.WARNING, "project.loot fehlt — Loot aus", "project.loot is missing — loot off");
+			d.m_Issues.Add(DZS_Issue.WARNING, "project.loot fehlt", "project.loot is missing");
 		d.m_Plugins = PluginEntries(doc, proj.Get("plugins"));
 	}
 
@@ -813,7 +815,7 @@ class DZS_ProjectFile
 
 	// The project part, from "{" to its closing "}" (no comma); depends only on the project state. originals "" =
 	// null; namesOnly for a provider's manifest (no projectId, no original texts).
-	static string ProjectPart(array<string> groupEntries, bool lootEnabled, bool lootHidden, bool lootLocked, string projectId, array<string> writtenTypes, array<string> originals, bool namesOnly, string pluginEntries)
+	static string ProjectPart(array<string> groupEntries, bool lootPlace, bool lootHidden, bool lootLocked, string projectId, array<string> writtenTypes, array<string> originals, bool namesOnly, string pluginEntries)
 	{
 		string s = "{\n";
 		if (groupEntries.Count() == 0)
@@ -831,9 +833,9 @@ class DZS_ProjectFile
 			s += I(2) + "],\n";
 		}
 		s += I(2) + "\"loot\": {\n";
-		s += I(3) + "\"enabled\": " + B(lootEnabled) + ",\n";
-		s += I(3) + "\"hidden\": " + B(lootEnabled && lootHidden) + ",\n";
-		s += I(3) + "\"locked\": " + B(lootEnabled && lootLocked) + ",\n";
+		s += I(3) + "\"placeWithLoot\": " + B(lootPlace) + ",\n";
+		s += I(3) + "\"hidden\": " + B(lootHidden) + ",\n";
+		s += I(3) + "\"locked\": " + B(lootLocked) + ",\n";
 		if (projectId == "" || namesOnly)
 			s += I(3) + "\"projectId\": null,\n";
 		else

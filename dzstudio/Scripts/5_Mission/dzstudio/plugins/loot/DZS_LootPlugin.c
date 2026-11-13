@@ -1,13 +1,21 @@
-// Loot: switch per project, setting per object derived from
-// mapgrouppos.xml, own entries as elements "loot:entry" of the project state (one per type, its content as text),
-// rows and entries written back on every save, the files followed after writing instead of read again, preview of the
-// points of one selected object. The base state is the vanilla state fetched into the profile folder, else the
-// working state as read when loot was switched on or the project opened.
+// Loot: always on where the project's loot files can be read (the working folder, or the folder of an older project);
+// setting per object derived from mapgrouppos.xml, own entries as elements "loot:entry" of the project state (one per
+// type, its content as text), rows and entries written back on every save, the files followed after writing instead of
+// read again, preview of the points of one selected object. The base state is the vanilla state fetched into the
+// profile folder, else the working state as read when the project opened. New objects get loot only in the placement
+// mode "with loot" (project field lootPlace).
 class DZS_LootActions : DZS_ActionHandler
 {
 	DZS_LootPlugin m_P;
 
-	override bool IsActionChecked(string actionId) { return actionId == "loot.toggle" && m_P.IsOn(); }
+	override bool IsActionChecked(string actionId)
+	{
+		if (actionId == DZS_LootPlugin.PLACE_ON)
+			return m_P.PlaceOn();
+		if (actionId == DZS_LootPlugin.PLACE_OFF)
+			return !m_P.PlaceOn();
+		return false;
+	}
 
 	override bool IsActionEnabled(string actionId, out string reasonDe, out string reasonEn)
 	{
@@ -17,12 +25,15 @@ class DZS_LootActions : DZS_ActionHandler
 			reasonEn = "No project open";
 			return false;
 		}
-		if ((actionId == "loot.toggle" || actionId == "loot.edit") && m_P.m_WaitDe != "")
+		bool place = actionId == DZS_LootPlugin.PLACE_ON || actionId == DZS_LootPlugin.PLACE_OFF;
+		if ((place || actionId == "loot.edit") && m_P.m_WaitDe != "")
 		{
 			reasonDe = m_P.m_WaitDe;
 			reasonEn = m_P.m_WaitEn;
 			return false;
 		}
+		if (place)
+			return m_P.Available(reasonDe, reasonEn);
 		if (actionId == "loot.vanilla" && m_P.m_Fetch)
 		{
 			reasonDe = "Wird gerade geladen";
@@ -36,12 +47,27 @@ class DZS_LootActions : DZS_ActionHandler
 
 	override void OnAction(string actionId)
 	{
-		if (actionId == "loot.toggle")
-			m_P.Toggle();
+		if (actionId == DZS_LootPlugin.PLACE_ON)
+			m_P.SetPlace(true);
+		else if (actionId == DZS_LootPlugin.PLACE_OFF)
+			m_P.SetPlace(false);
 		else if (actionId == "loot.vanilla")
 			m_P.AskVanilla();
 		else if (actionId == "loot.edit")
 			m_P.EditSelected();
+	}
+}
+
+// New objects placed from the catalogue or a template: the setting the placement mode gives them.
+class DZS_LootPlaceSetting : DZS_PlaceCompanions
+{
+	DZS_LootPlugin m_P;
+
+	override void Add(DZS_Instance inst, string name, array<ref DZS_Companion> into)
+	{
+		string s = m_P.PlaceSetting(inst, name);
+		if (s != DZS_LootPlugin.NONE)
+			into.Insert(new DZS_Companion(DZS_LootPlugin.SETTING, 1, s));
 	}
 }
 
@@ -170,8 +196,11 @@ class DZS_LootPlugin : DZS_Plugin
 	// "as before": the points of the base state
 	static const string VANILLA = "base";
 	static const string OWN = "own";
+	static const string PLACE_OFF = "loot.place.off";
+	static const string PLACE_ON = "loot.place.on";
 
 	protected ref DZS_LootActions m_Actions;
+	protected ref DZS_LootPlaceSetting m_PlaceSetting;
 	protected ref DZS_LootSave m_Save;
 	protected ref DZS_LootRowUi m_Row;
 	ref DZS_LootFiles m_Files;
@@ -233,9 +262,17 @@ class DZS_LootPlugin : DZS_Plugin
 		m_Actions.m_P = this;
 		DZS_UiRegistry ui = m_Kernel.GetUi();
 		ui.RegisterKeyGroup("loot", "Loot", "Loot");
-		ui.RegisterAction("loot", "loot.toggle", "Loot", "Loot", null, m_Actions);
-		ui.SetGroup("loot.toggle", "loot");
-		ui.AddMenuEntry("project", "loot.toggle", 450, true);
+		ui.RegisterAction("loot", PLACE_OFF, "Ohne Loot platzieren", "Place without loot", null, m_Actions);
+		ui.SetGroup(PLACE_OFF, "loot");
+		ui.SetActionLayer(PLACE_OFF, DZS_UiRegistry.LAYER_OBJECTS);
+		ui.RegisterAction("loot", PLACE_ON, "Mit Loot platzieren", "Place with loot", null, m_Actions);
+		ui.SetGroup(PLACE_ON, "loot");
+		ui.SetActionLayer(PLACE_ON, DZS_UiRegistry.LAYER_OBJECTS);
+		array<string> segs = {PLACE_OFF, PLACE_ON};
+		array<string> segsDe = {"Aus", "An"};
+		array<string> segsEn = {"Off", "On"};
+		ui.RegisterSegments("loot", "loot.place", "Loot", "Loot", segs, segsDe, segsEn, 15);
+		ui.SetToolTip("loot.place", "Neue Objekte mit Loot platzieren", "Place new objects with loot", "");
 		ui.RegisterAction("loot", "loot.vanilla", "Vanilla-Stand holen …", "Fetch vanilla state …", null, m_Actions);
 		ui.SetGroup("loot.vanilla", "loot");
 		ui.AddMenuEntry("project", "loot.vanilla", 451);
@@ -244,6 +281,9 @@ class DZS_LootPlugin : DZS_Plugin
 		ui.SetActionLayer("loot.edit", DZS_UiRegistry.LAYER_OBJECTS);
 		m_Save = new DZS_LootSave();
 		m_Save.m_P = this;
+		m_PlaceSetting = new DZS_LootPlaceSetting();
+		m_PlaceSetting.m_P = this;
+		DZS_PlaceCompanions.Set("loot", m_PlaceSetting);
 		m_MapMenu = new DZS_LootMapMenu();
 		m_MapMenu.m_P = this;
 		DZS_MapObjectMenu.AddSource(m_MapMenu);
@@ -272,13 +312,14 @@ class DZS_LootPlugin : DZS_Plugin
 		DZS_Texts.Add("loot.edit", "Bearbeiten", "Edit");
 		DZS_Texts.Add("loot.noVanilla", "Vor dem Projekt hatte dieser Typ keinen Loot-Eintrag", "This type had no loot entry before the project");
 		DZS_Texts.Add("loot.noEntry", "Typ hat keinen Loot-Eintrag — bekommt keinen Loot", "Type has no loot entry — gets no loot");
-		DZS_Texts.Add("loot.cannotTitle", "Loot lässt sich nicht einschalten", "Loot cannot be switched on");
-		DZS_Texts.Add("loot.cannotText", "Die Basis des Projekts hat keine mapgroupproto.xml und mapgrouppos.xml. Wähle unter Projekt › Auf Missionsordner anwenden … Vanilla oder einen Missionsordner mit beiden Dateien und öffne das Projekt neu.", "The project's base has no mapgroupproto.xml and mapgrouppos.xml. Choose vanilla or a mission folder with both files under Project › Apply to mission folder … and open the project again.");
+		DZS_Texts.Add("loot.cannotText", "Loot nicht verfügbar: Die Basis des Projekts hat keine mapgroupproto.xml und mapgrouppos.xml. Wähle unter Projekt › Auf Missionsordner anwenden … Vanilla oder einen Missionsordner mit beiden Dateien und öffne das Projekt neu.", "Loot not available: the project's base has no mapgroupproto.xml and mapgrouppos.xml. Choose vanilla or a mission folder with both files under Project › Apply to mission folder … and open the project again.");
+		DZS_Texts.Add("loot.notHere", "Loot gibt es für dieses Projekt nicht", "There is no loot for this project");
+		DZS_Texts.Add("loot.notInSession", "Loot ist in dieser Sitzung nicht verfügbar", "Loot is not available in this session");
+		DZS_Texts.Add("loot.fetching", "Loot-Dateien der Basis werden geladen …", "Loading the base's loot files …");
+		DZS_Texts.Add("loot.reading", "Loot wird gelesen …", "Reading the loot …");
+		DZS_Texts.Add("loot.placeOn", "Mit Loot platzieren: an", "Place with loot: on");
+		DZS_Texts.Add("loot.placeOff", "Mit Loot platzieren: aus", "Place with loot: off");
 		DZS_Texts.Add("loot.unreadable", "%1 ist nicht lesbar: %2", "%1 is not readable: %2");
-		DZS_Texts.Add("loot.noBase", "Kein Vanilla-Stand — „wie Vanilla“ und „vorher angepasst“ lassen sich nicht unterscheiden. Hol ihn mit Projekt › Vanilla-Stand holen …", "No vanilla state — \"As vanilla\" and \"Customised before\" cannot be told apart. Fetch it with Project › Fetch vanilla state …");
-		DZS_Texts.Add("loot.on", "Loot einschalten", "Turn on loot");
-		DZS_Texts.Add("loot.off", "Loot ausschalten", "Turn loot off");
-		DZS_Texts.Add("loot.offQ", "Beim nächsten Speichern entfernt der Editor %1 und setzt %2 zurück bzw. entfernt sie; eigene Punkte von %3 gehen verloren.", "At the next save the editor removes %1 and resets or removes %2; own points of %3 are lost.");
 		DZS_Texts.Add("loot.change", "%1: Loot ändern", "%1: Change loot");
 		DZS_Texts.Add("loot.changeN", "%1 Objekte: Loot ändern", "%1 objects: Change loot");
 		DZS_Texts.Add("loot.typeQTitle", "Loot für den ganzen Typ", "Loot for the whole type");
@@ -292,7 +333,6 @@ class DZS_LootPlugin : DZS_Plugin
 		DZS_Texts.Add("loot.vanillaLoading", "Vanilla-Stand für %1 wird geladen …", "Vanilla state for %1 is loading …");
 		DZS_Texts.Add("loot.vanillaOk", "Vanilla-Stand für %1 geholt — gilt nach dem nächsten Öffnen des Projekts", "Vanilla state for %1 fetched — applies after the project is opened again");
 		DZS_Texts.Add("loot.vanillaFail", "Kein Vanilla-Stand (%1)", "No vanilla state (%1)");
-		DZS_Texts.Add("loot.vanillaUsed", "Vanilla-Stand: %1", "Vanilla state: %1");
 	}
 
 	override void OnSessionStart(string world)
@@ -387,16 +427,18 @@ class DZS_LootPlugin : DZS_Plugin
 			m_Texts.Set(f.m_PosSha, f.m_PosChunks);
 	}
 
-	// The state names every read loot file with its checksum; part of the load.
+	// Loot on, and the state names every read loot file with its checksum; part of the load.
 	protected void NameFiles(DZS_Instance inst)
 	{
 		string now = DZS_LootFiles.PROTO + " " + m_Files.m_ProtoSha + ", " + DZS_LootFiles.POS + " " + m_Files.m_PosSha;
 		m_FilesField = now;
-		string have;
+		string have, on;
 		inst.GetField(DZS_PROJECT_ID, "lootFiles", have);
-		if (have == now)
+		inst.GetField(DZS_PROJECT_ID, "lootEnabled", on);
+		if (have == now && on == "true")
 			return;
 		DZS_OpBuilder b = inst.BeginOperation("loot:edit", 1);
+		b.SetField(DZS_PROJECT_ID, "lootEnabled", "true");
 		b.SetField(DZS_PROJECT_ID, "lootFiles", now);
 		DZS_Operation op = b.GetOperation();
 		inst.SubmitSystem(op);
@@ -484,13 +526,64 @@ class DZS_LootPlugin : DZS_Plugin
 	{
 		m_Editor.Stop("");
 		DropFiles();
+		m_OffDe = "";
+		m_OffEn = "";
+		if (m_Reading)
+			DZS_Jobs.Cancel(m_Reading);
+		m_Reading = null;
+		DZS_LootPrefetch handed = s_Handed;
+		s_Handed = null;
 		if (!inst || (Skip() & 1) != 0)
+		{
+			if (handed)
+				DZS_Jobs.Cancel(handed);
 			return;
+		}
+		Activate(inst, handed);
+	}
+
+	// A read ahead the opening did not wait for (a project without loot of its own); the plugin goes on with it.
+	protected static ref DZS_LootPrefetch s_Handed;
+
+	static void Hand(DZS_LootPrefetch j)
+	{
+		s_Handed = j;
+	}
+
+	protected ref DZS_LootPrefetch m_Reading;
+
+	// Reads the project's loot files and turns loot on (part of the load); a project without loot of its own gets them
+	// read over the next frames first. Without them in the folder, a project of version 2 gets its base's files first,
+	// a shared session's project builds them from the held texts.
+	protected void Activate(DZS_Instance inst, DZS_LootPrefetch handed = null)
+	{
 		string folder = Folder();
 		m_FilesField = "";
-		if (folder == "" || !IsOn() || !DZS_LootFiles.Present(folder))
+		if (folder == "" || !DZS_LootFiles.Present(folder))
 		{
+			if (handed)
+				DZS_Jobs.Cancel(handed);
+			if (folder != "" && !IsOn() && Allowed() && Origin() && FetchBase(folder))
+				return;
 			TryTexts(inst);
+			if (!m_Files && folder != "")
+				Unavailable("loot.cannotText");
+			return;
+		}
+		if (!Allowed())
+		{
+			if (handed)
+				DZS_Jobs.Cancel(handed);
+			return;
+		}
+		if (handed && !handed.m_Done && handed.m_Folder == folder)
+		{
+			ReadFirst(handed);
+			return;
+		}
+		if (!DZS_LootFiles.HasReady(folder) && !OwnLoot(inst))
+		{
+			ReadFirst(StartPrefetch(folder, MapKey()));
 			return;
 		}
 		if (!ReadFiles(inst, folder, OpenIssues()))
@@ -500,6 +593,128 @@ class DZS_LootPlugin : DZS_Plugin
 		WrittenElements(inst);
 		if ((Skip() & 4) == 0)
 			DeriveSettings(inst);
+	}
+
+	protected void ReadFirst(DZS_LootPrefetch j)
+	{
+		m_Reading = j;
+		j.m_Cancelable = false;
+		j.m_OnDone.Insert(OnRead);
+		m_OffDe = DZS_Texts.FmtIn("loot.reading", true);
+		m_OffEn = DZS_Texts.FmtIn("loot.reading", false);
+		DZS_Log.Info("loot: files of " + j.m_Folder + " read over the next frames");
+	}
+
+	void OnRead(DZS_Job j)
+	{
+		if (j != m_Reading)
+			return;
+		m_Reading = null;
+		m_OffDe = "";
+		m_OffEn = "";
+		DZS_Instance inst = m_Kernel.GetShown();
+		if (!j.m_Cancelled && inst && !IsOn())
+			Activate(inst);
+		DZS_LootFiles.DropReady();
+	}
+
+	// Loot the project already has: written types, entries and rows it keeps, or the mark of an older project.
+	protected bool OwnLoot(DZS_Instance inst)
+	{
+		if (WrittenTypes(inst).Count() > 0 || Mark(inst) != "")
+			return true;
+		DZS_LootOrigin lo = Origin();
+		return lo && (lo.m_OwnTypes.Count() > 0 || lo.m_OwnRows.Count() > 0);
+	}
+
+	// Why loot is not there for the shown project (the placement mode's reason).
+	protected string m_OffDe;
+	protected string m_OffEn;
+
+	protected void Unavailable(string key, string a1 = "", string a2 = "")
+	{
+		if (m_OffDe != "")
+			return;
+		m_OffDe = DZS_Texts.FmtIn(key, true, a1, a2);
+		m_OffEn = DZS_Texts.FmtIn(key, false, a1, a2);
+	}
+
+	// A storage provider's project may keep no loot.
+	bool Allowed()
+	{
+		DZS_LootOrigin lo = Origin();
+		if (!lo && !Provider())
+			return true;
+		return lo && lo.m_NoDe == "";
+	}
+
+	bool Available(out string reasonDe, out string reasonEn)
+	{
+		if (IsOn() && m_Files)
+			return true;
+		if (m_BaseFetch)
+		{
+			reasonDe = DZS_Texts.FmtIn("loot.fetching", true);
+			reasonEn = DZS_Texts.FmtIn("loot.fetching", false);
+			return false;
+		}
+		DZS_LootOrigin lo = Origin();
+		if (lo && lo.m_NoDe != "")
+		{
+			reasonDe = lo.m_NoDe;
+			reasonEn = lo.m_NoEn;
+			return false;
+		}
+		if (!Allowed())
+		{
+			reasonDe = DZS_Texts.FmtIn("loot.notHere", true);
+			reasonEn = DZS_Texts.FmtIn("loot.notHere", false);
+			return false;
+		}
+		if (m_OffDe != "")
+		{
+			reasonDe = m_OffDe;
+			reasonEn = m_OffEn;
+			return false;
+		}
+		reasonDe = DZS_Texts.FmtIn("loot.notInSession", true);
+		reasonEn = DZS_Texts.FmtIn("loot.notInSession", false);
+		return false;
+	}
+
+	// ---- placement mode ----
+
+	bool PlaceOn()
+	{
+		DZS_Instance inst = m_Kernel.GetShown();
+		if (!inst)
+			return false;
+		string v;
+		inst.GetField(DZS_PROJECT_ID, "lootPlace", v);
+		return v == "true";
+	}
+
+	void SetPlace(bool on)
+	{
+		DZS_Instance inst = m_Kernel.GetShown();
+		if (!inst || PlaceOn() == on)
+			return;
+		DZS_OpBuilder b = inst.BeginOperation("loot:edit", 1);
+		b.SetField(DZS_PROJECT_ID, "lootPlace", DZS_Str.Bool(on));
+		string key = "loot.placeOff";
+		if (on)
+			key = "loot.placeOn";
+		DZS_SubmitResult r = b.Commit(DZS_Texts.FmtIn(key, true), DZS_Texts.FmtIn(key, false));
+		DZS_Log.Info("loot: place with loot " + on + " ok " + r.Ok());
+	}
+
+	// What a newly placed object of this type gets: nothing without the placement mode, else own points when the type
+	// has them, its base state's points when it had an entry.
+	string PlaceSetting(DZS_Instance inst, string name)
+	{
+		if (!inst || inst != m_Kernel.GetShown() || !PlaceOn() || !IsOn() || DZS_Obj.IsModelPath(name))
+			return NONE;
+		return DefaultFor(inst, name);
 	}
 
 	// The entries of the written types become elements at opening (part of the
@@ -635,7 +850,7 @@ class DZS_LootPlugin : DZS_Plugin
 
 	// Reads the working state and the vanilla state (the working folder's vanilla\, which DZS_WorkFolder.CopyLoot
 	// fills when the base is the vanilla mission, else the fetched one).
-	// ready: the files read already (Toggle's check), else they are read here
+	// ready: the files read already, else they are read here
 	protected bool ReadFiles(DZS_Instance inst, string folder, DZS_Issues issues = null, DZS_LootFiles ready = null)
 	{
 		DZS_LootFiles f = ready;
@@ -644,6 +859,7 @@ class DZS_LootPlugin : DZS_Plugin
 		if (f.m_Error != "")
 		{
 			DZS_Log.Warn("loot: " + f.m_ErrorFile + " unreadable: " + f.m_Error);
+			Unavailable("loot.unreadable", f.m_ErrorFile, f.m_Error);
 			return false;
 		}
 		DZS_LootOrigin lo = Origin();
@@ -1267,9 +1483,7 @@ class DZS_LootPlugin : DZS_Plugin
 		string data;
 		if (inst.GetCompanion(id, SETTING, v, data))
 			return data;
-		string name;
-		inst.GetField(id, DZS_Obj.NAME, name);
-		return DefaultFor(inst, name);
+		return NONE;
 	}
 
 	// After opening: the settings from the files, as a system change (no step).
@@ -1282,8 +1496,9 @@ class DZS_LootPlugin : DZS_Plugin
 			string want = Derived(inst, id);
 			int v;
 			string have;
-			bool has = inst.GetCompanion(id, SETTING, v, have);
-			if (!has || have != want)
+			if (!inst.GetCompanion(id, SETTING, v, have))
+				have = NONE;
+			if (have != want)
 				b.SetCompanion(id, SETTING, 1, want);
 		}
 		if (b.IsEmpty())
@@ -1293,10 +1508,7 @@ class DZS_LootPlugin : DZS_Plugin
 		DZS_Log.Info("loot: settings derived for " + op.CountChanges() + " object(s)");
 	}
 
-	// ---- switch ----
-
-	protected ref DZS_LootPrefetch m_Prefetch;
-	protected bool m_Prefetched;
+	// ---- files of the base ----
 
 	// The loot files of a working folder and of the base LoadBase will take, read ahead over the next frames.
 	static DZS_LootPrefetch StartPrefetch(string folder, string mapKey)
@@ -1321,129 +1533,8 @@ class DZS_LootPlugin : DZS_Plugin
 		return j;
 	}
 
-	void OnPrefetched(DZS_Job j)
-	{
-		if (j != m_Prefetch)
-			return;
-		m_Prefetch = null;
-		if (j.m_Cancelled)
-		{
-			DZS_LootFiles.DropReady();
-			return;
-		}
-		m_Prefetched = true;
-		Toggle();
-		m_Prefetched = false;
-		DZS_LootFiles.DropReady();
-	}
-
-	void Toggle()
-	{
-		DZS_Instance inst = m_Kernel.GetShown();
-		string folder = Folder();
-		if (inst && IsOn())
-		{
-			AskOff(inst);
-			return;
-		}
-		if (!inst || folder == "")
-			return;
-		if (IsOn())
-		{
-			AskOff(inst);
-			return;
-		}
-		DZS_StoreProvider sp = Provider();
-		DZS_LootOrigin lo = Origin();
-		if (sp || lo)
-		{
-			if (!lo || lo.m_NoDe != "")
-			{
-				string nd = "Loot gibt es für dieses Projekt nicht";
-				string ne = "There is no loot for this project";
-				if (lo)
-				{
-					nd = lo.m_NoDe;
-					ne = lo.m_NoEn;
-				}
-				m_Kernel.GetScreen().ShowMessage("loot.base", "warning", DZS_W.Literal(DZS_Texts.Pick(nd, ne)), 8.0);
-				DZS_Log.Info("loot: cannot switch on in a provider project: " + nd);
-				return;
-			}
-		}
-		if (!DZS_LootFiles.Present(folder) && lo && FetchBase(folder))
-			return;
-		if (!DZS_LootFiles.Present(folder))
-		{
-			string dKick = DZS_Texts.Get("loot.row");
-			string dTitle = DZS_Texts.Get("loot.cannotTitle");
-			DZS_LootTextDialog d = new DZS_LootTextDialog(dKick, dTitle, DZS_Texts.Get("loot.cannotText"));
-			d.AddFootButton("close", DZS_Texts.Get("core.dialog.close"), "main");
-			d.Open();
-			DZS_Log.Info("loot: cannot switch on, files missing in " + folder);
-			return;
-		}
-		// the files are read over several frames first (progress plate); Toggle runs again when they are there
-		if (!m_Prefetched)
-		{
-			if (m_Prefetch)
-				return;
-			m_Prefetch = StartPrefetch(folder, MapKey());
-			m_Prefetch.m_OnDone.Insert(OnPrefetched);
-			return;
-		}
-		m_Prefetched = false;
-		DZS_LootFiles probe = DZS_LootFiles.Read(folder);
-		if (probe.m_Error != "")
-		{
-			string txt = DZS_Texts.Fmt("loot.unreadable", probe.m_ErrorFile, probe.m_Error);
-			string eKick = DZS_Texts.Get("loot.row");
-			string eTitle = DZS_Texts.Get("loot.cannotTitle");
-			DZS_LootTextDialog e = new DZS_LootTextDialog(eKick, eTitle, txt);
-			e.AddFootButton("close", DZS_Texts.Get("core.dialog.close"), "main");
-			e.Open();
-			DZS_Log.Info("loot: cannot switch on: " + txt);
-			return;
-		}
-		ReadFiles(inst, folder, null, probe);
-		probe = null;
-		DZS_LootFiles.DropReady();
-		array<string> objs = ClassObjects(inst);
-		DZS_OpBuilder b = inst.BeginOperation("loot:edit", 1);
-		b.SetField(DZS_PROJECT_ID, "lootEnabled", "true");
-		string pid = Mark(inst);
-		if (pid == "" && !sp && !lo)
-		{
-			pid = DZS_ProjectsPlugin.NewProjectId();
-			b.SetField(DZS_PROJECT_ID, "lootProjectId", pid);
-			DZS_Log.Info("loot: new project id " + pid);
-		}
-		b.SetField(DZS_PROJECT_ID, "lootFiles", DZS_LootFiles.PROTO + " " + m_Files.m_ProtoSha + ", " + DZS_LootFiles.POS + " " + m_Files.m_PosSha);
-		int rows = 0;
-		foreach (string id : objs)
-		{
-			string want = Derived(inst, id);
-			if (want == NONE)
-			{
-				string name;
-				inst.GetField(id, DZS_Obj.NAME, name);
-				want = DefaultFor(inst, name);
-			}
-			else
-				rows++;
-			b.SetCompanion(id, SETTING, 1, want);
-		}
-		string de = DZS_Texts.Get("loot.on");
-		DZS_SubmitResult r = b.Commit(de, "Turn on loot");
-		DZS_Log.Info("loot: on " + r.Ok() + ", " + m_Files.m_Index.Count() + " entries, " + m_Files.m_Rows.Count() + " rows, " + rows + " of the project");
-		if (m_Base)
-			m_Kernel.GetScreen().ShowMessage("loot.base", "info", DZS_Texts.Fmt("loot.vanillaUsed", m_BaseFrom), 4.0);
-		else
-			m_Kernel.GetScreen().ShowMessage("loot.base", "info", DZS_Texts.Get("loot.noBase"), 10.0);
-	}
-
 	// A project of version 2 without loot files in its working folder: they come from its base, fetched first when
-	// it is the vanilla mission; Toggle runs again once they are there. False when they cannot come (the dialog).
+	// it is the vanilla mission; loot turns on once they are there. False when they cannot come.
 	protected bool FetchBase(string work)
 	{
 		DZS_ProjectsPlugin pp = DZS_ProjectsPlugin.Cast(m_Kernel.GetPlugin("projects"));
@@ -1456,7 +1547,7 @@ class DZS_LootPlugin : DZS_Plugin
 			if (!DZS_WorkFolder.CopyLoot(dir, mk, work) || !DZS_LootFiles.Present(work))
 				return false;
 			DZS_Log.Info("loot: base files copied into the working folder from " + dir);
-			Toggle();
+			Activate(m_Kernel.GetShown());
 			return true;
 		}
 		m_BaseFetch = new DZS_LootVanilla();
@@ -1466,11 +1557,14 @@ class DZS_LootPlugin : DZS_Plugin
 			m_BaseFetch = null;
 			return false;
 		}
+		m_BaseFetchFor = work;
 		m_Kernel.GetScreen().ShowBanner("loot.base", 20, "info", DZS_Texts.Fmt("loot.vanillaLoading", MapName(mk)));
+		DZS_Log.Info("loot: fetching the vanilla mission of " + mk + " for the loot files of " + work);
 		return true;
 	}
 
 	protected ref DZS_LootVanilla m_BaseFetch;
+	protected string m_BaseFetchFor;
 
 	void OnBaseFetched(DZS_LootVanilla v)
 	{
@@ -1478,55 +1572,30 @@ class DZS_LootPlugin : DZS_Plugin
 		bool ok = v.m_Ok;
 		string why = v.m_Why;
 		m_BaseFetch = null;
-		if (!ok)
+		DZS_Instance inst = m_Kernel.GetShown();
+		string work = Folder();
+		if (!inst || work == "" || IsOn())
+			return;
+		if (work != m_BaseFetchFor)
 		{
-			VanillaFailed(why);
+			Activate(inst);
 			return;
 		}
-		string work = Folder();
-		if (work == "" || IsOn())
+		if (!ok)
+		{
+			DZS_Log.Info("loot: vanilla mission not fetched: " + why);
+			Unavailable("loot.vanillaFail", why);
 			return;
+		}
 		string dir = DZS_WorkFolder.UsableBase("vanilla", MapKey(), null);
 		if (dir == "" || !DZS_WorkFolder.CopyLoot(dir, MapKey(), work))
 		{
-			VanillaFailed("mapgroupproto.xml");
+			Unavailable("loot.cannotText");
 			return;
 		}
-		Toggle();
-	}
-
-	protected void AskOff(DZS_Instance inst)
-	{
-		int rows = 0;
-		map<string, bool> ownTypes = new map<string, bool>();
-		array<string> objs = ClassObjects(inst);
-		foreach (string id : objs)
-		{
-			string s = SettingOf(inst, id);
-			if (s == NONE)
-				continue;
-			rows++;
-			if (s == OWN)
-			{
-				string name;
-				inst.GetField(id, DZS_Obj.NAME, name);
-				name.ToLower();
-				ownTypes.Set(name, true);
-			}
-		}
-		int written = WrittenTypes(inst).Count();
-		string rowsText = Plural(rows, "Zeile", "Zeilen", "row", "rows");
-		string entriesText = Plural(written, "Eintrag", "Einträge", "entry", "entries");
-		string typesText = Plural(ownTypes.Count(), "Typ", "Typen", "type", "types");
-		string q = DZS_Texts.Fmt("loot.offQ", rowsText, entriesText, typesText);
-		string cKick = DZS_Texts.Get("loot.row");
-		string cTitle = DZS_Texts.Get("loot.off");
-		DZS_LootTextDialog c = new DZS_LootTextDialog(cKick, cTitle, q);
-		c.AddFootButton("cancel", DZS_Texts.Get("core.dialog.cancel"), "side");
-		c.AddFootButton("off", DZS_Texts.Get("loot.off"), "danger");
-		c.m_OnResult.Insert(OnOffAnswer);
-		c.Open();
-		DZS_Log.Info("loot: off asked: " + q);
+		m_OffDe = "";
+		m_OffEn = "";
+		Activate(inst);
 	}
 
 	static string Plural(int n, string de1, string deN, string en1, string enN)
@@ -1534,31 +1603,6 @@ class DZS_LootPlugin : DZS_Plugin
 		if (n == 1)
 			return "1 " + DZS_Texts.Pick(de1, en1);
 		return n.ToString() + " " + DZS_Texts.Pick(deN, enN);
-	}
-
-	void OnOffAnswer(DZS_Dialog d, string result)
-	{
-		DZS_Log.Info("loot: off answer " + result);
-		if (result != "off")
-			return;
-		DZS_Instance inst = m_Kernel.GetShown();
-		if (!inst)
-			return;
-		m_Editor.Stop("");
-		DZS_OpBuilder b = inst.BeginOperation("loot:edit", 1);
-		b.SetField(DZS_PROJECT_ID, "lootEnabled", "false");
-		array<string> objs = ClassObjects(inst);
-		foreach (string id : objs)
-			b.ClearCompanion(id, SETTING);
-		Cache(inst);
-		for (int e = 0; e < m_ElemOf.Count(); e++)
-		{
-			string eid = m_ElemOf.GetElement(e);
-			b.Delete(eid);
-		}
-		string de = DZS_Texts.Get("loot.off");
-		DZS_SubmitResult r = b.Commit(de, "Turn loot off");
-		DZS_Log.Info("loot: off " + r.Ok());
 	}
 
 	void Dropped(DZS_Instance inst)
@@ -1843,12 +1887,8 @@ class DZS_LootPlugin : DZS_Plugin
 	{
 		DZS_Instance inst = m_Kernel.GetShown();
 		DZS_SelectionApi sel = DZS_SelectionApi.Get();
-		if (!inst || !sel || !IsOn() || !m_Files)
-		{
-			reasonDe = "Loot ist aus";
-			reasonEn = "Loot is off";
+		if (!inst || !sel || !Available(reasonDe, reasonEn))
 			return false;
-		}
 		array<string> ids = sel.GetSelection();
 		if (ids.Count() != 1)
 		{

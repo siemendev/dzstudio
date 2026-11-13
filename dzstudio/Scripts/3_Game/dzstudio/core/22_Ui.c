@@ -75,8 +75,8 @@ class DZS_PanelInfo : Managed
 	string Title() { return DZS_Texts.Pick(m_TitleDe, m_TitleEn); }
 }
 
-// A toolbar button for an action: group "layers" (the layer switch), "tools" (exactly one active per layer) or
-// "switches" (on or off each, or a command).
+// A toolbar button for an action: group "layers" (the layer switch), "tools" (exactly one active per layer),
+// "switches" (on or off each, or a command) or "segments" (a label and one segment per action, the checked one active).
 class DZS_ToolInfo : Managed
 {
 	string m_Id;
@@ -95,9 +95,13 @@ class DZS_ToolInfo : Managed
 	string m_TipKeyAction;
 	// a switch with its action's label next to the icon, shown only while the action is enabled
 	bool m_Labelled;
-	// the layer whose tool slot shows it ("" = a tool of "objects", a switch of the global group);
+	// the layer whose tool slot shows it ("" = a tool or segments of "objects", a switch of the global group);
 	// for group "layers" the layer it switches to
 	string m_Layer;
+	// group "segments": the actions of the segments, in order, and their short labels
+	ref array<string> m_Segments;
+	ref array<string> m_SegmentsDe;
+	ref array<string> m_SegmentsEn;
 }
 
 class DZS_KeyGroup : Managed
@@ -436,6 +440,21 @@ class DZS_UiRegistry : Managed
 		m_ToolsRev++;
 	}
 
+	// Segments right after the tools of a layer ("" = objects): the name as their label, one segment per action with
+	// a short label of its own.
+	void RegisterSegments(string plugin, string id, string nameDe, string nameEn, array<string> actionIds, array<string> labelsDe, array<string> labelsEn, int order = 0, string layer = "")
+	{
+		RegisterTool(plugin, id, nameDe, nameEn, "segments", "", order);
+		DZS_ToolInfo t = m_Tools.Get(id);
+		t.m_Segments = new array<string>();
+		t.m_Segments.Copy(actionIds);
+		t.m_SegmentsDe = new array<string>();
+		t.m_SegmentsDe.Copy(labelsDe);
+		t.m_SegmentsEn = new array<string>();
+		t.m_SegmentsEn.Copy(labelsEn);
+		t.m_Layer = layer;
+	}
+
 	array<DZS_ToolInfo> GetTools(string group)
 	{
 		array<DZS_ToolInfo> r = new array<DZS_ToolInfo>();
@@ -485,7 +504,7 @@ class DZS_UiRegistry : Managed
 	// The layer whose slot shows a tool or switch; "" for a global switch.
 	static string ToolLayer(DZS_ToolInfo t)
 	{
-		if (t.m_Layer == "" && t.m_Group == "tools")
+		if (t.m_Layer == "" && (t.m_Group == "tools" || t.m_Group == "segments"))
 			return LAYER_OBJECTS;
 		return t.m_Layer;
 	}
