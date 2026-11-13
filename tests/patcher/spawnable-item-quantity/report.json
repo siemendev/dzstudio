@@ -1,0 +1,78 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "spawnableCargo",
+            "key": {
+                "type": "OffroadHatchback",
+                "ordinal": 1
+            },
+            "field": "item",
+            "status": "already",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "spawnableCargo",
+            "key": {
+                "type": "OffroadHatchback",
+                "ordinal": 2
+            },
+            "field": "item",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "spawnableCargo",
+            "key": {
+                "type": "OffroadHatchback",
+                "ordinal": 1
+            },
+            "field": "item",
+            "status": "invalid",
+            "file": "cfgspawnabletypes.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "spawnableCargo",
+            "id": "b-pot",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "spawnableCargo",
+            "id": "b-contaminated",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "spawnableCargo",
+            "id": "b-both",
+            "status": "invalid",
+            "file": "cfgspawnabletypes.xml",
+            "detail": "bad-value"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgspawnabletypes.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

@@ -70,11 +70,7 @@
             "parent": {
                 "type": "NVGoggles"
             },
-            "data": {
-                "item": [
-                    "Battery9V"
-                ]
-            }
+            "data": {}
         },
         {
             "id": "b-dup",

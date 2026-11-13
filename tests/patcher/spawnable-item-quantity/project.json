@@ -1,0 +1,99 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-pot",
+            "kind": "spawnableCargo",
+            "parent": {
+                "type": "OffroadHatchback"
+            },
+            "data": {
+                "item": [
+                    {
+                        "name": "Pot",
+                        "quantmin": 100,
+                        "quantmax": 100
+                    },
+                    "CarBattery"
+                ]
+            }
+        },
+        {
+            "id": "b-contaminated",
+            "kind": "spawnableCargo",
+            "parent": {
+                "type": "ZmbM_Mummy"
+            },
+            "data": {
+                "preset": "ContaminatedCargo"
+            }
+        },
+        {
+            "id": "b-both",
+            "kind": "spawnableCargo",
+            "parent": {
+                "type": "ZmbM_Mummy"
+            },
+            "data": {
+                "preset": "ContaminatedCargo",
+                "item": [
+                    "Rag"
+                ]
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "spawnableCargo",
+            "key": {
+                "type": "OffroadHatchback",
+                "ordinal": 1
+            },
+            "field": "item",
+            "from": "sha256:87f6509797cb20e71e11f61bc9adf887ef5f300aced2185cad78b2477e391d0c",
+            "to": [
+                {
+                    "name": "Pot",
+                    "quantmin": 100,
+                    "quantmax": 100
+                }
+            ]
+        },
+        {
+            "op": "set",
+            "block": "spawnableCargo",
+            "key": {
+                "type": "OffroadHatchback",
+                "ordinal": 2
+            },
+            "field": "item",
+            "from": "sha256:590a63c1be390ce587362f003629a596b50638e50fe91851f89ad59761fb5db8",
+            "to": [
+                {
+                    "name": "Wrench",
+                    "chance": 0.50,
+                    "quantmin": 1,
+                    "quantmax": 2.0
+                }
+            ]
+        },
+        {
+            "op": "set",
+            "block": "spawnableCargo",
+            "key": {
+                "type": "OffroadHatchback",
+                "ordinal": 1
+            },
+            "field": "item",
+            "to": [
+                {
+                    "name": "Pot",
+                    "quantmin": "full"
+                }
+            ]
+        }
+    ]
+}

@@ -150,8 +150,8 @@ class DZS_PatcherBase : Managed
 		return v.IsStr() && v.m_Str == cur;
 	}
 
-	// List values: members as "name=…" / "user=…", a chance appended as "\tchance=…"; a project list holds names,
-	// {"user": …} or {"name": …, "chance": …}. An item may also carry what the game reads inside it — "damage"
+	// List values: members as "name=…" / "user=…", a chance and an item's quantity appended as "\tchance=…",
+	// "\tquantmin=…", "\tquantmax=…"; a project list holds names, {"user": …} or {"name": …, "chance": …}. An item may also carry what the game reads inside it — "damage"
 	// {"min", "max"} and lists of "attachments" and "cargo" blocks ({"chance", "preset", "item"}) — as further lines
 	// of its member (ItemLines).
 	static bool ListTokens(DZS_Json v, array<string> tokens)
@@ -186,12 +186,15 @@ class DZS_PatcherBase : Managed
 		if (!it.IsObj() || it.GetStr("name") == "")
 			return false;
 		string r = "name=" + it.GetStr("name");
-		DZS_Json chance = it.Get("chance");
-		if (chance)
+		array<string> numbers = {"chance", "quantmin", "quantmax"};
+		foreach (string a : numbers)
 		{
-			if (!chance.IsNum() || !DZS_PatchNum.IsNumber(chance.m_Str))
+			DZS_Json n = it.Get(a);
+			if (!n)
+				continue;
+			if (!n.IsNum() || !DZS_PatchNum.IsNumber(n.m_Str))
 				return false;
-			r += "\tchance=" + DZS_PatchNum.Canon(chance.m_Str);
+			r += "\t" + a + "=" + DZS_PatchNum.Canon(n.m_Str);
 		}
 		array<string> lines = new array<string>();
 		if (!ItemLines(it, level, lines))

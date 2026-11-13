@@ -1085,8 +1085,7 @@ class DZS_PatcherJson : DZS_PatcherXml
 			allowed.Insert("itemType");
 			allowed.Insert("quickBarSlot");
 		}
-		if (kd != GEAR_CHILD)
-			allowed.Insert("spawnWeight");
+		allowed.Insert("spawnWeight");
 		if (!OnlyKeys(src, allowed, err))
 			return null;
 		DZS_Json res = DZS_Json.Obj();
@@ -1097,7 +1096,7 @@ class DZS_PatcherJson : DZS_PatcherXml
 		}
 		else if (!GearStr(src, "itemType", false, kd == GEAR_CHILD, res, err))
 			return null;
-		if (kd != GEAR_CHILD && !GearInt(src, "spawnWeight", "", res, err))
+		if ((kd != GEAR_CHILD || src.Get("spawnWeight")) && !GearInt(src, "spawnWeight", "", res, err))
 			return null;
 		DZS_Json attrs = src.Get("attributes");
 		if (!attrs)

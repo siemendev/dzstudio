@@ -369,7 +369,7 @@ class DZS_PatcherXml : DZS_PatcherBase
 		}
 	}
 
-	// A list member of the file: "name=…", "\tchance=…" and, for an item, the lines of its content (ListTokens).
+	// A list member of the file: "name=…", "\tchance=…" and, for an item, its quantity and the lines of its content (ListTokens).
 	protected string XmlItemToken(DZS_PatchFile f, DZS_XmlNode c, bool content, int level)
 	{
 		string tok = "name=" + c.Get("name");
@@ -379,6 +379,10 @@ class DZS_PatcherXml : DZS_PatcherBase
 			tok += "\tchance=" + CanonAttr(c.Get("chance"));
 		if (!content || c.Has("user"))
 			return tok;
+		if (c.Has("quantmin"))
+			tok += "\tquantmin=" + CanonAttr(c.Get("quantmin"));
+		if (c.Has("quantmax"))
+			tok += "\tquantmax=" + CanonAttr(c.Get("quantmax"));
 		string tabs = Tabs(level);
 		array<string> lines = new array<string>();
 		foreach (DZS_XmlNode d : c.m_Children)

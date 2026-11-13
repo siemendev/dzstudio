@@ -261,7 +261,7 @@ class DZS_PKindSpawnGroup : DZS_PKind
 		bool items = iv && iv.m_Type != DZS_Json.NUL;
 		if (preset && (chance || items))
 			return "bad-value";
-		if (!preset && !chance)
+		if (!preset && !chance && !items)
 			return "incomplete";
 		return "";
 	}

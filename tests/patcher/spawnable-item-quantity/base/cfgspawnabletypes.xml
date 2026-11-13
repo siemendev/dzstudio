@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+
+<spawnabletypes>
+	<type name="OffroadHatchback">
+		<cargo><item name="Pot" quantmin="100" quantmax="100"/></cargo>
+		<cargo>
+			<item name="Wrench"/>
+		</cargo>
+	</type>
+	<type name="ZmbM_Mummy">
+		<cargo chance="0.05">
+			<item name="AntiChemInjector" chance="1.0" />
+		</cargo>
+	</type>
+</spawnabletypes>

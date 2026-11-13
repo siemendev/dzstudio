@@ -75,6 +75,7 @@
                                         "complexChildrenTypes": [
                                             {
                                                 "itemType": "Ammo_762x39",
+                                                "spawnWeight": 3,
                                                 "attributes": {
                                                     "healthMin": 0.7,
                                                     "healthMax": 1,
@@ -220,6 +221,7 @@
                                         "complexChildrenTypes": [
                                             {
                                                 "itemType": "Ammo_762x39",
+                                                "spawnWeight": 3,
                                                 "attributes": {
                                                     "healthMin": 0.7,
                                                     "healthMax": 1,

@@ -168,8 +168,9 @@ The fields of each kind and their value types are pinned by the conformance test
 event's name alone.
 
 **Items of lists.** The items of a spawnable's cargo and attachments and of a random preset are the list field `item`
-of their entry; a `set` of that field writes the whole list. An item is a class name or `{"name", "chance"}`, and may
-carry what the game reads inside it:
+of their entry; a `set` of that field writes the whole list. An item is a class name or `{"name", "chance"}`, may give
+`quantmin` and `quantmax` (numbers, written as attributes after `chance`: `<item name="Pot" quantmin="100" quantmax="100" />`),
+and may carry what the game reads inside it:
 
 ```json
 { "name": "GunCase_Black", "chance": 0.5, "damage": { "min": 0, "max": 0 },
@@ -183,7 +184,7 @@ carry what the game reads inside it:
 - They are written as `<damage>`, then the `attachments`, then the `cargo` blocks, each in its list's order. A value
   of the wrong type makes the change or block `invalid` (`bad-value`).
 - Comparing a list (`from`, `already`) and its fingerprint take the content in: a member is its first line
-  `name=…` (`\tchance=…`), followed by one line per element of its content in this canonical form (numbers as in
+  `name=…` (`\tchance=…`, `\tquantmin=…`, `\tquantmax=…` in that order), followed by one line per element of its content in this canonical form (numbers as in
   `PatchNum.canon`, attributes `min`, `max` / `chance`, `preset` in that order, `" />"` for an empty element), each
   indented by one tab per level below the item: `name=Grenade_ChemGas\tchance=1\n<damage min="1" max="1" />`.
   Other attributes and elements inside an item (an `identifier`) are not read. Removing an item
@@ -192,6 +193,13 @@ class, for one thing only: a `remove` takes the class out of every list that hol
 names), or only out of the lists of the spawnable `type` or the `preset` its key names. The lists keep their element
 and their other items; nothing found is `gone`. A `set` of them is `invalid` (`bad-op`), an own block of them is no
 kind.
+
+A `spawnableCargo` or `spawnableAttachments` entry is either a `preset`, or items and/or a `chance` (`<cargo>` without
+`chance` holding items is kept as it is); a preset together with a chance or items is `invalid` (`bad-value`), an entry
+with none of them `invalid` (`incomplete`).
+
+**Spawn gear presets** (`gearPreset`) take the game's format. A complex child (`complexChildrenTypes`) may carry a
+`spawnWeight` like the item sets above it; it is optional there and written when given.
 
 **A loose player spawn position** (`playerSpawnLoose`) stands directly in a section's `generator_posbubbles`, beside
 the groups: `<pos x="…" z="…" />`. An own one names its section as `parent` (`{"section": "fresh"}`), and the patcher

@@ -322,7 +322,7 @@ def spawnable():
         {"id": "b-r-c", "kind": C, "parent": "b-r", "data": {"preset": "mixArmy"}},
         {"id": "b-nv", "kind": A, "parent": {"type": "nvgoggles"}, "data": {"chance": 1, "item": [{"name": "Battery9V", "chance": 1}]}},
         {"id": "b-both", "kind": C, "parent": {"type": "NVGoggles"}, "data": {"preset": "x", "chance": 1}},
-        {"id": "b-none", "kind": A, "parent": {"type": "NVGoggles"}, "data": {"item": ["Battery9V"]}},
+        {"id": "b-none", "kind": A, "parent": {"type": "NVGoggles"}, "data": {}},
         {"id": "b-dup", "kind": T, "parent": None, "data": {"name": "m4a1", "hoarder": True}},
         {"id": "b-h", "kind": T, "parent": None, "data": {"name": "MyCrate", "hoarder": True}},
     ]
@@ -624,6 +624,63 @@ def spawnable_item_content():
     case("spawnable-item-content", {SP: SPCONTENT}, {"changes": changes, "blocks": blocks}, {SP: out},
          {"entries": entries, "files": [fl(SP, "written")]})
 
+SPQUANT = SPHEAD + """\t<type name="OffroadHatchback">
+\t\t<cargo><item name="Pot" quantmin="100" quantmax="100"/></cargo>
+\t\t<cargo>
+\t\t\t<item name="Wrench"/>
+\t\t</cargo>
+\t</type>
+\t<type name="ZmbM_Mummy">
+\t\t<cargo chance="0.05">
+\t\t\t<item name="AntiChemInjector" chance="1.0" />
+\t\t</cargo>
+\t</type>
+</spawnabletypes>
+"""
+
+def spawnable_item_quantity():
+    T = "spawnable"
+    C = "spawnableCargo"
+    pot = {"name": "Pot", "quantmin": 100, "quantmax": 100}
+    changes = [
+        # an item's quantity is part of the item, a cargo without chance is a list like any other
+        S({"type": "OffroadHatchback", "ordinal": 1}, "item", fp(["name=Pot\tquantmin=100\tquantmax=100"]), [pot], kind=C),
+        S({"type": "OffroadHatchback", "ordinal": 2}, "item", fp(["name=Wrench"]), [{"name": "Wrench", "chance": N("0.50"), "quantmin": 1, "quantmax": N("2.0")}], kind=C),
+        S({"type": "OffroadHatchback", "ordinal": 1}, "item", None, [{"name": "Pot", "quantmin": "full"}], kind=C),
+    ]
+    blocks = [
+        {"id": "b-pot", "kind": C, "parent": {"type": "OffroadHatchback"}, "data": {"item": [pot, "CarBattery"]}},
+        {"id": "b-contaminated", "kind": C, "parent": {"type": "ZmbM_Mummy"}, "data": {"preset": "ContaminatedCargo"}},
+        {"id": "b-both", "kind": C, "parent": {"type": "ZmbM_Mummy"}, "data": {"preset": "ContaminatedCargo", "item": ["Rag"]}},
+    ]
+    out = rep(SPQUANT, """\t\t<cargo>
+\t\t\t<item name="Wrench"/>
+\t\t</cargo>
+""", """\t\t<cargo>
+\t\t\t<item name="Wrench" chance="0.5" quantmin="1" quantmax="2" />
+\t\t</cargo>
+\t\t<cargo>
+\t\t\t<item name="Pot" quantmin="100" quantmax="100" />
+\t\t\t<item name="CarBattery" />
+\t\t</cargo>
+""")
+    out = rep(out, """\t\t</cargo>
+\t</type>
+</spawnabletypes>""", """\t\t</cargo>
+\t\t<cargo preset="ContaminatedCargo" />
+\t</type>
+</spawnabletypes>""")
+    entries = [
+        ch(0, "set", C, {"type": "OffroadHatchback", "ordinal": 1}, "already", SP, "item"),
+        ch(1, "set", C, {"type": "OffroadHatchback", "ordinal": 2}, "applied", SP, "item"),
+        ch(2, "set", C, {"type": "OffroadHatchback", "ordinal": 1}, "invalid", SP, "item", detail="bad-value"),
+        bl(0, C, "b-pot", "applied", SP),
+        bl(1, C, "b-contaminated", "applied", SP),
+        bl(2, C, "b-both", "invalid", SP, "bad-value"),
+    ]
+    case("spawnable-item-quantity", {SP: SPQUANT}, {"changes": changes, "blocks": blocks}, {SP: out},
+         {"entries": entries, "files": [fl(SP, "written")]})
+
 def preset_items():
     I = "presetItem"
     changes = [
@@ -656,4 +713,5 @@ def run():
     random_presets()
     spawnable_items()
     spawnable_item_content()
+    spawnable_item_quantity()
     preset_items()

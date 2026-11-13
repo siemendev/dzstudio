@@ -91,7 +91,7 @@ GEAR_DATA = {
     "attachmentSlotItemSets": [{"slotName": "Body", "discreteItemSets": [
         {"itemType": "HuntingJacket_Brown", "spawnWeight": 1, "attributes": ATTR,
          "complexChildrenTypes": [{"itemType": "Mag_CZ527_5rnd", "attributes": ATTR, "quickBarSlot": 2,
-                                   "complexChildrenTypes": [{"itemType": "Ammo_762x39", "attributes": ATTR}]}],
+                                   "complexChildrenTypes": [{"itemType": "Ammo_762x39", "spawnWeight": 3, "attributes": ATTR}]}],
          "simpleChildrenTypes": ["Rag"]},
         {"itemType": "", "spawnWeight": 1, "attributes": ATTR}]}],
     "discreteUnsortedItemSets": [{"name": "food", "spawnWeight": 1, "attributes": ATTR, "simpleChildrenTypes": ["Apple"],
@@ -103,6 +103,7 @@ def gear_out(attr):
         return {"itemType": itemType, "attributes": attr, "quickBarSlot": slot, "complexChildrenTypes": kids or [],
                 "simpleChildrenTypes": simple or [], "simpleChildrenUseDefaultAttributes": False}
     ammo = leaf("Ammo_762x39", -1)
+    ammo = {"itemType": ammo.pop("itemType"), "spawnWeight": 3, **ammo}
     mag = leaf("Mag_CZ527_5rnd", 2, [ammo])
     jacket = {"itemType": "HuntingJacket_Brown", "spawnWeight": 1, "attributes": attr, "quickBarSlot": -1,
               "complexChildrenTypes": [mag], "simpleChildrenTypes": ["Rag"], "simpleChildrenUseDefaultAttributes": False}
