@@ -125,6 +125,8 @@ class DZS_ProjectBar : DZS_PanelContent
 	protected Widget m_Parent;
 	protected TextWidget m_Name;
 	protected TextWidget m_Meta;
+	protected ref DZS_Button m_Page;
+	protected string m_PageUrl;
 	protected ref array<ref DZS_GroupRow> m_Rows;
 	protected ref map<string, bool> m_Closed;
 	protected DZS_Instance m_FoldInst;
@@ -156,10 +158,36 @@ class DZS_ProjectBar : DZS_PanelContent
 		m_Parent = parent;
 		m_Name = DZS_W.Text(parent, DZS_Font.DISPLAY, 24, DZS_Color.Get("text"));
 		m_Meta = DZS_W.Text(parent, DZS_Font.READ, 13, DZS_Color.Get("textMuted"));
+		m_Page = new DZS_Button(parent, "ghost", "", "external-link", 24);
+		m_Page.m_OnClick.Insert(OnPage);
 		m_Search = new DZS_SearchField("projects.filter", DZS_Texts.Pick("Platzierte Objekte filtern …", "Filter placed objects …"));
 		m_Search.Build(parent);
 		m_Search.m_OnCommit.Insert(OnSearchCommit);
 		m_NoHits = DZS_W.Text(parent, DZS_Font.READ, 13, DZS_Color.Get("textQuiet"));
+	}
+
+	void OnPage(DZS_Button b)
+	{
+		if (m_PageUrl == "")
+			return;
+		GetGame().OpenURL(m_PageUrl);
+		DZS_Log.Info("project page opened " + m_PageUrl);
+	}
+
+	// The link to the open project's page at its storage provider, right of the name; returns the width left for the name.
+	protected float PlacePage(float width, float pad)
+	{
+		m_PageUrl = "";
+		DZS_StoreProvider sp = m_P.ProviderOf(m_P.m_Open.m_Folder);
+		if (sp)
+			m_PageUrl = sp.PageUrl(m_P.m_Open.m_Folder);
+		m_Page.Show(m_PageUrl != "");
+		if (m_PageUrl == "")
+			return width - 2 * pad;
+		m_Page.SetTip(sp.PageLabel(m_P.m_Open.m_Folder));
+		float bw = m_Page.GetWidth();
+		m_Page.Place(width - pad - bw, DZS_Scale.Px(10));
+		return width - 2 * pad - bw - DZS_Scale.Px(4);
 	}
 
 	void OnSearchCommit(DZS_NumberField f, string typed, DZS_FieldResult r)
@@ -357,6 +385,7 @@ class DZS_ProjectBar : DZS_PanelContent
 				hr.Show(false);
 			m_Search.Show(false);
 			m_NoHits.Show(false);
+			m_Page.Show(false);
 			DZS_W.Place(m_Name, pad, DZS_Scale.Px(8), width - 2 * pad, DZS_Scale.Px(28));
 			return DZS_Scale.Px(44);
 		}
@@ -392,7 +421,7 @@ class DZS_ProjectBar : DZS_PanelContent
 		string groupWord = DZS_Issues.Plural(n, one, many);
 		string localText = m_P.ProviderLabel(m_P.m_Open.m_Folder);
 		m_Meta.SetText(localText + " · " + DZS_Maps.Display(m_P.m_Open.m_MapKey) + " · " + n + groupWord);
-		DZS_W.Place(m_Name, pad, DZS_Scale.Px(8), width - 2 * pad, DZS_Scale.Px(28));
+		DZS_W.Place(m_Name, pad, DZS_Scale.Px(8), PlacePage(width, pad), DZS_Scale.Px(28));
 		DZS_W.Place(m_Meta, pad, DZS_Scale.Px(38), width - 2 * pad, DZS_Scale.Px(18));
 		m_Search.Show(true);
 		m_Search.SetWidth((width - 2 * pad) / DZS_Scale.Factor());

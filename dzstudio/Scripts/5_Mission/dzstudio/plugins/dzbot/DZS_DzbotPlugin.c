@@ -212,6 +212,8 @@ class DZS_DzbotProvider : DZS_StoreProvider
 	override string Id() { return "dzbot"; }
 	override bool Owns(string folder) { return folder.IndexOf(DZS_DzbotPlugin.PREFIX) == 0; }
 	override string Label(string folder) { return m_P.LabelOf(folder); }
+	override string PageUrl(string folder) { return m_P.ManageUrlOf(folder); }
+	override string PageLabel(string folder) { return DZS_Texts.Pick("In dzbot öffnen", "Open in dzbot"); }
 	override void Fetch(string folder) { m_P.Fetch(folder); }
 	override void Save(string folder, array<ref DZS_SaveFile> files) { m_P.Save(folder, files); }
 	override bool AutoSaveOff(string folder, out string de, out string en)
@@ -385,6 +387,14 @@ class DZS_DzbotPlugin : DZS_Plugin
 		if (!dp || !IsProjectMod(dp))
 			return null;
 		return dp;
+	}
+
+	string ManageUrlOf(string folder)
+	{
+		DZS_DzbotProject dp = m_Projects.Get(RefOf(folder));
+		if (!dp || !IsProjectMod(dp))
+			return "";
+		return dp.m_ManageUrl;
 	}
 
 	array<ref DZS_DzbotSetting> OpenSettings()

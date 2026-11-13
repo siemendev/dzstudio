@@ -42,6 +42,9 @@ class DZS_StoreProvider : Managed
 	bool Owns(string folder) { return false; }
 	// Meta text before map and groups, e.g. "dzbot placement".
 	string Label(string folder) { return ""; }
+	// The project's own page at the provider, linked from the project bar ("" = none), and the link's label.
+	string PageUrl(string folder) { return ""; }
+	string PageLabel(string folder) { return ""; }
 	// Fetch the current state into the folder, then call DZS_ProjectsPlugin.Fetched.
 	void Fetch(string folder) {}
 	void Save(string folder, array<ref DZS_SaveFile> files) {}
