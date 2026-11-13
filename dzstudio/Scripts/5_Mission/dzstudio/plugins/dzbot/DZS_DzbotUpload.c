@@ -321,7 +321,7 @@ class DZS_DzbotUpload : DZS_MessageListener
 			t = DZS_Texts.Pick("Hochgeladen: der Entwurf von „" + name + "“ ist ersetzt.", "Uploaded: the draft of “" + name + "” is replaced.");
 		DZS_Screen scr = m_P.Kernel().GetScreen();
 		if (m_DoneUrl != "")
-			scr.ShowMessageWithButton("dzbot.upload", "success", DZS_W.Literal(t), 15.0, DZS_Texts.Pick("In dzbot fertig einrichten", "Finish setting it up in dzbot"), this);
+			scr.ShowMessageWithButton("dzbot.upload", "success", DZS_W.Literal(t), 30.0, DZS_Texts.Pick("In dzbot fertig einrichten", "Finish setting it up in dzbot"), this, "external-link");
 		else
 			scr.ShowMessage("dzbot.upload", "success", DZS_W.Literal(t), 8.0);
 	}

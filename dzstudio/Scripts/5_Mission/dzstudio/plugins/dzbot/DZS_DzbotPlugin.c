@@ -36,6 +36,13 @@ class DZS_DzbotActions : DZS_ActionHandler
 		}
 		if (actionId == "dzbot.upload")
 			return m_P.m_Upload.CanStart(reasonDe, reasonEn);
+		if (actionId == "dzbot.manage")
+		{
+			reasonDe = "Dieses Projekt kannst du in dzbot nicht bearbeiten";
+			reasonEn = "You cannot edit this project in dzbot";
+			DZS_DzbotProject dp = m_P.OpenProjectMod();
+			return dp && dp.m_ManageUrl != "";
+		}
 		return true;
 	}
 
@@ -47,6 +54,8 @@ class DZS_DzbotActions : DZS_ActionHandler
 			return m_P.OpenProjectMod() != null;
 		if (actionId == "dzbot.upload")
 			return m_P.m_Upload.LocalOpen();
+		if (actionId == "dzbot.manage")
+			return m_P.OpenProjectMod() != null;
 		return true;
 	}
 
@@ -62,6 +71,15 @@ class DZS_DzbotActions : DZS_ActionHandler
 			m_P.OpenRules("");
 		else if (actionId == "dzbot.upload")
 			m_P.m_Upload.OpenDialog();
+		else if (actionId == "dzbot.manage")
+		{
+			DZS_DzbotProject dp = m_P.OpenProjectMod();
+			if (dp && dp.m_ManageUrl != "")
+			{
+				GetGame().OpenURL(dp.m_ManageUrl);
+				DZS_Log.Info("dzbot: browser opened " + dp.m_ManageUrl);
+			}
+		}
 	}
 }
 
@@ -501,6 +519,9 @@ class DZS_DzbotPlugin : DZS_Plugin
 		ui.RegisterAction("dzbot", "dzbot.upload", "Zu dzbot hochladen …", "Upload to dzbot …", null, m_Actions);
 		ui.SetWhen("dzbot.upload", "scene");
 		ui.AddMenuEntry("project", "dzbot.upload", 122);
+		ui.RegisterAction("dzbot", "dzbot.manage", "In dzbot öffnen", "Open in dzbot", null, m_Actions);
+		ui.SetWhen("dzbot.manage", "scene");
+		ui.AddMenuEntry("project", "dzbot.manage", 123);
 		ui.RegisterAction("dzbot", "dzbot.friends", "Freunde …", "Friends …", null, m_Actions);
 		m_Rules = new DZS_DzbotRules();
 		m_Rules.m_P = this;
@@ -1701,6 +1722,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		st.Set("name", DZS_Json.Str(dp.m_Name));
 		st.Set("map", DZS_Json.Str(dp.m_MapKey));
 		st.Set("manifest", DZS_Json.Int(dp.m_ManifestRev));
+		st.Set("manageUrl", DZS_Json.Str(dp.m_ManageUrl));
 		DZS_DzbotFile pf = dp.m_ProjectFile;
 		if (pf)
 		{
@@ -1731,6 +1753,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		dp.m_Name = st.GetStr("name");
 		dp.m_MapKey = st.GetStr("map");
 		dp.m_ManifestRev = st.GetInt("manifest");
+		dp.m_ManageUrl = st.GetStr("manageUrl");
 		DZS_Json pj = st.Get("project");
 		if (pj)
 		{

@@ -1352,7 +1352,7 @@ class DZS_Screen : DZS_EventListener
 	}
 
 	// A message with a knob ("Show", "Save …"); it takes clicks.
-	void ShowMessageWithButton(string kind, string tone, string markup, float seconds, string buttonLabel, DZS_MessageListener listener)
+	void ShowMessageWithButton(string kind, string tone, string markup, float seconds, string buttonLabel, DZS_MessageListener listener, string buttonIcon = "")
 	{
 		HideMessage(kind);
 		DZS_Message nm = new DZS_Message();
@@ -1367,7 +1367,7 @@ class DZS_Screen : DZS_EventListener
 		if (buttonLabel != "")
 		{
 			nm.m_Listener = listener;
-			nm.m_Button = new DZS_Button(nm.m_Plate.m_Frame, "secondary", buttonLabel, "", 24);
+			nm.m_Button = new DZS_Button(nm.m_Plate.m_Frame, "secondary", buttonLabel, buttonIcon, 24);
 			nm.m_Button.m_OnClick.Insert(nm.OnButton);
 			float bw = nm.m_Button.GetWidth();
 			float pad = DZS_Scale.Px(8);
