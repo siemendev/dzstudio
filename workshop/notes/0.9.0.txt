@@ -1,0 +1,7 @@
+- Upload to dzbot (Project menu): a local project becomes a dzbot mod. Make a new one (yours or your organization's) or replace the draft of one of your project mods on the same map. dzStudio then opens the dzbot mod; your local project stays as it is.
+- Open in dzbot (Project menu): opens the page of the open dzbot mod, where you set up its store entry, price and publishing.
+- Apply to mission folder: own spawner groups, gear presets and restricted areas are written to custom/dzstudio-<project>.<block>.json, so console servers (PlayStation, Xbox) load them too. The next apply cleans up files of the old layout.
+- Items inside cargo or attachments keep their damage and their own cargo and attachments when a project changes the list they are in.
+- A server message with several lines keeps its line breaks.
+- An own effect area no longer needs every field; fields you leave out are not written.
+- dzbot rules can build values from text templates.
