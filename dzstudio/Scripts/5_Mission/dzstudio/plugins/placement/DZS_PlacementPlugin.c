@@ -4431,21 +4431,32 @@ class DZS_PlacementPlugin : DZS_Plugin
 	{
 		string clip;
 		GetGame().CopyFromClipboard(clip);
-		string t = clip.Trim();
-		if (t.IndexOf("[") == 0)
-			t = "{\"Objects\": " + t + "}";
+		// string.Trim() keeps only the first 8191 characters
+		int from = 0;
+		int to = clip.Length();
+		while (from < to && " \t\r\n".IndexOf(clip.Get(from)) >= 0)
+			from++;
+		while (to > from && " \t\r\n".IndexOf(clip.Get(to - 1)) >= 0)
+			to--;
+		string first = "";
+		if (from < to)
+			first = clip.Get(from);
 		DZS_Format fmt = m_Kernel.GetFormat("spawner");
 		DZS_ReadResult rr = null;
-		if (fmt && t.IndexOf("{") == 0)
+		if (fmt && (first == "{" || first == "["))
 		{
 			array<string> chunks = new array<string>();
-			int at = 0;
-			while (at < t.Length())
+			if (first == "[")
+				chunks.Insert("{\"Objects\": ");
+			int at = from;
+			while (at < to)
 			{
-				int len = Math.Min(900, t.Length() - at);
-				chunks.Insert(t.Substring(at, len));
+				int len = Math.Min(900, to - at);
+				chunks.Insert(clip.Substring(at, len));
 				at += len;
 			}
+			if (first == "[")
+				chunks.Insert("}");
 			rr = fmt.Read(chunks);
 		}
 		if (!rr || !rr.m_Readable || rr.m_Objects.Count() == 0)
