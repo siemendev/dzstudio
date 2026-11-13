@@ -168,7 +168,26 @@ The fields of each kind and their value types are pinned by the conformance test
 event's name alone.
 
 **Items of lists.** The items of a spawnable's cargo and attachments and of a random preset are the list field `item`
-of their entry; a `set` of that field writes the whole list. `spawnableItem` and `presetItem` name single items by their
+of their entry; a `set` of that field writes the whole list. An item is a class name or `{"name", "chance"}`, and may
+carry what the game reads inside it:
+
+```json
+{ "name": "GunCase_Black", "chance": 0.5, "damage": { "min": 0, "max": 0 },
+  "attachments": [ { "preset": "x" } ],
+  "cargo": [ { "chance": 1, "item": [ "SCARH", { "name": "Mag_SCARH_20Rnd", "chance": 1 } ] } ] }
+```
+
+- `damage` — `{"min", "max"}`, each optional, numbers: `<damage min="…" max="…" />` inside the item.
+- `attachments`, `cargo` — lists of blocks `{"chance", "preset", "item"}` (all optional), written inside the item
+  like a spawnable's own; their items take the same form, to any depth.
+- They are written as `<damage>`, then the `attachments`, then the `cargo` blocks, each in its list's order. A value
+  of the wrong type makes the change or block `invalid` (`bad-value`).
+- Comparing a list (`from`, `already`) and its fingerprint take the content in: a member is its first line
+  `name=…` (`\tchance=…`), followed by one line per element of its content in this canonical form (numbers as in
+  `PatchNum.canon`, attributes `min`, `max` / `chance`, `preset` in that order, `" />"` for an empty element), each
+  indented by one tab per level below the item: `name=Grenade_ChemGas\tchance=1\n<damage min="1" max="1" />`.
+  Other attributes and elements inside an item (an `identifier`) are not read. Removing an item
+  (`spawnableItem`) leaves the content of the others as it is. `spawnableItem` and `presetItem` name single items by their
 class, for one thing only: a `remove` takes the class out of every list that holds it (case-insensitively, like class
 names), or only out of the lists of the spawnable `type` or the `preset` its key names. The lists keep their element
 and their other items; nothing found is `gone`. A `set` of them is `invalid` (`bad-op`), an own block of them is no
@@ -219,7 +238,8 @@ field that is missing is `invalid` (`incomplete`), a field of the wrong type `in
    `spawnGearPresetFiles` and `playerRestrictedAreaFiles` in `cfggameplay.json` (deduplicated, existing entries kept;
    the server needs `enableCfgGameplayFile`).
 5. Writing: byte-preserving — everything outside a changed span stays as it was, new entries take the indent of their
-   neighbours, unchanged numbers keep their text. JSON is checked with the game's rules before it is written; output
+   neighbours, unchanged numbers keep their text. A line break inside a text value (a message's `text`) is part of the
+   value: it is written as it is, and the text after it is not indented like the lines around it. JSON is checked with the game's rules before it is written; output
    that would not parse is not written (`invalid`).
 
 ### Report

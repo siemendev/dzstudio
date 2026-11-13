@@ -42,6 +42,9 @@ class DZS_PJCont : Managed
 
 class DZS_PatchFile : Managed
 {
+	// A line break inside a text value of new XML, which re-indenting must not touch; Finish turns it back. A raw "<"
+	// never stands in escaped text, so it cannot be one the value holds.
+	static const string KEPT_BREAK = "<dzs-line-break/>";
 	string m_Path;
 	bool m_Exists;
 	bool m_IsJson;
@@ -741,6 +744,12 @@ class DZS_PatchFile : Managed
 			return false;
 		if (m_IsJson)
 			FinishConts();
+		foreach (DZS_XmlPatch kp : m_Patches)
+		{
+			string kt = kp.m_Text;
+			if (kt.Replace(KEPT_BREAK, "\n") > 0)
+				kp.m_Text = kt;
+		}
 		m_Out = DZS_XmlWriter.Apply(m_Xml, m_Patches);
 		if (DZS_Files.SameContent(m_Out, m_Chunks))
 			return false;

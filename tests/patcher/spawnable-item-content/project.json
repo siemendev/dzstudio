@@ -1,0 +1,134 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-crate",
+            "kind": "spawnable",
+            "parent": null,
+            "data": {
+                "name": "PoxCrate"
+            }
+        },
+        {
+            "id": "b-crate-c",
+            "kind": "spawnableCargo",
+            "parent": "b-crate",
+            "data": {
+                "chance": 1,
+                "item": [
+                    {
+                        "name": "GunCase_White",
+                        "chance": 0.50,
+                        "damage": {
+                            "max": 0.2
+                        },
+                        "cargo": [
+                            {
+                                "chance": 1,
+                                "item": [
+                                    "SV98",
+                                    {
+                                        "name": "Mag_SV98_10Rnd",
+                                        "chance": 1
+                                    }
+                                ]
+                            }
+                        ],
+                        "attachments": [
+                            {
+                                "preset": "x"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "remove",
+            "block": "spawnableItem",
+            "key": {
+                "name": "Rag",
+                "type": "StorageBox_Wooden"
+            }
+        },
+        {
+            "op": "set",
+            "block": "spawnableCargo",
+            "key": {
+                "type": "ZmbM_NBC_Yellow"
+            },
+            "field": "item",
+            "from": "sha256:4d9f9f132e1be4200d2c08177ea70cf7bfda212970aa85f82b3b5e62003f6545",
+            "to": [
+                {
+                    "name": "Grenade_ChemGas",
+                    "chance": 1,
+                    "damage": {
+                        "min": 1,
+                        "max": 1
+                    }
+                },
+                "GasMask_Filter"
+            ]
+        },
+        {
+            "op": "set",
+            "block": "spawnableCargo",
+            "key": {
+                "type": "ZmbM_Mummy"
+            },
+            "field": "item",
+            "from": "sha256:fe919dd1dd62cf135a9b868c76a3e43ddd198212d28d8974a1a48f019a6bfad3",
+            "to": [
+                {
+                    "name": "Grenade_ChemGas",
+                    "chance": 1,
+                    "damage": {
+                        "min": 1,
+                        "max": 1
+                    }
+                }
+            ]
+        },
+        {
+            "op": "set",
+            "block": "spawnableCargo",
+            "key": {
+                "type": "ZmbM_Mummy"
+            },
+            "field": "item",
+            "to": [
+                {
+                    "name": "X",
+                    "damage": 1
+                }
+            ]
+        },
+        {
+            "op": "set",
+            "block": "spawnableCargo",
+            "key": {
+                "type": "ZmbM_Mummy"
+            },
+            "field": "item",
+            "to": [
+                {
+                    "name": "X",
+                    "cargo": [
+                        {
+                            "item": [
+                                {
+                                    "chance": 1
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

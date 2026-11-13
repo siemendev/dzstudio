@@ -1,0 +1,17 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-two",
+            "kind": "message",
+            "parent": null,
+            "data": {
+                "repeat": 15,
+                "text": "Raid time:\n  Fri-Sun 18-23 <MSK>"
+            }
+        }
+    ],
+    "changes": []
+}

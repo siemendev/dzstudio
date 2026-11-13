@@ -151,7 +151,9 @@ class DZS_PatcherBase : Managed
 	}
 
 	// List values: members as "name=…" / "user=…", a chance appended as "\tchance=…"; a project list holds names,
-	// {"user": …} or {"name": …, "chance": …}.
+	// {"user": …} or {"name": …, "chance": …}. An item may also carry what the game reads inside it — "damage"
+	// {"min", "max"} and lists of "attachments" and "cargo" blocks ({"chance", "preset", "item"}) — as further lines
+	// of its member (ItemLines).
 	static bool ListTokens(DZS_Json v, array<string> tokens)
 	{
 		if (!v || !v.IsArr())
@@ -159,26 +161,171 @@ class DZS_PatcherBase : Managed
 		for (int i = 0; i < v.Count(); i++)
 		{
 			DZS_Json it = v.At(i);
-			if (it.IsStr() && it.m_Str != "")
-				tokens.Insert("name=" + it.m_Str);
-			else if (it.IsObj() && it.GetStr("user") != "")
-				tokens.Insert("user=" + it.GetStr("user"));
-			else if (it.IsObj() && it.GetStr("name") != "")
+			if (it.IsObj() && it.GetStr("user") != "")
 			{
-				string tok = "name=" + it.GetStr("name");
-				DZS_Json chance = it.Get("chance");
+				tokens.Insert("user=" + it.GetStr("user"));
+				continue;
+			}
+			string tok;
+			if (!ItemToken(it, 0, tok))
+				return false;
+			tokens.Insert(tok);
+		}
+		return true;
+	}
+
+	// An item of a project list as its member: "name=…", "\tchance=…" and the lines of its content one level in.
+	protected static bool ItemToken(DZS_Json it, int level, out string tok)
+	{
+		tok = "";
+		if (it.IsStr() && it.m_Str != "")
+		{
+			tok = "name=" + it.m_Str;
+			return true;
+		}
+		if (!it.IsObj() || it.GetStr("name") == "")
+			return false;
+		string r = "name=" + it.GetStr("name");
+		DZS_Json chance = it.Get("chance");
+		if (chance)
+		{
+			if (!chance.IsNum() || !DZS_PatchNum.IsNumber(chance.m_Str))
+				return false;
+			r += "\tchance=" + DZS_PatchNum.Canon(chance.m_Str);
+		}
+		array<string> lines = new array<string>();
+		if (!ItemLines(it, level, lines))
+			return false;
+		foreach (string line : lines)
+			r += "\n" + line;
+		tok = r;
+		return true;
+	}
+
+	// What a project item holds inside it, as the canonical lines of its XML: the damage, then the attachments and
+	// cargo blocks in their order, each line indented by tabs from 'level' on. False when a value is no number or list.
+	protected static bool ItemLines(DZS_Json it, int level, array<string> lines)
+	{
+		string tabs = Tabs(level);
+		DZS_Json damage = it.Get("damage");
+		if (damage && damage.m_Type != DZS_Json.NUL)
+		{
+			if (!damage.IsObj())
+				return false;
+			array<string> dn = new array<string>();
+			array<string> dv = new array<string>();
+			array<string> ends = {"min", "max"};
+			foreach (string side : ends)
+			{
+				DZS_Json n = damage.Get(side);
+				if (!n)
+					continue;
+				if (!n.IsNum() || !DZS_PatchNum.IsNumber(n.m_Str))
+					return false;
+				dn.Insert(side);
+				dv.Insert(DZS_PatchNum.Canon(n.m_Str));
+			}
+			lines.Insert(tabs + Tag("damage", dn, dv, true));
+		}
+		array<string> elems = {"attachments", "cargo"};
+		foreach (string elem : elems)
+		{
+			DZS_Json blocks = it.Get(elem);
+			if (!blocks || blocks.m_Type == DZS_Json.NUL)
+				continue;
+			if (!blocks.IsArr())
+				return false;
+			for (int i = 0; i < blocks.Count(); i++)
+			{
+				DZS_Json b = blocks.At(i);
+				if (!b.IsObj())
+					return false;
+				array<string> an = new array<string>();
+				array<string> av = new array<string>();
+				DZS_Json chance = b.Get("chance");
 				if (chance)
 				{
 					if (!chance.IsNum() || !DZS_PatchNum.IsNumber(chance.m_Str))
 						return false;
-					tok += "\tchance=" + DZS_PatchNum.Canon(chance.m_Str);
+					an.Insert("chance");
+					av.Insert(DZS_PatchNum.Canon(chance.m_Str));
 				}
-				tokens.Insert(tok);
+				if (b.GetStr("preset") != "")
+				{
+					an.Insert("preset");
+					av.Insert(b.GetStr("preset"));
+				}
+				array<string> inner = new array<string>();
+				DZS_Json items = b.Get("item");
+				if (items && items.m_Type != DZS_Json.NUL)
+				{
+					if (!items.IsArr())
+						return false;
+					for (int j = 0; j < items.Count(); j++)
+					{
+						string sub;
+						if (!ItemToken(items.At(j), level + 2, sub))
+							return false;
+						ItemXml(sub, tabs + "\t", inner);
+					}
+				}
+				if (inner.Count() == 0)
+				{
+					lines.Insert(tabs + Tag(elem, an, av, true));
+					continue;
+				}
+				lines.Insert(tabs + Tag(elem, an, av, false));
+				foreach (string il : inner)
+					lines.Insert(il);
+				lines.Insert(tabs + "</" + elem + ">");
 			}
-			else
-				return false;
 		}
 		return true;
+	}
+
+	// A member's XML lines: its element (indented by 'tabs'), and the lines of its content, which carry their own
+	// indentation.
+	static void ItemXml(string token, string tabs, array<string> dest)
+	{
+		array<string> lines = new array<string>();
+		DZS_PatchText.Lines(token, lines);
+		array<string> parts = new array<string>();
+		lines[0].Split("\t", parts);
+		array<string> an = new array<string>();
+		array<string> av = new array<string>();
+		foreach (string part : parts)
+		{
+			int eq = part.IndexOf("=");
+			an.Insert(part.Substring(0, eq));
+			av.Insert(part.Substring(eq + 1, part.Length() - eq - 1));
+		}
+		if (lines.Count() == 1)
+		{
+			dest.Insert(tabs + Tag("item", an, av, true));
+			return;
+		}
+		dest.Insert(tabs + Tag("item", an, av, false));
+		for (int i = 1; i < lines.Count(); i++)
+			dest.Insert(lines[i]);
+		dest.Insert(tabs + "</item>");
+	}
+
+	static string Tag(string elem, array<string> names, array<string> values, bool close)
+	{
+		string r = "<" + elem;
+		for (int i = 0; i < names.Count(); i++)
+			r += " " + names[i] + "=\"" + DZS_Xml.Escape(values[i]) + "\"";
+		if (close)
+			return r + " />";
+		return r + ">";
+	}
+
+	static string Tabs(int n)
+	{
+		string r = "";
+		for (int i = 0; i < n; i++)
+			r += "\t";
+		return r;
 	}
 
 	// "sha256:" and the hash of the members joined by line feeds.

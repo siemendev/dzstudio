@@ -51,7 +51,9 @@ mod's settings (below): `{"data": {"settings": [ … ]}}`.
     list); the copies kept count `index` from 0 again. Optional `"split"` (only with `over`): a text setting is cut into
     the list — `","` makes `"Knife,Rag"` two entries, `[",", ":"]` also cuts each entry into its parts, read as
     `item.0`, `item.1` … (`"Knife:1"`: `item` is `Knife:1`, `item.0` `Knife`, `item.1` `1`; a part that is not there
-    has no value). Nothing is trimmed; an empty text has no entries.
+    has no value). `"\n"` cuts a text into its lines. Nothing is trimmed unless `"trim": true` (only with `split`):
+    then every entry and part loses its surrounding white space (with `"where": {"field": "item", "op": "not_empty"}`
+    blank lines make no copy). An empty text has no entries.
 - **Names of repeated blocks.** A block whose kind is identified by a name — an event, a spawn zone, an event group, an
   item type, a loot type, a spawnable type, a random preset, a global, a message (its text), a player spawn group, a CE
   default or root class, an ignored type, an event child (its `type`) — would collide with its own copies, so each

@@ -341,33 +341,22 @@ class DZS_Patcher : DZS_PatcherJson
 			{
 				array<string> tokens = new array<string>();
 				CurrentList(f, n, fld, tokens);
-				DZS_Json kept = DZS_Json.Arr();
-				bool dropped = false;
+				array<string> kept = new array<string>();
 				foreach (string tok : tokens)
 				{
-					array<string> parts = new array<string>();
-					tok.Split("\t", parts);
-					int eq = parts[0].IndexOf("=");
-					string attr = parts[0].Substring(0, eq);
-					string value = parts[0].Substring(eq + 1, parts[0].Length() - eq - 1);
-					if (attr == "name" && DZS_PatchText.Lower(value) == name)
-					{
-						dropped = true;
+					int cut = tok.IndexOf("\t");
+					int nl = tok.IndexOf("\n");
+					if (cut < 0 || (nl >= 0 && nl < cut))
+						cut = nl;
+					if (cut < 0)
+						cut = tok.Length();
+					if (tok.IndexOf("name=") == 0 && DZS_PatchText.Lower(tok.Substring(5, cut - 5)) == name)
 						continue;
-					}
-					DZS_Json item = DZS_Json.Obj();
-					DZS_Json itemName = DZS_Json.Str(value);
-					item.Set(attr, itemName);
-					if (parts.Count() > 1 && parts[1].IndexOf("chance=") == 0)
-					{
-						DZS_Json chance = DZS_Json.Num(parts[1].Substring(7, parts[1].Length() - 7));
-						item.Set("chance", chance);
-					}
-					kept.Add(item);
+					kept.Insert(tok);
 				}
-				if (!dropped)
+				if (kept.Count() == tokens.Count())
 					continue;
-				string err = SetList(f, k, n, fld, kept);
+				string err = SetTokens(f, k, n, fld, kept);
 				if (err != "")
 				{
 					e.m_Status = "invalid";

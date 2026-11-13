@@ -159,6 +159,22 @@ def messages():
                       bl(0, K, "b-r", "applied", MS), bl(1, K, "b-h", "applied", MS)],
           "files": [fl(MS, "created")]})
 
+def message_line_break():
+    base = vanilla('chernarusplus', MS)
+    K = "message"
+    blocks = [
+        # a line break in a text is the value's own: written as it is, never indented like the lines around it
+        {"id": "b-two", "kind": K, "parent": None, "data": {"repeat": 15, "text": "Raid time:\n  Fri-Sun 18-23 <MSK>"}},
+    ]
+    out = rep(base, '</messages>', '''    <message>
+        <repeat>15</repeat>
+        <text>Raid time:#BR#  Fri-Sun 18-23 &lt;MSK&gt;</text>
+    </message>
+'''.replace('\n', '\r\n').replace('#BR#', '\n') + '</messages>')
+    entries = [bl(0, K, "b-two", "applied", MS)]
+    case("message-line-break", {MS: base}, {"blocks": blocks}, {MS: out},
+         {"entries": entries, "files": [fl(MS, "written")]})
+
 def economy():
     base = vanilla('chernarusplus', EC)
     K = "economy"
@@ -518,6 +534,96 @@ def spawnable_items():
     case("spawnable-items", {SP: SPITEMS}, {"changes": changes}, {SP: out},
          {"entries": entries, "files": [fl(SP, "written")]})
 
+SPCONTENT = SPHEAD + '''\t<type name="StorageBox_Wooden">
+\t\t<cargo chance="1.0">
+\t\t\t<item name="GunCase_Black" chance="0.5" >
+\t\t\t\t<damage min="0.0" max="0.0" />
+\t\t\t\t<cargo chance="1.0">
+\t\t\t\t\t<item name="SCARH" chance="1.0" />
+\t\t\t\t</cargo>
+\t\t\t</item>
+\t\t\t<item name="Rag" chance="0.5" />
+\t\t</cargo>
+\t</type>
+\t<type name="ZmbM_Mummy">
+\t\t<cargo chance="1.0">
+\t\t\t<item name="Grenade_ChemGas" chance="1.0"><damage min="1.0" max="1.0"/></item>
+\t\t</cargo>
+\t</type>
+\t<type name="ZmbM_NBC_Yellow">
+\t\t<cargo chance="0.5">
+\t\t\t<item name="GasMask_Filter" chance="1.0" />
+\t\t</cargo>
+\t</type>
+</spawnabletypes>
+'''
+
+def spawnable_item_content():
+    I = "spawnableItem"
+    T = "spawnable"
+    C = "spawnableCargo"
+    ruined = {"name": "Grenade_ChemGas", "chance": 1, "damage": {"min": 1, "max": 1}}
+    changes = [
+        # an item's content survives when its list is written again
+        R({"name": "Rag", "type": "StorageBox_Wooden"}, kind=I),
+        S({"type": "ZmbM_NBC_Yellow"}, "item", fp(["name=GasMask_Filter\tchance=1"]), [ruined, "GasMask_Filter"], kind=C),
+        # the fingerprint and the comparison see the content
+        S({"type": "ZmbM_Mummy"}, "item", fp(['name=Grenade_ChemGas\tchance=1\n<damage min="1" max="1" />']), [ruined], kind=C),
+        S({"type": "ZmbM_Mummy"}, "item", None, [{"name": "X", "damage": 1}], kind=C),
+        S({"type": "ZmbM_Mummy"}, "item", None, [{"name": "X", "cargo": [{"item": [{"chance": 1}]}]}], kind=C),
+    ]
+    blocks = [
+        {"id": "b-crate", "kind": T, "parent": None, "data": {"name": "PoxCrate"}},
+        {"id": "b-crate-c", "kind": C, "parent": "b-crate", "data": {"chance": 1, "item": [
+            {"name": "GunCase_White", "chance": N("0.50"), "damage": {"max": N("0.2")},
+             "cargo": [{"chance": 1, "item": ["SV98", {"name": "Mag_SV98_10Rnd", "chance": 1}]}],
+             "attachments": [{"preset": "x"}]}]}},
+    ]
+    out = rep(SPCONTENT, '''\t\t\t<item name="GunCase_Black" chance="0.5" >
+\t\t\t\t<damage min="0.0" max="0.0" />
+\t\t\t\t<cargo chance="1.0">
+\t\t\t\t\t<item name="SCARH" chance="1.0" />
+\t\t\t\t</cargo>
+\t\t\t</item>
+\t\t\t<item name="Rag" chance="0.5" />
+''', '''\t\t\t<item name="GunCase_Black" chance="0.5">
+\t\t\t\t<damage min="0" max="0" />
+\t\t\t\t<cargo chance="1">
+\t\t\t\t\t<item name="SCARH" chance="1" />
+\t\t\t\t</cargo>
+\t\t\t</item>
+''')
+    out = rep(out, '''\t\t\t<item name="GasMask_Filter" chance="1.0" />
+''', '''\t\t\t<item name="Grenade_ChemGas" chance="1">
+\t\t\t\t<damage min="1" max="1" />
+\t\t\t</item>
+\t\t\t<item name="GasMask_Filter" />
+''')
+    out = rep(out, '</spawnabletypes>', '''\t<type name="PoxCrate">
+\t\t<cargo chance="1">
+\t\t\t<item name="GunCase_White" chance="0.5">
+\t\t\t\t<damage max="0.2" />
+\t\t\t\t<attachments preset="x" />
+\t\t\t\t<cargo chance="1">
+\t\t\t\t\t<item name="SV98" />
+\t\t\t\t\t<item name="Mag_SV98_10Rnd" chance="1" />
+\t\t\t\t</cargo>
+\t\t\t</item>
+\t\t</cargo>
+\t</type>
+</spawnabletypes>''')
+    entries = [
+        ch(0, "remove", I, {"name": "Rag", "type": "StorageBox_Wooden"}, "applied", SP),
+        ch(1, "set", C, {"type": "ZmbM_NBC_Yellow"}, "applied", SP, "item"),
+        ch(2, "set", C, {"type": "ZmbM_Mummy"}, "already", SP, "item"),
+        ch(3, "set", C, {"type": "ZmbM_Mummy"}, "invalid", SP, "item", detail="bad-value"),
+        ch(4, "set", C, {"type": "ZmbM_Mummy"}, "invalid", SP, "item", detail="bad-value"),
+        bl(0, T, "b-crate", "applied", SP),
+        bl(1, C, "b-crate-c", "applied", SP),
+    ]
+    case("spawnable-item-content", {SP: SPCONTENT}, {"changes": changes, "blocks": blocks}, {SP: out},
+         {"entries": entries, "files": [fl(SP, "written")]})
+
 def preset_items():
     I = "presetItem"
     changes = [
@@ -542,10 +648,12 @@ def run():
     globals_case()
     globals_duplicate()
     messages()
+    message_line_break()
     economy()
     economy_core()
     ignore_list()
     spawnable()
     random_presets()
     spawnable_items()
+    spawnable_item_content()
     preset_items()

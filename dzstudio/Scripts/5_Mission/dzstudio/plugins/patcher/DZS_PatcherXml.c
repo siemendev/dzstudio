@@ -365,19 +365,88 @@ class DZS_PatcherXml : DZS_PatcherBase
 		{
 			if (c.m_Name != elem || f.IsRemoved(c))
 				continue;
-			string tok = "name=" + c.Get("name");
-			if (c.Has("user"))
-				tok = "user=" + c.Get("user");
-			if (c.Has("chance"))
-			{
-				string ch = c.Get("chance");
-				ch.TrimInPlace();
-				if (DZS_PatchNum.IsNumber(ch))
-					ch = DZS_PatchNum.Canon(ch);
-				tok += "\tchance=" + ch;
-			}
-			tokens.Insert(tok);
+			tokens.Insert(XmlItemToken(f, c, elem == "item", 0));
 		}
+	}
+
+	// A list member of the file: "name=…", "\tchance=…" and, for an item, the lines of its content (ListTokens).
+	protected string XmlItemToken(DZS_PatchFile f, DZS_XmlNode c, bool content, int level)
+	{
+		string tok = "name=" + c.Get("name");
+		if (c.Has("user"))
+			tok = "user=" + c.Get("user");
+		if (c.Has("chance"))
+			tok += "\tchance=" + CanonAttr(c.Get("chance"));
+		if (!content || c.Has("user"))
+			return tok;
+		string tabs = Tabs(level);
+		array<string> lines = new array<string>();
+		foreach (DZS_XmlNode d : c.m_Children)
+		{
+			if (d.m_Name == "damage" && !f.IsRemoved(d))
+			{
+				array<string> dn = new array<string>();
+				array<string> dv = new array<string>();
+				array<string> ends = {"min", "max"};
+				foreach (string side : ends)
+				{
+					if (!d.Has(side))
+						continue;
+					dn.Insert(side);
+					dv.Insert(CanonAttr(d.Get(side)));
+				}
+				lines.Insert(tabs + Tag("damage", dn, dv, true));
+				break;
+			}
+		}
+		array<string> elems = {"attachments", "cargo"};
+		foreach (string elem : elems)
+		{
+			foreach (DZS_XmlNode b : c.m_Children)
+			{
+				if (b.m_Name != elem || f.IsRemoved(b))
+					continue;
+				array<string> an = new array<string>();
+				array<string> av = new array<string>();
+				if (b.Has("chance"))
+				{
+					an.Insert("chance");
+					av.Insert(CanonAttr(b.Get("chance")));
+				}
+				if (b.Get("preset") != "")
+				{
+					an.Insert("preset");
+					av.Insert(b.Get("preset"));
+				}
+				array<string> inner = new array<string>();
+				foreach (DZS_XmlNode sub : b.m_Children)
+				{
+					if (sub.m_Name == "item" && !f.IsRemoved(sub))
+						ItemXml(XmlItemToken(f, sub, true, level + 2), tabs + "\t", inner);
+				}
+				if (inner.Count() == 0)
+				{
+					lines.Insert(tabs + Tag(elem, an, av, true));
+					continue;
+				}
+				lines.Insert(tabs + Tag(elem, an, av, false));
+				foreach (string il : inner)
+					lines.Insert(il);
+				lines.Insert(tabs + "</" + elem + ">");
+			}
+		}
+		foreach (string line : lines)
+			tok += "\n" + line;
+		return tok;
+	}
+
+	protected static string CanonAttr(string v)
+	{
+		string t = v;
+		t.TrimInPlace();
+		if (DZS_PatchNum.IsNumber(t))
+			return DZS_PatchNum.Canon(t);
+		return t;
 	}
 
 	// Attribute order for an element at a field path: the declared order of the fields that sit on it.
@@ -559,6 +628,11 @@ class DZS_PatcherXml : DZS_PatcherBase
 		array<string> tokens = new array<string>();
 		if (v && v.m_Type != DZS_Json.NUL && !ListTokens(v, tokens))
 			return "bad-value";
+		return SetTokens(f, k, n, fld, tokens);
+	}
+
+	string SetTokens(DZS_PatchFile f, DZS_PKind k, DZS_XmlNode n, DZS_PField fld, array<string> tokens)
+	{
 		DZS_XmlNode parent = Walk(f, n, fld, fld.m_Elems.Count() - 1);
 		if (!parent)
 			return "bad-value";
@@ -581,7 +655,7 @@ class DZS_PatcherXml : DZS_PatcherBase
 				{
 					if (joined != "")
 						joined += "\n";
-					joined += ListItem(elem, tok0, k.m_SelfClose);
+					joined += ListItem(elem, tok0, k.m_SelfClose, f.m_Unit);
 				}
 				if (joined != "")
 					InsertOrdered(f, k, parent, elem, joined);
@@ -598,7 +672,7 @@ class DZS_PatcherXml : DZS_PatcherBase
 		string text = "";
 		foreach (string tok : tokens)
 		{
-			string item = ListItem(elem, tok, k.m_SelfClose);
+			string item = DZS_PatchFile.Reindent(ListItem(elem, tok, k.m_SelfClose, f.m_Unit), pl.m_Indent, f.m_Eol);
 			if (pl.m_Before)
 				text += pl.m_Indent + item + f.m_Eol;
 			else
@@ -660,10 +734,13 @@ class DZS_PatcherXml : DZS_PatcherBase
 		return pl;
 	}
 
-	static string ListItem(string elem, string token, string selfClose)
+	// A list member's element; an item with content spans lines, indented by 'unit' per level.
+	static string ListItem(string elem, string token, string selfClose, string unit)
 	{
+		array<string> lines = new array<string>();
+		DZS_PatchText.Lines(token, lines);
 		array<string> parts = new array<string>();
-		token.Split("\t", parts);
+		lines[0].Split("\t", parts);
 		string r = "<" + elem;
 		foreach (string part : parts)
 		{
@@ -672,7 +749,21 @@ class DZS_PatcherXml : DZS_PatcherBase
 			string val = part.Substring(eq + 1, part.Length() - eq - 1);
 			r += " " + attr + "=\"" + DZS_Xml.Escape(val) + "\"";
 		}
-		return r + selfClose;
+		if (lines.Count() == 1)
+			return r + selfClose;
+		r += ">";
+		for (int i = 1; i < lines.Count(); i++)
+		{
+			string line = lines[i];
+			int depth = 0;
+			while (depth < line.Length() && line.Get(depth) == "\t")
+				depth++;
+			r += "\n";
+			for (int u = 0; u <= depth; u++)
+				r += unit;
+			r += line.Substring(depth, line.Length() - depth);
+		}
+		return r + "\n</" + elem + ">";
 	}
 
 	// ---- writing own blocks ----
@@ -757,13 +848,15 @@ class DZS_PatcherXml : DZS_PatcherBase
 						array<string> tokens = new array<string>();
 						ListTokens(gv, tokens);
 						foreach (string tok : tokens)
-							kids.Insert(ListItem(cn, tok, k.m_SelfClose));
+							kids.Insert(ListItem(cn, tok, k.m_SelfClose, unit));
 					}
 					else if (g.m_Attr == "")
 					{
 						string err2;
 						string tv = Render(g, gv, err2);
-						kids.Insert("<" + cn + ">" + DZS_Xml.Escape(tv) + "</" + cn + ">");
+						string kept = DZS_Xml.Escape(tv);
+						kept.Replace("\n", DZS_PatchFile.KEPT_BREAK);
+						kids.Insert("<" + cn + ">" + kept + "</" + cn + ">");
 					}
 					else
 						deeper = true;

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+
+<spawnabletypes>
+	<type name="StorageBox_Wooden">
+		<cargo chance="1.0">
+			<item name="GunCase_Black" chance="0.5">
+				<damage min="0" max="0" />
+				<cargo chance="1">
+					<item name="SCARH" chance="1" />
+				</cargo>
+			</item>
+		</cargo>
+	</type>
+	<type name="ZmbM_Mummy">
+		<cargo chance="1.0">
+			<item name="Grenade_ChemGas" chance="1.0"><damage min="1.0" max="1.0"/></item>
+		</cargo>
+	</type>
+	<type name="ZmbM_NBC_Yellow">
+		<cargo chance="0.5">
+			<item name="Grenade_ChemGas" chance="1">
+				<damage min="1" max="1" />
+			</item>
+			<item name="GasMask_Filter" />
+		</cargo>
+	</type>
+	<type name="PoxCrate">
+		<cargo chance="1">
+			<item name="GunCase_White" chance="0.5">
+				<damage max="0.2" />
+				<attachments preset="x" />
+				<cargo chance="1">
+					<item name="SV98" />
+					<item name="Mag_SV98_10Rnd" chance="1" />
+				</cargo>
+			</item>
+		</cargo>
+	</type>
+</spawnabletypes>
