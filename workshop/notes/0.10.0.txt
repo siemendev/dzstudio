@@ -1,0 +1,6 @@
+- Loot is always available: the Loot switch in the Project menu is gone. Where the mission has no loot files, a project simply has no loot.
+- New toolbar switch LOOT OFF | ON decides whether newly placed buildings get loot. It starts on OFF and is saved with the project. ON gives a building the loot points its type already has (or the project's own points for that type); you can still change each object under Properties › Loot.
+- Projects without loot of their own open right away; the loot is read in the background.
+- Import … now also takes Object Spawner .json files: added to an open project as a new object group, or as a new project from the home screen.
+- The project bar links to the open project's page where it is stored (for dzbot mods: its page on dzbot).
+- Loot lists keep item quantities (quantmin/quantmax), cargo without a chance, and the spawn weight of gear preset items.
