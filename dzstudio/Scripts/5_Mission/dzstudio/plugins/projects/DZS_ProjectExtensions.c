@@ -8,11 +8,11 @@
 // Contract: docs/extensions/README.md.
 class DZS_ProjectExtension : Managed
 {
-	// the URL of its spec, e.g. "https://developers.dzbot.de/specs/dzbot/rules/1.json"
+	// the URL of its spec, e.g. "https://example.com/specs/rules/1.json"
 	string Url() { return ""; }
 	// written as "required": true
 	bool Required() { return false; }
-	// whether its user interface applies to the open project (the dzbot rules: only in a dzbot project mod)
+	// whether its user interface applies to the open project (e.g. only in a provider's own projects)
 	bool IsActive() { return false; }
 	// the entry's data of the opened project; not called when the project has no entry
 	void Load(DZS_Json data) {}

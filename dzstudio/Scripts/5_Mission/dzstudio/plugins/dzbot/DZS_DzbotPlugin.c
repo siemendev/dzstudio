@@ -98,6 +98,7 @@ class DZS_DzbotAuth : DZS_AuthProvider
 	override string UserName() { return m_P.m_UserName; }
 	override void SignIn() { m_P.StartConnect(); }
 	override void SignOut() { m_P.AskDisconnect(); }
+	override string TabLabel() { return DZS_Texts.Pick("dzbot · Gemeinsam", "dzbot · Shared"); }
 }
 
 // A request that needs the token: kept so it can be sent again after renewing.
@@ -214,6 +215,7 @@ class DZS_DzbotProvider : DZS_StoreProvider
 	override string Label(string folder) { return m_P.LabelOf(folder); }
 	override string PageUrl(string folder) { return m_P.ManageUrlOf(folder); }
 	override string PageLabel(string folder) { return DZS_Texts.Pick("In dzbot öffnen", "Open in dzbot"); }
+	override string EditPlace() { return "dzbot"; }
 	override void Fetch(string folder) { m_P.Fetch(folder); }
 	override void Save(string folder, array<ref DZS_SaveFile> files) { m_P.Save(folder, files); }
 	override bool AutoSaveOff(string folder, out string de, out string en)
@@ -490,6 +492,10 @@ class DZS_DzbotPlugin : DZS_Plugin
 
 	override void OnRegister()
 	{
+		// the catalog of versions up to 0.5 (German names) is a cache and is fetched again
+		DZS_LegacyNames.Drop("$profile:dzstudio\\dzbot\\katalog.jsonl");
+		DZS_LegacyNames.Drop("$profile:dzstudio\\dzbot\\katalog-revision.txt");
+		DZS_LegacyNames.DropFolder("$profile:dzstudio\\dzbot\\bilder");
 		string shaArg;
 		if (GetCLIParam("dzsShaTest", shaArg))
 			DZS_Sha256.SelfTest();
@@ -526,6 +532,9 @@ class DZS_DzbotPlugin : DZS_Plugin
 		ui.AddMenuEntry("project", "dzbot.connect", 120);
 		ui.AddMenuEntry("project", "dzbot.disconnect", 121);
 		m_Upload = new DZS_DzbotUpload(this);
+		DZS_DzbotUploadTest ut = new DZS_DzbotUploadTest();
+		ut.m_P = this;
+		DZS_ProjTest.AddCommand("upload", ut);
 		ui.RegisterAction("dzbot", "dzbot.upload", "Zu dzbot hochladen …", "Upload to dzbot …", null, m_Actions);
 		ui.SetWhen("dzbot.upload", "scene");
 		ui.AddMenuEntry("project", "dzbot.upload", 122);

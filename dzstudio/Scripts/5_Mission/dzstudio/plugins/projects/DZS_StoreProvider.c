@@ -40,11 +40,13 @@ class DZS_StoreProvider : Managed
 
 	string Id() { return ""; }
 	bool Owns(string folder) { return false; }
-	// Meta text before map and groups, e.g. "dzbot placement".
+	// Meta text before map and groups, e.g. "Server placement".
 	string Label(string folder) { return ""; }
 	// The project's own page at the provider, linked from the project bar ("" = none), and the link's label.
 	string PageUrl(string folder) { return ""; }
 	string PageLabel(string folder) { return ""; }
+	// Where entries made outside dzStudio are edited, named in their read-only hint ("" = not named).
+	string EditPlace() { return ""; }
 	// Fetch the current state into the folder, then call DZS_ProjectsPlugin.Fetched.
 	void Fetch(string folder) {}
 	void Save(string folder, array<ref DZS_SaveFile> files) {}
@@ -79,7 +81,7 @@ class DZS_StoreProvider : Managed
 	string Address() { return ""; }
 	// null = the provider keeps no loot (loot only in the local folder).
 	DZS_LootOrigin LootOrigin(string folder) { return null; }
-	// Groups cannot be deleted in this project (e.g. a dzbot placement has exactly one group); de/en = the reason.
+	// Groups cannot be deleted in this project (e.g. a provider's placement has exactly one group); de/en = the reason.
 	bool GroupsFixed(string folder, out string de, out string en) { return false; }
 	// Hints for the check list when the fetched project opens.
 	void OpenIssues(string folder, DZS_Issues into) {}

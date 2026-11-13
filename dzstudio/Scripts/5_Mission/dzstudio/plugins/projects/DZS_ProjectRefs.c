@@ -1,5 +1,5 @@
 // How the project file addresses its own blocks and changes from extensions (docs/extensions/README.md): a block by
-// its id, a change by its ref — exactly as dzbot does (ProjectRules::ref) — and short labels for both.
+// its id, a change by its ref (the same refs every tool reading the format uses) and short labels for both.
 class DZS_ProjectRefs
 {
 	// block, the key as compact JSON (numbers as PHP writes them after reading), field; trimmed

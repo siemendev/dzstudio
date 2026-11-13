@@ -1,5 +1,5 @@
 // The project file: <id>.dzstudio.json in the project list, project.dzstudio.json inside a folder (a backup, the
-// working folder). Version 2 is the saved form of every project, local, a provider's and dzbot's mods and placements:
+// working folder). Version 2 is the saved form of every project, local or a storage provider's:
 // the building blocks ({format, version, map, slug, blocks, changes}, DZS_ProjectV2) plus dzStudio's editor extension
 // (EDITOR_EXT) with what only dzStudio needs: provider part, base, project part (groups by block id, loot switches,
 // plugin parts) and view part (docs/extensions/dzstudio.editor.md). Version 1 (provider part, project part and view
@@ -812,7 +812,7 @@ class DZS_ProjectFile
 	}
 
 	// The project part, from "{" to its closing "}" (no comma); depends only on the project state. originals "" =
-	// null; namesOnly for the dzbot manifest (no projectId, no original texts).
+	// null; namesOnly for a provider's manifest (no projectId, no original texts).
 	static string ProjectPart(array<string> groupEntries, bool lootEnabled, bool lootHidden, bool lootLocked, string projectId, array<string> writtenTypes, array<string> originals, bool namesOnly, string pluginEntries)
 	{
 		string s = "{\n";

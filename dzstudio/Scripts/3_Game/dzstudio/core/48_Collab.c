@@ -307,6 +307,8 @@ class DZS_AuthProvider : Managed
 	string UserName() { return ""; }
 	void SignIn() {}
 	void SignOut() {}
+	// The project browser's tab for the shared sessions of its fixed server ("" = the server's name).
+	string TabLabel() { return ""; }
 }
 
 // Server entries of plugins: fixed in the sync plugin's list, not removable.

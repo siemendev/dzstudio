@@ -18,6 +18,15 @@ def run(source):
         return sorted(msg for _, _, msg in c.problems)
 
 
+class Boundary(unittest.TestCase):
+    def test_dzbot_outside_its_plugin(self):
+        self.assertEqual(run("class DZS_A : Managed\n{\n\t// a dzbot mod\n}\n"),
+                         ["dzbot outside plugins/dzbot: move it into the plugin or behind a generic hook"])
+
+    def test_project_format_identifier(self):
+        self.assertEqual(run('class DZS_A : Managed\n{\n\tstatic const string U = "https://developers.dzbot.de/specs/dzstudio/editor/1.json";\n}\n'), [])
+
+
 class Clashes(unittest.TestCase):
     def test_field_shadowing_a_base_field(self):
         p = run("""

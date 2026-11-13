@@ -8,7 +8,7 @@
 // - loot: an own block on its part of the loot entry's data (DZS_LootEEntry/Container/Point.m_Ext, the part found by its
 //   m_Uid), a change in the loot:entry element's field "ext" (an object of extensions by change ref — the key of a base
 //   entry, never an index);
-// - the project's own entries (Project › Extensions, the dzbot settings): field "ext:project:<url>" of the project
+// - the project's own entries (Project › Extensions, an extension's settings): field "ext:project:<url>" of the project
 //   element, and which extensions the project carries in its field "ext:list", so they are undone, redone and shared
 //   like everything else.
 // An entity is addressed by where its extensions live (DZS_ExtOwner.Key: element id, field, change ref, loot part id) —

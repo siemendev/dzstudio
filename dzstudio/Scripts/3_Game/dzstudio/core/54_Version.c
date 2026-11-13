@@ -180,7 +180,7 @@ class DZS_Version
 		d.Open();
 	}
 
-	// A server or the dzbot plugin recommends a newer version: one message per game start, from whoever says it first.
+	// A server or a plugin recommends a newer version: one message per game start, from whoever says it first.
 	static void Recommended(string v, string url)
 	{
 		if (s_NewShown || !Valid(v) || Compare(v, Get()) <= 0)

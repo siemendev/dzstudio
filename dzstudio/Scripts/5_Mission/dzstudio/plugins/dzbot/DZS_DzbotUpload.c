@@ -745,3 +745,31 @@ class DZS_DzbotUploadDialog : DZS_Dialog
 		m_U.DialogClosed(this);
 	}
 }
+
+// projtest "upload new | existing | row N | go | state": the dialog of Project › Upload to dzbot … (open it with
+// "action dzbot.upload").
+class DZS_DzbotUploadTest : DZS_ProjTestCommand
+{
+	DZS_DzbotPlugin m_P;
+
+	override void Run(array<string> args)
+	{
+		DZS_DzbotUploadDialog ud = null;
+		if (m_P.m_Upload)
+			ud = m_P.m_Upload.m_Dialog;
+		if (!ud)
+		{
+			DZS_Log.Info("projtest upload: no dialog");
+			return;
+		}
+		if (args.Count() > 1 && args[1] == "new")
+			ud.SetMode(true);
+		else if (args.Count() > 1 && args[1] == "existing")
+			ud.SetMode(false);
+		else if (args.Count() > 2 && args[1] == "row")
+			ud.PickRow(args[2].ToInt());
+		else if (args.Count() > 1 && args[1] == "go")
+			ud.OnFoot("upload");
+		DZS_Log.Info("projtest upload: " + ud.Describe());
+	}
+}

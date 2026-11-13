@@ -15,7 +15,7 @@ class DZS_PatchBase : Managed
 	string m_Target;
 	string m_TargetShown;
 	string m_Applied;
-	// .original files of the folder that dzStudio did not write (a server dzbot manages)
+	// .original files of the folder that dzStudio did not write (a server managed by another tool)
 	int m_Foreign;
 }
 
@@ -29,10 +29,10 @@ class DZS_AppliedProject : Managed
 	string m_Stamp;
 }
 
-// The projects applied to one mission folder, the way dzbot transfers mods to a server: beside every file the projects
+// The projects applied to one mission folder, the way a server manager applies mods: beside every file the projects
 // changed lies <file>.original with the file as it was before (an empty one: the file did not exist), and a rebuild
 // puts every original back and applies all listed projects in their order, each on the result of the ones before.
-// A folder that already has .original files (copied from a server dzbot manages) counts them as the originals.
+// A folder that already has .original files (copied from a server another tool manages) counts them as the originals.
 // <folder>\.dzstudio\applied.json lists the projects (by id), the files the last rebuild touched with the checksum of
 // what it wrote, and the .original files dzStudio wrote; projects\<slug>.dzstudio.json is the copy of each project
 // that was applied, so the folder stays complete when it is moved or uploaded. Relative paths use "/" like the
@@ -232,7 +232,7 @@ class DZS_ApplyStore : Managed
 		return r;
 	}
 
-	// How many .original files of the folder dzStudio did not write (dzbot's, from the server it manages).
+	// How many .original files of the folder dzStudio did not write (another tool's, from the server it manages).
 	int ForeignOriginals()
 	{
 		map<string, string> all = Originals(m_Target);
@@ -360,8 +360,8 @@ class DZS_ApplyStore : Managed
 	}
 
 	// Before the folder changes: a touched file without its .original cannot go back (refused), one that is not what
-	// the last rebuild wrote is adopted as its original — unless the original is dzbot's, from which the folder is
-	// rebuilt as a server dzbot manages would be. A vanilla copy holds only the projects' files and is not checked.
+	// the last rebuild wrote is adopted as its original — unless the original is another tool's, from which the folder is
+	// rebuilt as that tool's server would be. A vanilla copy holds only the projects' files and is not checked.
 	protected void Check(string rel)
 	{
 		if (m_Base != m_Target)
@@ -1185,7 +1185,7 @@ class DZS_PatchApply : Managed
 		j.m_MapKey = mapKey;
 		j.m_T0 = TickCount(0);
 		j.m_Build = DZS_ProjectBuild.Make(m_Kernel, inst, name, mapKey, false, true);
-		// a provider's project keeps its slug (dzbot's mod-<id>, placement-<id>), as its save does
+		// a provider's project keeps its slug (e.g. mod-<id>), as its save does
 		j.m_Build.m_KeepSlug = pp.m_Open.m_Folder.IndexOf("@") == 0 || pp.m_Open.m_Provider == "shared";
 		j.m_Prepare = this;
 		j.m_OnDone.Insert(OnApplied);
@@ -1288,7 +1288,7 @@ class DZS_PatchApply : Managed
 		text += DZS_Texts.Pick("“ in ", "' in ") + b.m_TargetShown;
 		text += DZS_Texts.Pick(" zurücknehmen? Der Ordner wird aus den Originalen neu aufgebaut, andere dort angewendete Projekte bleiben.", "? The folder is rebuilt from the originals; other projects applied there stay.");
 		if (b.m_Foreign > 0)
-			text += DZS_Texts.Pick(" Die .original-Dateien von dzbot gelten dabei als Originale des Servers.", " dzbot's .original files count as the server's originals.");
+			text += DZS_Texts.Pick(" Die .original-Dateien, die nicht von dzStudio stammen, gelten dabei als Originale des Servers.", " The .original files dzStudio did not write count as the server's originals.");
 		DZS_ConfirmDialog c = new DZS_ConfirmDialog(kicker, title, DZS_W.Literal(text));
 		c.AddFootButton("cancel", DZS_Texts.Get("core.dialog.cancel"), "side");
 		DZS_Button yes = c.AddFootButton("undo", DZS_Texts.Pick("Rückgängig", "Undo"), "danger");
@@ -1686,9 +1686,9 @@ class DZS_ApplyDialog : DZS_Dialog
 		else
 		{
 			string note = DZS_Texts.Pick("Originale bleiben als .original daneben – Rückgängig jederzeit", "The originals stay beside them as .original – undo any time");
-			// a server dzbot manages: the files are built from the owner's originals, not from what the folder holds now
+			// a server another tool manages: the files are built from the owner's originals, not from what the folder holds now
 			if (b.m_Foreign > 0)
-				note = DZS_Texts.Pick("Hat .original-Dateien von dzbot: die Dateien werden aus diesen Originalen des Servers neu aufgebaut, nicht aus dem jetzigen Stand", "Has .original files from dzbot: the files are rebuilt from these server originals, not from what they hold now");
+				note = DZS_Texts.Pick("Hat .original-Dateien, die nicht von dzStudio stammen: die Dateien werden aus diesen Originalen des Servers neu aufgebaut, nicht aus dem jetzigen Stand", "Has .original files dzStudio did not write: the files are rebuilt from these server originals, not from what they hold now");
 			m_ChgNote.SetText(DZS_W.Literal(note));
 		}
 	}

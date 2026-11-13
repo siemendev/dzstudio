@@ -99,7 +99,7 @@ class DZS_LayerSrc : Managed
 }
 
 // Opening a project: the layers' parts are taken from the file's own blocks and changes, never from the copy the
-// editor part holds. They are the truth — dzbot's workbench edits them and leaves the editor part as it was — so a
+// editor part holds. They are the truth — other tools edit them and leave the editor part as it was — so a
 // change made there since the last save here is not overwritten by the older copy, and blocks made there show up in
 // the layers. A layer takes an entry when it would write it back exactly as it is (same block ids, same values; key
 // order aside); every other entry stays carried over unchanged (DZS_KeptBlocks) and is shown read-only.

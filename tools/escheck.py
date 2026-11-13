@@ -138,6 +138,18 @@ class Checker:
                     self.files.append((p, toks))
                     self.declarations(p, toks)
 
+    # dzStudio knows no hosting service: everything about dzbot lives in plugins/dzbot. The project format's own
+    # identifier is the one exception (it sits in every project file).
+    BOUNDARY_ALLOWED = ("developers.dzbot.de/specs/dzstudio/",)
+
+    def boundary(self, path):
+        if os.sep + os.path.join("plugins", "dzbot") + os.sep in os.path.abspath(path):
+            return
+        with open(path, encoding="utf-8", errors="replace") as f:
+            for n, text in enumerate(f, 1):
+                if "dzbot" in text.lower() and not any(a in text for a in self.BOUNDARY_ALLOWED):
+                    self.report(path, n, "dzbot outside plugins/dzbot: move it into the plugin or behind a generic hook")
+
     def report(self, path, line, msg):
         self.problems.append((os.path.relpath(path), line, msg))
 
@@ -429,6 +441,7 @@ class Checker:
             if only and os.path.abspath(path) not in only:
                 continue
             self.brackets(path, toks)
+            self.boundary(path)
         for k in list(self.classes.values()):
             if only and os.path.abspath(k.file) not in only:
                 continue

@@ -1,5 +1,5 @@
 // Blocks and changes of a project file that no part of the editor takes over when it opens — kinds it has no editor
-// for (events without positions, items, globals, presets, restricted areas …, written by dzbot's workbench, its AI or
+// for (events without positions, items, globals, presets, restricted areas …, written by another tool, an AI or
 // another program), loot entries while the loot editor is off for the project, layer entries a layer would not write
 // back as they are (DZS_LayerTake), loot entries the loot editor does not take over (DZS_LootKeep: not fitting the base,
 // or no loot files of the base). They are carried over unchanged, extensions included, and written back at every
@@ -180,7 +180,17 @@ class DZS_KeptBlocks
 
 	static string ReadOnlyHint()
 	{
-		return DZS_Texts.Pick("Nur sichtbar · dort bearbeiten (dzbot)", "Shown only · edit it there (dzbot)");
+		string where = "";
+		DZS_ProjectsPlugin pp = DZS_ProjectsPlugin.Cast(DZS_Kernel.Get().GetPlugin("projects"));
+		if (pp && pp.m_Open)
+		{
+			DZS_StoreProvider sp = pp.ProviderOf(pp.m_Open.m_Folder);
+			if (sp)
+				where = sp.EditPlace();
+		}
+		if (where == "")
+			return DZS_Texts.Pick("Nur sichtbar · dort bearbeiten, wo es angelegt wurde", "Shown only · edit it where it was made");
+		return DZS_Texts.Pick("Nur sichtbar · dort bearbeiten (" + where + ")", "Shown only · edit it there (" + where + ")");
 	}
 
 	// Whether a rule of a kept block or change names the setting (as a whole word: a condition's field, a formula, a
@@ -220,7 +230,7 @@ class DZS_KeptBlocks
 
 	// The kept entries after the editor's own in the project file; one the editor writes itself now (the same block id
 	// or change ref — loot turned on after opening, a loot type made after all) is not written twice. keepSlug: the
-	// file's slug stays (a project saved to a provider — dzbot, a hosted session: the files of its own blocks keep
+	// file's slug stays (a project saved to a provider or a hosted session: the files of its own blocks keep
 	// their names on the server); a local project's slug follows its name.
 	static void AddTo(DZS_Json kept, DZS_Json root, bool keepSlug)
 	{

@@ -34,15 +34,6 @@ class DZS_LegacyNames
 		RenameInFolders(p + "backups", BACKUP_HEAD, "backup.dzstudio");
 		RenameInFolders(p + "vanilla", VANILLA_SOURCE, "source.json");
 
-		// the dzbot catalog is a cache and is fetched again
-		Drop(p + "dzbot\\katalog.jsonl");
-		Drop(p + "dzbot\\katalog-revision.txt");
-		if (DZS_Files.IsFolder(p + "dzbot\\bilder"))
-		{
-			DZS_Files.DeleteTree(p + "dzbot\\bilder");
-			s_Moved++;
-		}
-
 		if (s_Moved > 0 || s_Kept > 0)
 			DZS_Log.Info("legacy names: " + s_Moved + " moved or dropped, " + s_Kept + " kept because the new name exists or copying failed");
 	}
@@ -111,12 +102,22 @@ class DZS_LegacyNames
 		}
 	}
 
-	protected static void Drop(string path)
+	// Also for plugins: an old file or folder that is only a cache and is made again.
+	static void Drop(string path)
 	{
 		if (FileExist(path) && DeleteFile(path))
 		{
 			DZS_Log.Info("legacy names: " + path + " deleted");
 			s_Moved++;
 		}
+	}
+
+	static void DropFolder(string path)
+	{
+		if (!DZS_Files.IsFolder(path))
+			return;
+		DZS_Files.DeleteTree(path);
+		DZS_Log.Info("legacy names: " + path + " deleted");
+		s_Moved++;
 	}
 }

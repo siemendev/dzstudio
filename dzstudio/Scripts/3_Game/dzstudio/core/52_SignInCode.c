@@ -44,7 +44,7 @@ class DZS_SignInCode : Managed
 		return code;
 	}
 
-	// Address without scheme and without the part from "?" on (dzbot.de/editor/connect).
+	// Address without scheme and without the part from "?" on (example.com/connect).
 	static string Short(string url)
 	{
 		string u = url;

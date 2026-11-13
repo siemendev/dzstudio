@@ -248,11 +248,9 @@ class DZS_CollabHosted : Managed
 		DZS_CollabServer s = m_P.FindServer(url);
 		if (!s || !s.m_Hosted)
 			return "";
-		DZS_DzbotPlugin dz = DZS_DzbotPlugin.Cast(m_P.Kernel().GetPlugin("dzbot"));
-		string name = s.m_Name;
-		name.ToLower();
-		if (url == DZS_DzbotPlugin.COLLAB_URL || name == "dzbot" || (dz && DZS_DzbotPlugin.BaseKey(url) == dz.m_CollabUrl))
-			return DZS_Texts.Pick("dzbot · Gemeinsam", "dzbot · Shared");
+		DZS_AuthProvider ap = DZS_SyncServers.Auth(s.m_Fixed);
+		if (ap && ap.TabLabel() != "")
+			return ap.TabLabel();
 		return s.m_Name;
 	}
 

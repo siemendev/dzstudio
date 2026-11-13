@@ -1,10 +1,24 @@
 // Test plugin for section 4 (start with -dzsProjTest). Creates and changes objects only through
 // operations of the public kernel interface, runs the number and format checks in the game.
 // Commands come from $profile:dzstudio\projtest.txt (editor/mod-tools/projcmd.sh).
+// A command another plugin adds ("NAME args …", DZS_ProjTest.AddCommand); it logs its own answer.
+class DZS_ProjTestCommand : Managed
+{
+	void Run(array<string> args) {}
+}
+
 [DZS_RegisterPlugin(DZS_ProjTest)]
 class DZS_ProjTest : DZS_Plugin
 {
 	static const string CMD_FILE = "$profile:dzstudio\\projtest.txt";
+	protected static ref map<string, ref DZS_ProjTestCommand> s_Commands;
+
+	static void AddCommand(string name, DZS_ProjTestCommand cmd)
+	{
+		if (!s_Commands)
+			s_Commands = new map<string, ref DZS_ProjTestCommand>();
+		s_Commands.Set(name, cmd);
+	}
 	protected bool m_On;
 	protected float m_Poll;
 	protected int m_StressCycles;
@@ -225,6 +239,11 @@ class DZS_ProjTest : DZS_Plugin
 		string c = a[0];
 		if (c == "set" && !inst)
 			inst = null;
+		if (s_Commands && s_Commands.Contains(c))
+		{
+			s_Commands.Get(c).Run(a);
+			return;
+		}
 		if (c == "f32")
 		{
 			F32Checks();
@@ -550,29 +569,6 @@ class DZS_ProjTest : DZS_Plugin
 		if (c == "action")
 		{
 			Log("action " + a[1] + " triggered " + m_Kernel.GetUi().Trigger(a[1]));
-			return;
-		}
-		if (c == "upload")
-		{
-			// upload new | existing | row N | go | state — the dialog of Project › Upload to dzbot … ("action dzbot.upload")
-			DZS_DzbotPlugin dzp = DZS_DzbotPlugin.Cast(m_Kernel.GetPlugin("dzbot"));
-			DZS_DzbotUploadDialog ud = null;
-			if (dzp && dzp.m_Upload)
-				ud = dzp.m_Upload.m_Dialog;
-			if (!ud)
-			{
-				Log("upload: no dialog");
-				return;
-			}
-			if (a.Count() > 1 && a[1] == "new")
-				ud.SetMode(true);
-			else if (a.Count() > 1 && a[1] == "existing")
-				ud.SetMode(false);
-			else if (a.Count() > 2 && a[1] == "row")
-				ud.PickRow(a[2].ToInt());
-			else if (a.Count() > 1 && a[1] == "go")
-				ud.OnFoot("upload");
-			Log("upload: " + ud.Describe());
 			return;
 		}
 		if (c == "vanillamission")

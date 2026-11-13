@@ -17,7 +17,7 @@ class DZS_RLine : Managed
 	float m_Before;
 }
 
-// Dialog of lines of cells, placed left to right; knobs, switches and pickers report by tag (the dzbot rules,
+// Dialog of lines of cells, placed left to right; knobs, switches and pickers report by tag (an extension's rules,
 // the generic extension fields).
 class DZS_LinesDialog : DZS_Dialog
 {
