@@ -552,6 +552,29 @@ class DZS_ProjTest : DZS_Plugin
 			Log("action " + a[1] + " triggered " + m_Kernel.GetUi().Trigger(a[1]));
 			return;
 		}
+		if (c == "upload")
+		{
+			// upload new | existing | row N | go | state — the dialog of Project › Upload to dzbot … ("action dzbot.upload")
+			DZS_DzbotPlugin dzp = DZS_DzbotPlugin.Cast(m_Kernel.GetPlugin("dzbot"));
+			DZS_DzbotUploadDialog ud = null;
+			if (dzp && dzp.m_Upload)
+				ud = dzp.m_Upload.m_Dialog;
+			if (!ud)
+			{
+				Log("upload: no dialog");
+				return;
+			}
+			if (a.Count() > 1 && a[1] == "new")
+				ud.SetMode(true);
+			else if (a.Count() > 1 && a[1] == "existing")
+				ud.SetMode(false);
+			else if (a.Count() > 2 && a[1] == "row")
+				ud.PickRow(a[2].ToInt());
+			else if (a.Count() > 1 && a[1] == "go")
+				ud.OnFoot("upload");
+			Log("upload: " + ud.Describe());
+			return;
+		}
 		if (c == "vanillamission")
 		{
 			// vanillamission MAP — fetch the whole vanilla mission of a map (a patch base)

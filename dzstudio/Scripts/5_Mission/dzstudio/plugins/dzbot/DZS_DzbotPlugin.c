@@ -34,6 +34,8 @@ class DZS_DzbotActions : DZS_ActionHandler
 			reasonEn = "Only in a dzbot project mod";
 			return m_P.OpenProjectMod() != null && m_P.Kernel().GetShown() != null;
 		}
+		if (actionId == "dzbot.upload")
+			return m_P.m_Upload.CanStart(reasonDe, reasonEn);
 		return true;
 	}
 
@@ -43,6 +45,8 @@ class DZS_DzbotActions : DZS_ActionHandler
 			return m_P.IsDzbotSession();
 		if (actionId == "dzbot.rules")
 			return m_P.OpenProjectMod() != null;
+		if (actionId == "dzbot.upload")
+			return m_P.m_Upload.LocalOpen();
 		return true;
 	}
 
@@ -56,6 +60,8 @@ class DZS_DzbotActions : DZS_ActionHandler
 			m_P.OpenFriends();
 		else if (actionId == "dzbot.rules")
 			m_P.OpenRules("");
+		else if (actionId == "dzbot.upload")
+			m_P.m_Upload.OpenDialog();
 	}
 }
 
@@ -107,6 +113,10 @@ class DZS_DzbotProject : Managed
 	string m_Owner;
 	string m_Server;
 	string m_Session;
+	// the web workbench of the mod or placement
+	string m_ManageUrl;
+	// every map dzbot names for it ("map" and "maps")
+	ref array<string> m_Maps = new array<string>();
 	// a mod's kind in dzbot: "files", or "project" — a building-block project saved as one file, dzstudio/project.json
 	string m_ModKind;
 	// a placement's kind in dzbot: "project" — a building-block project like a project mod's, saved as its one file
@@ -164,6 +174,17 @@ class DZS_DzbotSave : Managed
 	bool m_Blocked;
 	// key of dzstudio/project.json when this save creates it
 	string m_NewProjectKey;
+	// a local project uploaded into the mod (DZS_DzbotUpload), not the open project; m_Map is its map
+	bool m_Upload;
+	string m_Map;
+}
+
+// Who may own a new mod: "me" or "org:<id>".
+class DZS_DzbotOwner : Managed
+{
+	string m_Id;
+	string m_Name;
+	string m_Kind;
 }
 
 class DZS_DzbotProvider : DZS_StoreProvider
@@ -316,6 +337,10 @@ class DZS_DzbotPlugin : DZS_Plugin
 	protected ref array<string> m_ListOrder = new array<string>();
 	bool m_ListLoading;
 	string m_ListError;
+	// counts the answers to /editor/projects
+	int m_ListRev;
+	ref array<ref DZS_DzbotOwner> m_Owners = new array<ref DZS_DzbotOwner>();
+	ref DZS_DzbotUpload m_Upload;
 	protected string m_OpenFolder;
 	protected float m_PollIn;
 	protected bool m_Polling;
@@ -472,6 +497,10 @@ class DZS_DzbotPlugin : DZS_Plugin
 		ui.SetWhen("dzbot.disconnect", "scene");
 		ui.AddMenuEntry("project", "dzbot.connect", 120);
 		ui.AddMenuEntry("project", "dzbot.disconnect", 121);
+		m_Upload = new DZS_DzbotUpload(this);
+		ui.RegisterAction("dzbot", "dzbot.upload", "Zu dzbot hochladen …", "Upload to dzbot …", null, m_Actions);
+		ui.SetWhen("dzbot.upload", "scene");
+		ui.AddMenuEntry("project", "dzbot.upload", 122);
 		ui.RegisterAction("dzbot", "dzbot.friends", "Freunde …", "Friends …", null, m_Actions);
 		m_Rules = new DZS_DzbotRules();
 		m_Rules.m_P = this;
@@ -900,6 +929,10 @@ class DZS_DzbotPlugin : DZS_Plugin
 			OnReload(r, q);
 		else if (tag == "keep")
 			OnKeep(r);
+		else if (tag == "upload.create")
+			m_Upload.OnCreated(r);
+		else if (tag == "upload.load")
+			m_Upload.OnLoaded(r);
 	}
 
 	// ---- device flow ----
@@ -1055,6 +1088,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		Forget();
 		m_Projects.Clear();
 		m_ListOrder.Clear();
+		m_Owners.Clear();
 		DZS_Log.Info("dzbot: disconnected (" + who + ")");
 		Msg("info", "Von dzbot getrennt", "Disconnected from dzbot");
 		if (m_OpenFolder != "")
@@ -1135,7 +1169,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 		return first;
 	}
 
-	protected DZS_DzbotProject TakeProject(DZS_SrcNode p)
+	DZS_DzbotProject TakeProject(DZS_SrcNode p)
 	{
 		string pref = DZS_DzbotCatalog.Text(p, "ref");
 		if (pref == "")
@@ -1154,12 +1188,27 @@ class DZS_DzbotPlugin : DZS_Plugin
 		dp.m_MapKey = MapOf(p);
 		dp.m_Owner = DZS_DzbotCatalog.Text(p, "owner");
 		dp.m_Server = DZS_DzbotCatalog.Text(p, "server");
+		dp.m_ManageUrl = DZS_DzbotCatalog.Text(p, "manageUrl");
+		dp.m_Maps.Clear();
+		string fixedMap = DZS_DzbotCatalog.Text(p, "map");
+		if (fixedMap != "")
+			dp.m_Maps.Insert(fixedMap);
+		DZS_SrcNode maps = p.Get("maps");
+		if (maps && maps.IsArr())
+		{
+			foreach (DZS_SrcNode mn : maps.m_Items)
+			{
+				if (mn.IsStr() && dp.m_Maps.Find(mn.m_Str) < 0)
+					dp.m_Maps.Insert(mn.m_Str);
+			}
+		}
 		return dp;
 	}
 
 	protected void OnProjects(DZS_DzbotReply r)
 	{
 		m_ListLoading = false;
+		m_ListRev++;
 		if (!r.m_Framed)
 		{
 			m_ListError = DZS_Texts.Pick("dzbot nicht erreichbar", "dzbot not reachable");
@@ -1181,7 +1230,27 @@ class DZS_DzbotPlugin : DZS_Plugin
 					m_ListOrder.Insert(dp.m_Ref);
 			}
 		}
+		m_Owners.Clear();
+		DZS_SrcNode owners = r.m_Json.Get("owners");
+		if (owners && owners.IsArr())
+		{
+			foreach (DZS_SrcNode onode : owners.m_Items)
+			{
+				DZS_DzbotOwner ow = new DZS_DzbotOwner();
+				ow.m_Id = DZS_DzbotCatalog.Text(onode, "id");
+				ow.m_Name = DZS_DzbotCatalog.Text(onode, "name");
+				ow.m_Kind = DZS_DzbotCatalog.Text(onode, "kind");
+				if (ow.m_Id != "")
+					m_Owners.Insert(ow);
+			}
+		}
 		DZS_Log.Info("dzbot: project list " + m_ListOrder.Count() + " mod(s) and placement(s)");
+	}
+
+	// The refs of the last project list, in its order.
+	array<string> ListOrder()
+	{
+		return m_ListOrder;
 	}
 
 	void Rows(array<ref DZS_ProjectInfo> into)
@@ -1449,7 +1518,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 	}
 
 	// dzbot's project file in a load or poll reply (key, path, revision), null when the mod or placement has none.
-	protected DZS_DzbotFile ProjectFileOf(DZS_DzbotReply r)
+	DZS_DzbotFile ProjectFileOf(DZS_DzbotReply r)
 	{
 		DZS_SrcNode files = r.m_Json.Get("files");
 		if (!files || !files.IsArr())
@@ -1960,6 +2029,31 @@ class DZS_DzbotPlugin : DZS_Plugin
 		DZS_DzbotSave sv = new DZS_DzbotSave();
 		sv.m_Folder = folder;
 		sv.m_Files = files;
+		BeginSave(dp, sv, files);
+	}
+
+	// A local project's file into a dzbot project mod (DZS_DzbotUpload), not into the open project: it replaces
+	// dp.m_ProjectFile, or creates dzstudio/project.json when that is null. false while another save runs.
+	bool SaveUpload(DZS_DzbotProject dp, array<string> chunks, string mapKey)
+	{
+		if (m_Save)
+			return false;
+		DZS_DzbotSave sv = new DZS_DzbotSave();
+		sv.m_Folder = FolderOf(dp.m_Ref);
+		sv.m_Upload = true;
+		sv.m_Map = mapKey;
+		sv.m_Files = new array<ref DZS_SaveFile>();
+		array<ref DZS_SaveFile> files = new array<ref DZS_SaveFile>();
+		DZS_SaveFile pf = new DZS_SaveFile();
+		pf.m_Rel = DZS_ProjectFile.NAME;
+		pf.m_Chunks = chunks;
+		files.Insert(pf);
+		BeginSave(dp, sv, files);
+		return true;
+	}
+
+	protected void BeginSave(DZS_DzbotProject dp, DZS_DzbotSave sv, array<ref DZS_SaveFile> files)
+	{
 		sv.m_SaveId = DZS_Random.Code(24);
 		// the project file (format 2) is the one part; it holds no manifest part of its own (a "project" member was
 		// format 1), so no manifest is sent and the file is not parsed for one
@@ -1970,9 +2064,25 @@ class DZS_DzbotPlugin : DZS_Plugin
 		m_Client.m_SaveOpen = true;
 		m_Client.Drop("poll");
 		m_Polling = false;
-		m_Kernel.GetScreen().SetProviderPlate(DZS_Texts.Pick("dzbot · speichert …", "dzbot · saving …"), "warning");
-		DZS_Log.Info("dzbot: save " + sv.m_SaveId + " of " + dp.m_Ref + ", " + sv.m_Parts.Count() + " section(s), checksums first");
+		if (!sv.m_Upload)
+			m_Kernel.GetScreen().SetProviderPlate(DZS_Texts.Pick("dzbot · speichert …", "dzbot · saving …"), "warning");
+		DZS_Log.Info("dzbot: save " + sv.m_SaveId + " of " + dp.m_Ref + ", " + sv.m_Parts.Count() + " section(s), upload " + sv.m_Upload + ", checksums first");
 		HashSave();
+	}
+
+	// The end of a save: to the projects plugin, or to the upload it belongs to.
+	protected void Report(DZS_DzbotSave sv, string de, string en)
+	{
+		if (sv.m_Upload)
+			m_Upload.Saved(de, en);
+		else
+			Projects().ProviderSaved(de, en);
+	}
+
+	protected void PlateAfter(DZS_DzbotSave sv)
+	{
+		if (!sv.m_Upload)
+			PlateFor(sv.m_Folder);
 	}
 
 	// SHA-256 of every part in slices of a few milliseconds per frame (DayZ 1.30: about 1 s per MB), then the request.
@@ -2051,8 +2161,11 @@ class DZS_DzbotPlugin : DZS_Plugin
 		string qi = DZS_DzbotFrame.Q(sv.m_SaveId);
 		// the project file is no merged target: "merged" stays empty
 		sv.m_Fields = "\"project\":" + qp + ",\"saveId\":" + qi + ",\"files\":[" + list + "],\"merged\":[]";
-		if (dp.m_MapKey != "")
-			sv.m_Fields += ",\"map\":" + DZS_DzbotFrame.Q(dp.m_MapKey);
+		string saveMap = dp.m_MapKey;
+		if (sv.m_Map != "")
+			saveMap = sv.m_Map;
+		if (saveMap != "")
+			sv.m_Fields += ",\"map\":" + DZS_DzbotFrame.Q(saveMap);
 		int ms = (TickCount(0) - sv.m_HashStart) / 10000;
 		DZS_Log.Info("dzbot: checksums of " + sv.m_Parts.Count() + " part(s) in " + ms + " ms");
 		array<string> pieces = DZS_DzbotFrame.TailPieces(sv.m_Parts);
@@ -2160,8 +2273,9 @@ class DZS_DzbotPlugin : DZS_Plugin
 		if (m_Now - m_Save.m_Started > SAVE_GIVE_UP)
 		{
 			DZS_Log.Warn("dzbot: save " + m_Save.m_SaveId + " unclear after " + m_Save.m_Tries + " tries");
+			DZS_DzbotSave unclear = m_Save;
 			EndSave();
-			Projects().ProviderSaved("Speichern unklar — der Stand in dzbot wird geprüft", "Saving unclear — checking dzbot's state");
+			Report(unclear, "Speichern unklar — der Stand in dzbot wird geprüft", "Saving unclear — checking dzbot's state");
 			// a poll at once: a newer project file in dzbot asks (local changes) or reopens; none keeps the local state
 			m_PollIn = 0;
 			return;
@@ -2230,7 +2344,6 @@ class DZS_DzbotPlugin : DZS_Plugin
 		DZS_DzbotSave sv = m_Save;
 		if (!sv)
 			return;
-		DZS_ProjectsPlugin pp = Projects();
 		string err = r.Error();
 		if (r.m_TimedOut || (r.m_Framed && (err == "running" || r.Str("state") == "running")))
 		{
@@ -2241,19 +2354,20 @@ class DZS_DzbotPlugin : DZS_Plugin
 		if (!r.m_Framed)
 		{
 			EndSave();
-			PlateFor(sv.m_Folder);
-			m_Kernel.GetScreen().SetProviderPlate(DZS_Texts.Pick("dzbot · nicht erreichbar", "dzbot · not reachable"), "danger");
-			pp.ProviderSaved("dzbot nicht erreichbar", "dzbot not reachable");
+			PlateAfter(sv);
+			if (!sv.m_Upload)
+				m_Kernel.GetScreen().SetProviderPlate(DZS_Texts.Pick("dzbot · nicht erreichbar", "dzbot · not reachable"), "danger");
+			Report(sv, "dzbot nicht erreichbar", "dzbot not reachable");
 			return;
 		}
 		DZS_DzbotProject dp = m_Projects.Get(RefOf(sv.m_Folder));
 		if (!r.Ok())
 		{
 			EndSave();
-			PlateFor(sv.m_Folder);
+			PlateAfter(sv);
 			if (err == "client_outdated")
 			{
-				pp.ProviderSaved("dzStudio ist veraltet — nichts gespeichert", "dzStudio is out of date — nothing saved");
+				Report(sv, "dzStudio ist veraltet — nichts gespeichert", "dzStudio is out of date — nothing saved");
 				return;
 			}
 			if (err == "conflict")
@@ -2274,8 +2388,9 @@ class DZS_DzbotPlugin : DZS_Plugin
 							paths.Insert(ck);
 					}
 				}
-				pp.ProviderSaved("In dzbot geändert — nichts gespeichert", "Changed in dzbot — nothing saved");
-				AskConflict(paths);
+				Report(sv, "In dzbot geändert — nichts gespeichert", "Changed in dzbot — nothing saved");
+				if (!sv.m_Upload)
+					AskConflict(paths);
 				return;
 			}
 			if (err == "checksum_mismatch")
@@ -2295,23 +2410,23 @@ class DZS_DzbotPlugin : DZS_Plugin
 					DZS_Log.Warn("dzbot: checksum mismatch " + mk + " " + bad + " expected " + me + " actual " + ma);
 					if (mk == "merged" && ma == "unsupported")
 					{
-						pp.ProviderSaved("dzbot kann den Stand von " + bad + " nicht zusammensetzen — nichts gespeichert", "dzbot cannot compose " + bad + " — nothing saved");
+						Report(sv, "dzbot kann den Stand von " + bad + " nicht zusammensetzen — nichts gespeichert", "dzbot cannot compose " + bad + " — nothing saved");
 						return;
 					}
 				}
-				pp.ProviderSaved(bad + " kam in dzbot nicht richtig an", bad + " did not arrive correctly in dzbot");
+				Report(sv, bad + " kam in dzbot nicht richtig an", bad + " did not arrive correctly in dzbot");
 				return;
 			}
 			string m = r.Message();
-			pp.ProviderSaved("dzbot: " + m, "dzbot: " + m);
+			Report(sv, "dzbot: " + m, "dzbot: " + m);
 			return;
 		}
 		if (!dp)
 		{
 			DZS_Log.Warn("dzbot: saved " + sv.m_SaveId + ", but its project is no longer listed");
 			EndSave();
-			PlateFor(sv.m_Folder);
-			pp.ProviderSaved("", "");
+			PlateAfter(sv);
+			Report(sv, "", "");
 			return;
 		}
 		if (sv.m_NewProjectKey != "")
@@ -2348,7 +2463,7 @@ class DZS_DzbotPlugin : DZS_Plugin
 			written = wl.Count().ToString();
 		DZS_Log.Info("dzbot: saved " + sv.m_SaveId + " after " + sv.m_Tries + " try/tries, written " + written + ", replayed " + r.Str("replayed") + ", revision " + dp.Revision());
 		EndSave();
-		PlateFor(sv.m_Folder);
-		pp.ProviderSaved("", "");
+		PlateAfter(sv);
+		Report(sv, "", "");
 	}
 }

@@ -198,7 +198,7 @@ class DZS_SavePlan : Managed
 	bool m_ToProvider;
 	string m_NoteDe;
 	string m_NoteEn;
-	// what to do after success: "", "leave"
+	// what to do after success: "", "leave", "notify" (m_SaveNotified reports the end)
 	string m_Then;
 	bool m_Auto;
 	ref DZS_SaveMark m_Mark;
@@ -300,6 +300,8 @@ class DZS_ProjectsPlugin : DZS_Plugin
 	// a .dze read for a new project, waiting for the project to load
 	protected ref DZS_DzeImport m_ImportNew;
 	protected ref DZS_DzeImport m_ImportAsk;
+	// the end of a save started with then "notify": (bool saved)
+	ref ScriptInvoker m_SaveNotified = new ScriptInvoker();
 
 	override string GetName() { return "projects"; }
 
@@ -2319,7 +2321,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 
 	// ---- saving ----
 
-	// then: "" or "leave" (continue m_After afterwards); saveAsName for Save as.
+	// then: "", "leave" (continue m_After afterwards) or "notify"; saveAsName for Save as.
 	// One save at a time: a save asked for while the provider's last one is undecided is queued
 	protected bool m_SaveQueued;
 	protected bool m_QueuedAuto;
@@ -2403,6 +2405,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				EndPlanFreeze(b);
 			}
 			DZS_Log.Info("save plan stopped: project changed");
+			Notify(b.m_Plan, false);
 			return;
 		}
 		int t0 = TickCount(0);
@@ -2465,9 +2468,15 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		if (result == "show")
 			ShowObject(DZS_CheckListDialog.Cast(d).m_ShowId);
 		DZS_SavePlan was = m_Plan;
-		Abort();
 		if (result == "fixed" && was)
+		{
+			m_Plan = null;
+			if (was.m_Then == "leave")
+				m_After = "";
 			StartSave(was.m_Auto, was.m_Then, SaveAsNameOf(was), was.m_Copy);
+			return;
+		}
+		Abort();
 	}
 
 	// The editor never changes cfggameplay.json; a newly written spawner file
@@ -2509,6 +2518,19 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		m_Plan = null;
 		if (plan && plan.m_Then == "leave")
 			m_After = "";
+		Notify(plan, false);
+	}
+
+	protected void Notify(DZS_SavePlan plan, bool saved)
+	{
+		if (plan && plan.m_Then == "notify")
+			m_SaveNotified.Invoke(saved);
+	}
+
+	// A save is being planned, checked or written.
+	bool IsSaving()
+	{
+		return m_Busy || m_Building != null || m_Plan != null || m_Outside != null || m_Writing != null;
 	}
 
 	void ShowObject(string id)
@@ -2802,6 +2824,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 			inst.SetSaving(false);
 		if (plan && plan.m_Then == "leave")
 			m_After = "";
+		Notify(plan, false);
 	}
 
 	protected void AfterWrite(DZS_SavePlan plan, string folder, string fail, bool noFollow = false)
@@ -2810,6 +2833,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		if (!inst)
 		{
 			m_Busy = false;
+			Notify(plan, false);
 			return;
 		}
 		inst.SetSaving(false);
@@ -2838,6 +2862,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 				WriteBackup();
 			if (plan.m_Then == "leave")
 				m_After = "";
+			Notify(plan, false);
 			return;
 		}
 		if (plan.m_SaveAs)
@@ -2936,6 +2961,7 @@ class DZS_ProjectsPlugin : DZS_Plugin
 		}
 		if (plan.m_Then == "leave")
 			Continue();
+		Notify(plan, true);
 	}
 
 	// Every group through its format (for its check list and the hidden and locked objects), then the one project file.

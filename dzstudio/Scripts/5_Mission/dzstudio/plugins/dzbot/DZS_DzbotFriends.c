@@ -298,6 +298,7 @@ class DZS_DzbotWrap : Managed
 	protected string m_Text;
 	protected float m_Width = -1;
 	protected ref array<TextWidget> m_Lines = new array<TextWidget>();
+	protected bool m_Hidden;
 
 	void DZS_DzbotWrap(Widget parent, string role, float size, int color, string text)
 	{
@@ -311,8 +312,24 @@ class DZS_DzbotWrap : Managed
 	protected TextWidget NewLine()
 	{
 		TextWidget t = DZS_W.Text(m_Parent, m_Role, m_Size, m_Color);
+		t.Show(!m_Hidden);
 		m_Lines.Insert(t);
 		return t;
+	}
+
+	void SetText(string text)
+	{
+		if (text == m_Text)
+			return;
+		m_Text = text;
+		m_Width = -1;
+	}
+
+	void Show(bool s)
+	{
+		m_Hidden = !s;
+		foreach (TextWidget t : m_Lines)
+			t.Show(s);
 	}
 
 	float Place(float x, float y, float width, float lineH)
