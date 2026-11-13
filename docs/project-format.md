@@ -66,12 +66,16 @@ Members a program does not know stay in the file when it rewrites it.
   are written complete: every field the game needs is required, nothing is left to engine defaults — except the
   optional fields of an effect area, which Bohemia's own areas leave out too (below). An element of a
   list in `data` (`objects[i]`, `children[i]` …) may carry `extensions` of its own; the patcher leaves it out.
+- `duplicate` — optional, `true`: the block is written even where its key is taken (below).
 - `extensions` — optional, data of other programs and plugins for this block (below).
 
 An own block whose key already exists in the base (an own event named like an existing one) is not written
 (`collision`), and neither is an own block with the key of an earlier own block of the project. Own `message` blocks
 are the exception to the second rule: several of them may share a text (the same message at different times), and all
-are written; a text the base already has still collides.
+are written; a text the base already has still collides. A block of an XML file with `"duplicate": true` never
+collides: it is written beside the entry with its key, and the file then holds the key twice — as some mods write
+`globals.xml` or `cfgrandompresets.xml`, so a project can give the game exactly the file it got before. Which copy the
+game uses is the game's business; only `true` counts.
 
 A program that rewrites a project keeps the blocks and changes it does not edit exactly as they are, `extensions`
 included, and keeps the file's `slug` when the project belongs to a server (its own files are already there as
@@ -128,6 +132,8 @@ Every kind declares its key; the patcher finds entries only through it.
 | `spawnable` | `cfgspawnabletypes.xml` | `name` (the last of two counts) |
 | `spawnableAttachments`, `spawnableCargo` | inside a `spawnable` | `type`, `ordinal` when the entry has more than one |
 | `cargoPreset`, `attachmentsPreset` | `cfgrandompresets.xml` | `name` |
+| `spawnableItem` | an `<item>` of a spawnable's cargo or attachments | `name`, `type` optional (remove only) |
+| `presetItem` | an `<item>` of a cargo or attachments preset | `name`, `preset` optional (remove only) |
 | `ignoredType` | `cfgignorelist.xml` | `name` |
 | `global` | `db/globals.xml` | `name` |
 | `economy` | `db/economy.xml` | `name` (the element: `dynamic` … `player`); set only |
@@ -145,6 +151,7 @@ Every kind declares its key; the patcher finds entries only through it.
 | `playerSpawnSection` | `cfgplayerspawnpoints.xml` | `section` (`fresh`, `hop`, `travel`); set only |
 | `playerSpawnGroup` | inside a section | `section`, `name` |
 | `playerSpawnPosition` | inside a group | `section`, `group`, `x`, `z` |
+| `playerSpawnLoose` | directly in a section's `generator_posbubbles`, in no group | `section`, `x`, `z` |
 | `lootType` | `mapgroupproto.xml` | `name` (the first of two counts) |
 | `lootContainer` | inside a loot type | `group`, `name`, `ordinal` |
 | `lootPoint` | inside a container | `group`, `container`, `containerOrdinal`, `pos` |
@@ -156,7 +163,20 @@ Every kind declares its key; the patcher finds entries only through it.
 | `gearPreset` | own file | its block `id` |
 | `restrictedArea` | own file | its block `id` |
 
-The fields of each kind and their value types are pinned by the conformance tests.
+The fields of each kind and their value types are pinned by the conformance tests. An event may carry
+`ignore="true"` (field `ignore`, only the value `true`): the game does not read it, dzbot's vehicle wipe leaves such an
+event's name alone.
+
+**Items of lists.** The items of a spawnable's cargo and attachments and of a random preset are the list field `item`
+of their entry; a `set` of that field writes the whole list. `spawnableItem` and `presetItem` name single items by their
+class, for one thing only: a `remove` takes the class out of every list that holds it (case-insensitively, like class
+names), or only out of the lists of the spawnable `type` or the `preset` its key names. The lists keep their element
+and their other items; nothing found is `gone`. A `set` of them is `invalid` (`bad-op`), an own block of them is no
+kind.
+
+**A loose player spawn position** (`playerSpawnLoose`) stands directly in a section's `generator_posbubbles`, beside
+the groups: `<pos x="…" z="…" />`. An own one names its section as `parent` (`{"section": "fresh"}`), and the patcher
+makes the `generator_posbubbles` when the section has none.
 
 ### Effect areas above the ground
 
@@ -191,7 +211,8 @@ field that is missing is `invalid` (`incomplete`), a field of the wrong type `in
 
 1. The patcher reads every file the project touches from the base. A file that is missing or unreadable is reported;
    what needs it is skipped.
-2. Changes, in project order.
+2. Changes, in project order. Several sets of fields inside an element the entry lacks (`damage.min`, then
+   `damage.max` of a spawnable without `<damage>`) make that element once, with every value.
 3. Own blocks: appended to their shared file (events, positions, zones, effect areas …) or written as a file of their
    own (`spawnerGroup`, `gearPreset`, `restrictedArea`).
 4. Registrations, never stored in the project: own files are added to `objectSpawnersArr`,

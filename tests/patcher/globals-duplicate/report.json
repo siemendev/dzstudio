@@ -1,0 +1,45 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "global",
+            "id": "b-twice",
+            "status": "applied",
+            "file": "db/globals.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "global",
+            "id": "b-again",
+            "status": "applied",
+            "file": "db/globals.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "global",
+            "id": "b-plain",
+            "status": "collision",
+            "file": "db/globals.xml"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "global",
+            "id": "b-flag",
+            "status": "collision",
+            "file": "db/globals.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "db/globals.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

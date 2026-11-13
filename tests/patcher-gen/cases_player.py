@@ -207,6 +207,83 @@ def own_files():
                       reg(None, "pra/warheadstorage.json", "applied", field=PRA), reg("b-pra", PF, "applied", field=PRA)],
           "files": [fl(GP, "written"), fl(PF, "created")], "notes": ["enableCfgGameplayFile"]})
 
+LOOSE = '''<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<playerspawnpoints>
+    <fresh>
+        <generator_posbubbles>
+            <group name="WestCherno">
+                <pos x="6063.018555" z="1931.907227" />
+            </group>
+            <pos x="7500.000000" z="7700.000000" />
+        </generator_posbubbles>
+    </fresh>
+    <hop>
+        <spawn_params>
+            <min_dist_infected>30</min_dist_infected>
+        </spawn_params>
+    </hop>
+</playerspawnpoints>
+'''
+
+def player_spawn_loose():
+    L = "playerSpawnLoose"
+    changes = [
+        S({"section": "fresh", "x": N("7500.2"), "z": 7700}, "pos", None, {"x": 7510, "z": 7710}, kind=L),
+        R({"section": "fresh", "x": 6063, "z": 1931.9}, kind=L),
+        R({"section": "fresh", "group": "WestCherno", "x": N("6063.018555"), "z": N("1931.907227")}, kind="playerSpawnPosition"),
+    ]
+    blocks = [
+        {"id": "b-l", "kind": L, "parent": {"section": "fresh"}, "data": {"x": N("8088.78"), "z": N("8429.93")}},
+        {"id": "b-hop", "kind": L, "parent": {"section": "hop"}, "data": {"x": 100, "z": 200}},
+        {"id": "b-near", "kind": L, "parent": {"section": "fresh"}, "data": {"x": N("8088.5"), "z": N("8430")}},
+        {"id": "b-sec", "kind": L, "parent": {"section": "nope"}, "data": {"x": 1, "z": 2}},
+    ]
+    out = rep(LOOSE, '''            <group name="WestCherno">
+                <pos x="6063.018555" z="1931.907227" />
+            </group>
+            <pos x="7500.000000" z="7700.000000" />''', '''            <group name="WestCherno">
+            </group>
+            <pos x="7510.000000" z="7710.000000" />
+            <pos x="8088.780000" z="8429.930000" />''')
+    out = rep(out, '''        </spawn_params>
+    </hop>''', '''        </spawn_params>
+        <generator_posbubbles>
+            <pos x="100.000000" z="200.000000" />
+        </generator_posbubbles>
+    </hop>''')
+    entries = [
+        ch(0, "set", L, changes[0]["key"], "applied", PS, "pos"),
+        ch(1, "remove", L, changes[1]["key"], "gone", PS),
+        ch(2, "remove", "playerSpawnPosition", changes[2]["key"], "applied", PS),
+        bl(0, L, "b-l", "applied", PS),
+        bl(1, L, "b-hop", "applied", PS),
+        bl(2, L, "b-near", "collision", PS),
+        bl(3, L, "b-sec", "invalid", PS, "bad-parent"),
+    ]
+    case("player-spawn-loose", {PS: LOOSE}, {"changes": changes, "blocks": blocks}, {PS: out},
+         {"entries": entries, "files": [fl(PS, "written")]})
+
+def gear_empty_slot():
+    GF = 'custom/dzstudio-test.b-kit.json'
+    attr = {"healthMin": 1, "healthMax": 1, "quantityMin": 1, "quantityMax": 1}
+    data = {"spawnWeight": 1, "name": "Player", "attachmentSlotItemSets": [
+        {"slotName": "Body", "discreteItemSets": [{"itemType": "BDUJacket", "spawnWeight": 1, "attributes": attr}]},
+        {"slotName": "Hands", "discreteItemSets": []}]}
+    base = vanilla('chernarusplus', GP)
+    pd = base[base.index('"PlayerData"'):base.index('"WorldsData"')]
+    end = pd.rindex('\t},')
+    pd2 = pd[:end].rstrip('\n') + ',\n\t\t"spawnGearPresetFiles": ["%s"]\n' % GF + pd[end:]
+    kit = {"spawnWeight": 1, "name": "Player", "attachmentSlotItemSets": [
+        {"slotName": "Body", "discreteItemSets": [{"itemType": "BDUJacket", "spawnWeight": 1, "attributes": attr, "quickBarSlot": -1,
+                                                   "complexChildrenTypes": [], "simpleChildrenTypes": [], "simpleChildrenUseDefaultAttributes": False}]},
+        {"slotName": "Hands", "discreteItemSets": []}], "discreteUnsortedItemSets": []}
+    case("gear-empty-slot", {GP: base}, {"slug": "test", "blocks": [{"id": "b-kit", "kind": "gearPreset", "parent": None, "data": data}]},
+         {GP: rep(base, pd, pd2), GF: jtext(kit) + '\n'},
+         {"entries": [bl(0, "gearPreset", "b-kit", "applied", GF), reg("b-kit", GF, "applied", field=GEAR)],
+          "files": [fl(GP, "written"), fl(GF, "created")], "notes": ["enableCfgGameplayFile"]})
+
 def run():
     player_spawns()
     own_files()
+    player_spawn_loose()
+    gear_empty_slot()

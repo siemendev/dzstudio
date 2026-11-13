@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<playerspawnpoints>
+    <fresh>
+        <generator_posbubbles>
+            <group name="WestCherno">
+                <pos x="6063.018555" z="1931.907227" />
+            </group>
+            <pos x="7500.000000" z="7700.000000" />
+        </generator_posbubbles>
+    </fresh>
+    <hop>
+        <spawn_params>
+            <min_dist_infected>30</min_dist_infected>
+        </spawn_params>
+    </hop>
+</playerspawnpoints>

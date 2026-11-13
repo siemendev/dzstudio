@@ -181,6 +181,10 @@ class DZS_Patcher : DZS_PatcherJson
 		// own files are registered there
 		if (kind == "gameplaySetting" || kind == "spawnerGroup" || kind == "gearPreset" || kind == "restrictedArea")
 			return GAMEPLAY_FILE;
+		if (kind == "spawnableItem")
+			return "cfgspawnabletypes.xml";
+		if (kind == "presetItem")
+			return "cfgrandompresets.xml";
 		DZS_PKind k = DZS_PKinds.Get(kind);
 		if (!k || k.m_FileInKey)
 			return "";
@@ -249,6 +253,11 @@ class DZS_Patcher : DZS_PatcherJson
 				m_Gameplay = true;
 			return;
 		}
+		if (c.m_Block == "spawnableItem" || c.m_Block == "presetItem")
+		{
+			ChangeItem(e, c);
+			return;
+		}
 		DZS_PKind k = DZS_PKinds.Get(c.m_Block);
 		if (!k)
 		{
@@ -257,6 +266,124 @@ class DZS_Patcher : DZS_PatcherJson
 			return;
 		}
 		ChangeXml(e, c, k);
+	}
+
+	// Removes a class from the item lists of spawnable types' cargo and attachments (spawnableItem) or of random
+	// presets (presetItem): from every list that holds it, or only from those of the spawnable type ("type") or
+	// preset ("preset") the key names. The lists keep their other items and their element.
+	protected void ChangeItem(DZS_PatchEntry e, DZS_PatchChange c)
+	{
+		bool spawnable = c.m_Block == "spawnableItem";
+		string rel = "cfgrandompresets.xml";
+		if (spawnable)
+			rel = "cfgspawnabletypes.xml";
+		DZS_PatchFile f = File(rel);
+		if (!Usable(e, f))
+			return;
+		if (c.m_Op != "remove")
+		{
+			e.m_Status = "invalid";
+			e.m_Detail = "bad-op";
+			return;
+		}
+		string name = DZS_PatchText.Lower(KeyStr(c.m_Key, "name"));
+		if (name == "")
+		{
+			e.m_Status = "invalid";
+			e.m_Detail = "bad-key";
+			return;
+		}
+		string inKey = "preset";
+		if (spawnable)
+			inKey = "type";
+		string inName = KeyStr(c.m_Key, inKey);
+		DZS_XmlNode root = f.m_Xml.m_Root;
+		array<string> kindNames = new array<string>();
+		if (spawnable)
+		{
+			kindNames.Insert("spawnableCargo");
+			kindNames.Insert("spawnableAttachments");
+		}
+		else
+		{
+			kindNames.Insert("cargoPreset");
+			kindNames.Insert("attachmentsPreset");
+		}
+		bool removed = false;
+		foreach (string kindName : kindNames)
+		{
+			DZS_PKind k = DZS_PKinds.Get(kindName);
+			if (!k || !root)
+				continue;
+			DZS_PField fld = k.Field("item");
+			string rootName = k.m_Root;
+			if (spawnable)
+				rootName = "spawnabletypes";
+			if (!fld || root.m_Name != rootName)
+				continue;
+			array<DZS_XmlNode> lists = new array<DZS_XmlNode>();
+			foreach (DZS_XmlNode top : root.m_Children)
+			{
+				if (f.IsRemoved(top))
+					continue;
+				if (spawnable && top.m_Name == "type" && (inName == "" || DZS_PatchText.Lower(top.Get("name")) == DZS_PatchText.Lower(inName)))
+				{
+					foreach (DZS_XmlNode list : top.m_Children)
+					{
+						if (list.m_Name == k.m_Elem && !f.IsRemoved(list))
+							lists.Insert(list);
+					}
+				}
+				else if (!spawnable && top.m_Name == k.m_Elem && (inName == "" || top.Get("name") == inName))
+					lists.Insert(top);
+			}
+			foreach (DZS_XmlNode n : lists)
+			{
+				array<string> tokens = new array<string>();
+				CurrentList(f, n, fld, tokens);
+				DZS_Json kept = DZS_Json.Arr();
+				bool dropped = false;
+				foreach (string tok : tokens)
+				{
+					array<string> parts = new array<string>();
+					tok.Split("\t", parts);
+					int eq = parts[0].IndexOf("=");
+					string attr = parts[0].Substring(0, eq);
+					string value = parts[0].Substring(eq + 1, parts[0].Length() - eq - 1);
+					if (attr == "name" && DZS_PatchText.Lower(value) == name)
+					{
+						dropped = true;
+						continue;
+					}
+					DZS_Json item = DZS_Json.Obj();
+					DZS_Json itemName = DZS_Json.Str(value);
+					item.Set(attr, itemName);
+					if (parts.Count() > 1 && parts[1].IndexOf("chance=") == 0)
+					{
+						DZS_Json chance = DZS_Json.Num(parts[1].Substring(7, parts[1].Length() - 7));
+						item.Set("chance", chance);
+					}
+					kept.Add(item);
+				}
+				if (!dropped)
+					continue;
+				string err = SetList(f, k, n, fld, kept);
+				if (err != "")
+				{
+					e.m_Status = "invalid";
+					e.m_Detail = err;
+					return;
+				}
+				removed = true;
+			}
+		}
+		if (removed)
+		{
+			e.m_Status = "applied";
+			Depends(e, f);
+		}
+		else
+			e.m_Status = "gone";
 	}
 
 	protected void ChangeXml(DZS_PatchEntry e, DZS_PatchChange c, DZS_PKind k)
@@ -744,7 +871,7 @@ class DZS_Patcher : DZS_PatcherJson
 			if (!k.m_OwnDups && other.m_Ok && other.m_Kind == k && !other.m_Into && SameKey(k, values, other.m_Values))
 				taken = true;
 		}
-		if (taken)
+		if (taken && !b.m_Duplicate)
 		{
 			e.m_Status = "collision";
 			return;
@@ -889,7 +1016,7 @@ class DZS_Patcher : DZS_PatcherJson
 			Members(f, into, k, pool);
 			DZS_PTarget hit = new DZS_PTarget();
 			Filter(f, k, key, pool, hit);
-			if (!k.m_Repeats && (hit.m_Nodes.Count() > 0 || Attached(k, values, null, into.m_Start)))
+			if (!k.m_Repeats && !b.m_Duplicate && (hit.m_Nodes.Count() > 0 || Attached(k, values, null, into.m_Start)))
 			{
 				e.m_Status = "collision";
 				return;
@@ -901,7 +1028,7 @@ class DZS_Patcher : DZS_PatcherJson
 			e.m_Status = "applied";
 			return;
 		}
-		if (!k.m_Repeats && Attached(k, values, own, -1))
+		if (!k.m_Repeats && !b.m_Duplicate && Attached(k, values, own, -1))
 		{
 			e.m_Status = "collision";
 			return;

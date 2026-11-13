@@ -1,0 +1,106 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "remove",
+            "kind": "spawnableItem",
+            "key": {
+                "name": "BandageDressing"
+            },
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "remove",
+            "kind": "spawnableItem",
+            "key": {
+                "name": "HeadlightH7",
+                "type": "offroadhatchback"
+            },
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "remove",
+            "kind": "spawnableItem",
+            "key": {
+                "name": "Rag",
+                "type": "OffroadHatchback"
+            },
+            "status": "gone",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 3,
+            "op": "remove",
+            "kind": "spawnableItem",
+            "key": {
+                "name": "Nope"
+            },
+            "status": "gone",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 4,
+            "op": "set",
+            "kind": "spawnableItem",
+            "key": {
+                "name": "Rag"
+            },
+            "field": "chance",
+            "status": "invalid",
+            "file": "cfgspawnabletypes.xml",
+            "detail": "bad-op"
+        },
+        {
+            "what": "change",
+            "index": 5,
+            "op": "remove",
+            "kind": "spawnableItem",
+            "key": {},
+            "status": "invalid",
+            "file": "cfgspawnabletypes.xml",
+            "detail": "bad-key"
+        },
+        {
+            "what": "change",
+            "index": 6,
+            "op": "set",
+            "kind": "spawnable",
+            "key": {
+                "name": "Barrel_Blue"
+            },
+            "field": "damage.min",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        },
+        {
+            "what": "change",
+            "index": 7,
+            "op": "set",
+            "kind": "spawnable",
+            "key": {
+                "name": "Barrel_Blue"
+            },
+            "field": "damage.max",
+            "status": "applied",
+            "file": "cfgspawnabletypes.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgspawnabletypes.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

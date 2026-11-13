@@ -10,6 +10,18 @@ class DZS_PInsert : Managed
 	DZS_XmlPatch m_Patch;
 }
 
+// An element a set created in this run: where its text went, so a later set under the same path rewrites it.
+class DZS_PMade : Managed
+{
+	DZS_XmlPatch m_Patch;
+	DZS_PInsert m_Ins;
+	int m_Item;
+	string m_Before;
+	string m_After;
+	string m_Indent;
+	ref map<string, ref DZS_Json> m_Values;
+}
+
 // A list value set in this run: one insertion holding all its members, rewritten when the list is set again.
 class DZS_PList : Managed
 {
@@ -51,6 +63,8 @@ class DZS_PatchFile : Managed
 	ref map<int, ref DZS_PInsert> m_Inserts = new map<int, ref DZS_PInsert>();
 	ref array<ref DZS_PJCont> m_Conts = new array<ref DZS_PJCont>();
 	ref map<string, ref DZS_PList> m_Lists = new map<string, ref DZS_PList>();
+	// elements a set created, by parent and path: a later set under the same path writes into them
+	ref map<string, ref DZS_PMade> m_Made = new map<string, ref DZS_PMade>();
 	// children of an element by lower-cased attribute value, built once per element, name and attribute
 	ref map<string, ref map<string, ref array<DZS_XmlNode>>> m_Index = new map<string, ref map<string, ref array<DZS_XmlNode>>>();
 	// entries of the report that depend on this file, set to invalid when it cannot be written
@@ -427,8 +441,9 @@ class DZS_PatchFile : Managed
 		return LineIndent(parent.m_Start) + m_Unit;
 	}
 
-	// Appends an element (its text without the first line's indent) as the last child of 'parent'.
-	void AppendChild(DZS_XmlNode parent, string text)
+	// Appends an element (its text without the first line's indent) as the last child of 'parent'; returns where it
+	// went, for Rewrite.
+	DZS_PMade AppendChild(DZS_XmlNode parent, string text)
 	{
 		string indent = ChildIndent(parent);
 		string body = Reindent(text, indent, m_Eol);
@@ -438,19 +453,22 @@ class DZS_PatchFile : Managed
 			string head = m_Xml.Slice(parent.m_Start, parent.m_OpenEnd);
 			head = head.Substring(0, head.Length() - 2);
 			head = DZS_PatchText.TrimRight(head) + ">";
-			AddToInsert(parent.m_Start, parent.m_Start, parent.m_End, head, m_Eol + pind + "</" + parent.m_Name + ">", m_Eol + indent + body);
-			return;
+			return AddToInsert(parent.m_Start, parent.m_Start, parent.m_End, head, m_Eol + pind + "</" + parent.m_Name + ">", indent, body);
 		}
 		int et = EndTagStart(parent);
 		if (StartsLine(et))
 		{
-			Insertion(LineStart(et), indent + body + m_Eol);
-			return;
+			DZS_PMade m = new DZS_PMade();
+			m.m_Before = indent;
+			m.m_After = m_Eol;
+			m.m_Indent = indent;
+			m.m_Patch = Insertion(LineStart(et), indent + body + m_Eol);
+			return m;
 		}
-		AddToInsert(et, et, et, "", m_Eol + pind, m_Eol + indent + body);
+		return AddToInsert(et, et, et, "", m_Eol + pind, indent, body);
 	}
 
-	protected void AddToInsert(int key, int start, int end, string head, string tail, string item)
+	protected DZS_PMade AddToInsert(int key, int start, int end, string head, string tail, string indent, string body)
 	{
 		DZS_PInsert ins = m_Inserts.Get(key);
 		if (!ins)
@@ -462,7 +480,18 @@ class DZS_PatchFile : Managed
 			m_Inserts.Set(key, ins);
 			ins.m_Patch = Patch("i" + key, start, end, "");
 		}
-		ins.m_Items.Insert(item);
+		DZS_PMade m = new DZS_PMade();
+		m.m_Ins = ins;
+		m.m_Item = ins.m_Items.Count();
+		m.m_Before = m_Eol + indent;
+		m.m_Indent = indent;
+		ins.m_Items.Insert(m.m_Before + body);
+		JoinInsert(ins);
+		return m;
+	}
+
+	protected void JoinInsert(DZS_PInsert ins)
+	{
 		string t = ins.m_Head;
 		foreach (string it : ins.m_Items)
 			t += it;
@@ -470,23 +499,39 @@ class DZS_PatchFile : Managed
 		ins.m_Patch.m_Text = t;
 	}
 
-	// Inserts an element right after 'sibling', on a line of its own with the sibling's indent.
-	void InsertAfter(DZS_XmlNode sibling, string text)
+	// Replaces the text of an element inserted in this run.
+	void Rewrite(DZS_PMade m, string text)
 	{
-		string indent = LineIndent(sibling.m_Start);
-		Insertion(sibling.m_End, m_Eol + indent + Reindent(text, indent, m_Eol));
+		string body = m.m_Before + Reindent(text, m.m_Indent, m_Eol) + m.m_After;
+		if (m.m_Ins)
+		{
+			m.m_Ins.m_Items.Set(m.m_Item, body);
+			JoinInsert(m.m_Ins);
+			return;
+		}
+		m.m_Patch.m_Text = body;
+	}
+
+	// Inserts an element right after 'sibling', on a line of its own with the sibling's indent.
+	DZS_PMade InsertAfter(DZS_XmlNode sibling, string text)
+	{
+		DZS_PMade m = new DZS_PMade();
+		m.m_Indent = LineIndent(sibling.m_Start);
+		m.m_Before = m_Eol + m.m_Indent;
+		m.m_Patch = Insertion(sibling.m_End, m.m_Before + Reindent(text, m.m_Indent, m_Eol));
+		return m;
 	}
 
 	// Inserts an element as the first child of 'parent'.
-	void InsertFirst(DZS_XmlNode parent, string text)
+	DZS_PMade InsertFirst(DZS_XmlNode parent, string text)
 	{
 		if (parent.m_SelfClose || parent.m_Children.Count() == 0)
-		{
-			AppendChild(parent, text);
-			return;
-		}
-		string indent = ChildIndent(parent);
-		Insertion(parent.m_OpenEnd, m_Eol + indent + Reindent(text, indent, m_Eol));
+			return AppendChild(parent, text);
+		DZS_PMade m = new DZS_PMade();
+		m.m_Indent = ChildIndent(parent);
+		m.m_Before = m_Eol + m.m_Indent;
+		m.m_Patch = Insertion(parent.m_OpenEnd, m.m_Before + Reindent(text, m.m_Indent, m_Eol));
+		return m;
 	}
 
 	// ---- JSON ----

@@ -1,0 +1,87 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-ign",
+            "kind": "event",
+            "parent": null,
+            "data": {
+                "name": "VehicleSafezoneCar",
+                "nominal": 1,
+                "min": 1,
+                "max": 1,
+                "lifetime": 300,
+                "restock": 0,
+                "saferadius": 500,
+                "distanceradius": 500,
+                "cleanupradius": 200,
+                "flags": {
+                    "deletable": 0,
+                    "init_random": 0,
+                    "remove_damaged": 1
+                },
+                "position": "fixed",
+                "limit": "child",
+                "active": 1,
+                "ignore": "true"
+            }
+        },
+        {
+            "id": "b-bad",
+            "kind": "event",
+            "parent": null,
+            "data": {
+                "name": "VehicleOther",
+                "nominal": 1,
+                "min": 1,
+                "max": 1,
+                "lifetime": 300,
+                "restock": 0,
+                "saferadius": 500,
+                "distanceradius": 500,
+                "cleanupradius": 200,
+                "flags": {
+                    "deletable": 0,
+                    "init_random": 0,
+                    "remove_damaged": 1
+                },
+                "position": "fixed",
+                "limit": "child",
+                "active": 1,
+                "ignore": "false"
+            }
+        }
+    ],
+    "changes": [
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "ignore",
+            "to": "true"
+        },
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "StaticHeliCrash"
+            },
+            "field": "ignore",
+            "to": "yes"
+        },
+        {
+            "op": "set",
+            "block": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "ignore",
+            "from": "true",
+            "to": null
+        }
+    ]
+}

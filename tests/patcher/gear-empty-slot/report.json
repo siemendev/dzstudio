@@ -1,0 +1,35 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "gearPreset",
+            "id": "b-kit",
+            "status": "applied",
+            "file": "custom/dzstudio-test.b-kit.json"
+        },
+        {
+            "what": "registration",
+            "id": "b-kit",
+            "field": "PlayerData.spawnGearPresetFiles",
+            "value": "custom/dzstudio-test.b-kit.json",
+            "status": "applied",
+            "file": "cfggameplay.json"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfggameplay.json",
+            "status": "written"
+        },
+        {
+            "path": "custom/dzstudio-test.b-kit.json",
+            "status": "created"
+        }
+    ],
+    "notes": [
+        "enableCfgGameplayFile"
+    ]
+}

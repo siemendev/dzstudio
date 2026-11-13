@@ -1,0 +1,67 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "ignore",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "StaticHeliCrash"
+            },
+            "field": "ignore",
+            "status": "invalid",
+            "file": "db/events.xml",
+            "detail": "bad-value"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "set",
+            "kind": "event",
+            "key": {
+                "name": "VehicleCivilianSedan"
+            },
+            "field": "ignore",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "event",
+            "id": "b-ign",
+            "status": "applied",
+            "file": "db/events.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "event",
+            "id": "b-bad",
+            "status": "invalid",
+            "file": "db/events.xml",
+            "detail": "bad-value"
+        }
+    ],
+    "files": [
+        {
+            "path": "db/events.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

@@ -1,0 +1,39 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "slug": "test",
+    "blocks": [
+        {
+            "id": "b-kit",
+            "kind": "gearPreset",
+            "parent": null,
+            "data": {
+                "spawnWeight": 1,
+                "name": "Player",
+                "attachmentSlotItemSets": [
+                    {
+                        "slotName": "Body",
+                        "discreteItemSets": [
+                            {
+                                "itemType": "BDUJacket",
+                                "spawnWeight": 1,
+                                "attributes": {
+                                    "healthMin": 1,
+                                    "healthMax": 1,
+                                    "quantityMin": 1,
+                                    "quantityMax": 1
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "slotName": "Hands",
+                        "discreteItemSets": []
+                    }
+                ]
+            }
+        }
+    ],
+    "changes": []
+}

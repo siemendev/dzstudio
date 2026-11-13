@@ -939,11 +939,6 @@ class DZS_PatcherJson : DZS_PatcherXml
 				DZS_Json sets = GearItems(slotIn, "discreteItemSets", GEAR_SET, err);
 				if (!sets)
 					return null;
-				if (sets.Count() == 0)
-				{
-					err = "incomplete";
-					return null;
-				}
 				slot.Set("discreteItemSets", sets);
 				slots.Add(slot);
 			}

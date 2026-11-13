@@ -427,11 +427,125 @@ def random_presets():
     case("random-presets", {RP: RPBASE}, {"changes": changes, "blocks": blocks}, {RP: out},
          {"entries": entries, "files": [fl(RP, "written")]})
 
+def globals_duplicate():
+    base = vanilla('chernarusplus', GL)
+    K = "global"
+    blocks = [
+        # a block marked duplicate is written although the base has its name: the file then holds it twice
+        {"id": "b-twice", "kind": K, "parent": None, "duplicate": True, "data": {"name": "AnimalMaxCount", "type": 0, "value": 350}},
+        {"id": "b-again", "kind": K, "parent": None, "duplicate": True, "data": {"name": "AnimalMaxCount", "type": 0, "value": 400}},
+        {"id": "b-plain", "kind": K, "parent": None, "data": {"name": "ZombieMaxCount", "type": 0, "value": 1500}},
+        {"id": "b-flag", "kind": K, "parent": None, "duplicate": "yes", "data": {"name": "TimeLogin", "type": 0, "value": 5}},
+    ]
+    out = rep(base, '</variables>', '''    <var name="AnimalMaxCount" type="0" value="350"/>
+    <var name="AnimalMaxCount" type="0" value="400"/>
+</variables>''')
+    entries = [
+        bl(0, K, "b-twice", "applied", GL),
+        bl(1, K, "b-again", "applied", GL),
+        bl(2, K, "b-plain", "collision", GL),
+        bl(3, K, "b-flag", "collision", GL),
+    ]
+    case("globals-duplicate", {GL: base}, {"blocks": blocks}, {GL: out},
+         {"entries": entries, "files": [fl(GL, "written")]})
+
+SPITEMS = SPHEAD + '''\t<type name="CanvasBag_Medical">
+\t\t<cargo chance="0.6">
+\t\t\t<item name="BandageDressing" />
+\t\t</cargo>
+\t\t<cargo chance="0.5">
+\t\t\t<item name="bandagedressing" chance="0.5" />
+\t\t\t<item name="Rag" chance="0.50" />
+\t\t</cargo>
+\t</type>
+\t<type name="OffroadHatchback">
+\t\t<attachments chance="1.00">
+\t\t\t<item name="HeadlightH7" chance="0.40" />
+\t\t</attachments>
+\t\t<attachments chance="1.00">
+\t\t\t<item name="HeadlightH7" chance="0.40" />
+\t\t</attachments>
+\t</type>
+\t<type name="Barrel_Blue">
+\t\t<hoarder />
+\t</type>
+</spawnabletypes>
+'''
+
+def spawnable_items():
+    I = "spawnableItem"
+    T = "spawnable"
+    changes = [
+        R({"name": "BandageDressing"}, kind=I),
+        R({"name": "HeadlightH7", "type": "offroadhatchback"}, kind=I),
+        R({"name": "Rag", "type": "OffroadHatchback"}, kind=I),
+        R({"name": "Nope"}, kind=I),
+        S({"name": "Rag"}, "chance", None, 1, kind=I),
+        R({}, kind=I),
+        # two sets under an element the base lacks write one element with both values
+        S({"name": "Barrel_Blue"}, "damage.min", None, N("0.0"), kind=T),
+        S({"name": "Barrel_Blue"}, "damage.max", None, N("0.0"), kind=T),
+    ]
+    out = rep(SPITEMS, '''\t\t<cargo chance="0.6">
+\t\t\t<item name="BandageDressing" />
+\t\t</cargo>
+\t\t<cargo chance="0.5">
+\t\t\t<item name="bandagedressing" chance="0.5" />
+\t\t\t<item name="Rag" chance="0.50" />
+\t\t</cargo>''', '''\t\t<cargo chance="0.6">
+\t\t</cargo>
+\t\t<cargo chance="0.5">
+\t\t\t<item name="Rag" chance="0.5" />
+\t\t</cargo>''')
+    out = rep(out, '''\t\t<attachments chance="1.00">
+\t\t\t<item name="HeadlightH7" chance="0.40" />
+\t\t</attachments>''', '''\t\t<attachments chance="1.00">
+\t\t</attachments>''', 2)
+    out = rep(out, '''\t\t<hoarder />
+\t</type>''', '''\t\t<hoarder />
+\t\t<damage min="0" max="0" />
+\t</type>''')
+    entries = [
+        ch(0, "remove", I, {"name": "BandageDressing"}, "applied", SP),
+        ch(1, "remove", I, {"name": "HeadlightH7", "type": "offroadhatchback"}, "applied", SP),
+        ch(2, "remove", I, {"name": "Rag", "type": "OffroadHatchback"}, "gone", SP),
+        ch(3, "remove", I, {"name": "Nope"}, "gone", SP),
+        ch(4, "set", I, {"name": "Rag"}, "invalid", SP, "chance", detail="bad-op"),
+        ch(5, "remove", I, {}, "invalid", SP, detail="bad-key"),
+        ch(6, "set", T, {"name": "Barrel_Blue"}, "applied", SP, "damage.min"),
+        ch(7, "set", T, {"name": "Barrel_Blue"}, "applied", SP, "damage.max"),
+    ]
+    case("spawnable-items", {SP: SPITEMS}, {"changes": changes}, {SP: out},
+         {"entries": entries, "files": [fl(SP, "written")]})
+
+def preset_items():
+    I = "presetItem"
+    changes = [
+        R({"name": "tunacan"}, kind=I),
+        R({"name": "ACOGOptic", "preset": "nope"}, kind=I),
+        R({"name": "ACOGOptic", "preset": "optics"}, kind=I),
+    ]
+    out = rep(RPBASE, '\t\t\t\t<item name="TunaCan" chance="0.11" />\n', '')
+    out = rep(out, '''\t\t<attachments chance="0.30" name="optics">
+\t\t\t\t<item name="ACOGOptic" chance="0.10" />
+\t\t</attachments>''', '''\t\t<attachments chance="0.30" name="optics">
+\t\t</attachments>''')
+    entries = [
+        ch(0, "remove", I, {"name": "tunacan"}, "applied", RP),
+        ch(1, "remove", I, {"name": "ACOGOptic", "preset": "nope"}, "gone", RP),
+        ch(2, "remove", I, {"name": "ACOGOptic", "preset": "optics"}, "applied", RP),
+    ]
+    case("preset-items", {RP: RPBASE}, {"changes": changes}, {RP: out},
+         {"entries": entries, "files": [fl(RP, "written")]})
+
 def run():
     globals_case()
+    globals_duplicate()
     messages()
     economy()
     economy_core()
     ignore_list()
     spawnable()
     random_presets()
+    spawnable_items()
+    preset_items()

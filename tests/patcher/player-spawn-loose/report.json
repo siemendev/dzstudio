@@ -1,0 +1,87 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "set",
+            "kind": "playerSpawnLoose",
+            "key": {
+                "section": "fresh",
+                "x": 7500.2,
+                "z": 7700
+            },
+            "field": "pos",
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "remove",
+            "kind": "playerSpawnLoose",
+            "key": {
+                "section": "fresh",
+                "x": 6063,
+                "z": 1931.9
+            },
+            "status": "gone",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "remove",
+            "kind": "playerSpawnPosition",
+            "key": {
+                "section": "fresh",
+                "group": "WestCherno",
+                "x": 6063.018555,
+                "z": 1931.907227
+            },
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "block",
+            "index": 0,
+            "kind": "playerSpawnLoose",
+            "id": "b-l",
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "block",
+            "index": 1,
+            "kind": "playerSpawnLoose",
+            "id": "b-hop",
+            "status": "applied",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "block",
+            "index": 2,
+            "kind": "playerSpawnLoose",
+            "id": "b-near",
+            "status": "collision",
+            "file": "cfgplayerspawnpoints.xml"
+        },
+        {
+            "what": "block",
+            "index": 3,
+            "kind": "playerSpawnLoose",
+            "id": "b-sec",
+            "status": "invalid",
+            "file": "cfgplayerspawnpoints.xml",
+            "detail": "bad-parent"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgplayerspawnpoints.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}

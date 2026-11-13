@@ -1,0 +1,31 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [],
+    "changes": [
+        {
+            "op": "remove",
+            "block": "presetItem",
+            "key": {
+                "name": "tunacan"
+            }
+        },
+        {
+            "op": "remove",
+            "block": "presetItem",
+            "key": {
+                "name": "ACOGOptic",
+                "preset": "nope"
+            }
+        },
+        {
+            "op": "remove",
+            "block": "presetItem",
+            "key": {
+                "name": "ACOGOptic",
+                "preset": "optics"
+            }
+        }
+    ]
+}

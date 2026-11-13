@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+
+<spawnabletypes>
+	<type name="CanvasBag_Medical">
+		<cargo chance="0.6">
+		</cargo>
+		<cargo chance="0.5">
+			<item name="Rag" chance="0.5" />
+		</cargo>
+	</type>
+	<type name="OffroadHatchback">
+		<attachments chance="1.00">
+		</attachments>
+		<attachments chance="1.00">
+		</attachments>
+	</type>
+	<type name="Barrel_Blue">
+		<hoarder />
+		<damage min="0" max="0" />
+	</type>
+</spawnabletypes>

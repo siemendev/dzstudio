@@ -336,6 +336,8 @@ class DZS_PKinds
 		ev.E("position", on, true);
 		ev.E("limit", limits, true);
 		ev.F("active", DZS_PField.BOOL01, true);
+		array<string> ignoreValues = {"true"};
+		ev.E("@ignore", ignoreValues, false);
 		ev.m_Order = {"nominal", "min", "max", "lifetime", "restock", "saferadius", "distanceradius", "cleanupradius", "secondary", "flags", "position", "limit", "active", "children"};
 		Add(ev);
 
@@ -687,6 +689,20 @@ class DZS_PKinds
 		pp.F("@x", DZS_PField.FIX6, true);
 		pp.F("@z", DZS_PField.FIX6, true);
 		Add(pp);
+
+		DZS_PKind pl = new DZS_PKind();
+		pl.m_Name = "playerSpawnLoose";
+		pl.m_File = "cfgplayerspawnpoints.xml";
+		pl.m_Elem = "pos";
+		pl.m_ParentKind = "playerSpawnSection";
+		pl.m_ParentKey = "section";
+		pl.m_ParentMap = {"section=section"};
+		pl.m_Container = "generator_posbubbles";
+		pl.m_Tol = 500000;
+		pl.m_SelfClose = " />";
+		pl.F("@x", DZS_PField.FIX6, true);
+		pl.F("@z", DZS_PField.FIX6, true);
+		Add(pl);
 
 		DZS_PKind ec = new DZS_PKind();
 		ec.m_Name = "economy";

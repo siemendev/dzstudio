@@ -230,8 +230,50 @@ def events_own():
     case("event-own-blocks", {EV: ev, SP: sp}, {"blocks": blocks}, {EV: ev_out, SP: sp_out},
          {"entries": entries, "files": [fl(SP, "written"), fl(EV, "written")]})
 
+def events_ignore():
+    ev = HEAD + SEDAN + HELI + TAIL
+    own = own_event_data("VehicleSafezoneCar")
+    own["ignore"] = "true"
+    blocks = [
+        {"id": "b-ign", "kind": "event", "parent": None, "data": own},
+        {"id": "b-bad", "kind": "event", "parent": None, "data": dict(own_event_data("VehicleOther"), ignore="false")},
+    ]
+    changes = [
+        S(SK, "ignore", None, "true"),
+        S({"name": "StaticHeliCrash"}, "ignore", None, "yes"),
+        S(SK, "ignore", "true", None),
+    ]
+    out = rep(ev, '''    <event name="VehicleCivilianSedan">''', '''    <event name="VehicleCivilianSedan" ignore="true">''')
+    out = rep(out, '<event name="VehicleCivilianSedan" ignore="true">', '<event name="VehicleCivilianSedan">')
+    out = rep(out, TAIL, '''    <event name="VehicleSafezoneCar" ignore="true">
+        <nominal>1</nominal>
+        <min>1</min>
+        <max>1</max>
+        <lifetime>300</lifetime>
+        <restock>0</restock>
+        <saferadius>500</saferadius>
+        <distanceradius>500</distanceradius>
+        <cleanupradius>200</cleanupradius>
+        <flags deletable="0" init_random="0" remove_damaged="1"/>
+        <position>fixed</position>
+        <limit>child</limit>
+        <active>1</active>
+        <children/>
+    </event>
+''' + TAIL)
+    entries = [
+        ch(0, "set", "event", SK, "applied", EV, "ignore"),
+        ch(1, "set", "event", {"name": "StaticHeliCrash"}, "invalid", EV, "ignore", detail="bad-value"),
+        ch(2, "set", "event", SK, "applied", EV, "ignore"),
+        bl(0, "event", "b-ign", "applied", EV),
+        bl(1, "event", "b-bad", "invalid", EV, "bad-value"),
+    ]
+    case("event-ignore", {EV: ev}, {"changes": changes, "blocks": blocks}, {EV: out},
+         {"entries": entries, "files": [fl(EV, "written")]})
+
 def run():
     events_fields()
     events_case_overrode()
     events_duplicate()
     events_own()
+    events_ignore()

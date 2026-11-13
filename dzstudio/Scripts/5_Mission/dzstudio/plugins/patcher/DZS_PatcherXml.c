@@ -395,8 +395,8 @@ class DZS_PatcherXml : DZS_PatcherBase
 		return r;
 	}
 
-	// Inserts a new child element where the kind's order puts it among the existing children.
-	void InsertOrdered(DZS_PatchFile f, DZS_PKind k, DZS_XmlNode parent, string name, string text)
+	// Inserts a new child element where the kind's order puts it among the existing children; returns where it went.
+	DZS_PMade InsertOrdered(DZS_PatchFile f, DZS_PKind k, DZS_XmlNode parent, string name, string text)
 	{
 		int mine = k.m_Order.Find(name);
 		DZS_XmlNode after = null;
@@ -411,11 +411,10 @@ class DZS_PatcherXml : DZS_PatcherBase
 				after = c;
 		}
 		if (after)
-			f.InsertAfter(after, text);
-		else if (any && mine >= 0)
-			f.InsertFirst(parent, text);
-		else
-			f.AppendChild(parent, text);
+			return f.InsertAfter(after, text);
+		if (any && mine >= 0)
+			return f.InsertFirst(parent, text);
+		return f.AppendChild(parent, text);
 	}
 
 	// Sets one field of an element. 'values' (by field name) fill an element that has to be created; 'done' collects
@@ -454,18 +453,34 @@ class DZS_PatcherXml : DZS_PatcherBase
 			}
 			if (!next)
 			{
-				if (remove)
+				// a set before this one may have created the element: the value goes into it, not into a second one
+				string mark = cur.m_Start.ToString() + " " + prefix;
+				DZS_PMade earlier = null;
+				if (!values)
+					earlier = f.m_Made.Get(mark);
+				if (remove && !earlier)
 					return "";
 				map<string, ref DZS_Json> only = values;
 				if (!only)
 				{
 					only = new map<string, ref DZS_Json>();
-					only.Set(fld.m_Name, v);
+					if (earlier)
+					{
+						foreach (string ek, DZS_Json ev : earlier.m_Values)
+							only.Set(ek, ev);
+					}
+					if (remove)
+						only.Set(fld.m_Name, null);
+					else
+						only.Set(fld.m_Name, v);
 				}
-				string made;
+				string made = "";
 				string last = fld.m_Elems[i];
 				if (i == fld.m_Elems.Count() - 1 && fld.m_Attr == "")
-					made = "<" + last + ">" + DZS_Xml.Escape(text) + "</" + last + ">";
+				{
+					if (!remove)
+						made = "<" + last + ">" + DZS_Xml.Escape(text) + "</" + last + ">";
+				}
 				else
 				{
 					array<string> path = new array<string>();
@@ -473,7 +488,18 @@ class DZS_PatcherXml : DZS_PatcherBase
 						path.Insert(fld.m_Elems[pi]);
 					made = Gen(k, path, last, only, null, f.m_Unit);
 				}
-				InsertOrdered(f, k, cur, fld.m_Elems[i], made);
+				if (earlier)
+				{
+					f.Rewrite(earlier, made);
+					earlier.m_Values = only;
+					return "";
+				}
+				DZS_PMade at = InsertOrdered(f, k, cur, fld.m_Elems[i], made);
+				if (!values)
+				{
+					at.m_Values = only;
+					f.m_Made.Set(mark, at);
+				}
 				if (done)
 					done.Insert(prefix);
 				return "";

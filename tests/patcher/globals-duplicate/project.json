@@ -1,0 +1,51 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [
+        {
+            "id": "b-twice",
+            "kind": "global",
+            "parent": null,
+            "duplicate": true,
+            "data": {
+                "name": "AnimalMaxCount",
+                "type": 0,
+                "value": 350
+            }
+        },
+        {
+            "id": "b-again",
+            "kind": "global",
+            "parent": null,
+            "duplicate": true,
+            "data": {
+                "name": "AnimalMaxCount",
+                "type": 0,
+                "value": 400
+            }
+        },
+        {
+            "id": "b-plain",
+            "kind": "global",
+            "parent": null,
+            "data": {
+                "name": "ZombieMaxCount",
+                "type": 0,
+                "value": 1500
+            }
+        },
+        {
+            "id": "b-flag",
+            "kind": "global",
+            "parent": null,
+            "duplicate": "yes",
+            "data": {
+                "name": "TimeLogin",
+                "type": 0,
+                "value": 5
+            }
+        }
+    ],
+    "changes": []
+}

@@ -46,7 +46,12 @@ mod's settings (below): `{"data": {"settings": [ … ]}}`.
     target, or the whole project is not applied on that server.
   - `repeat` — `{"count": "<formula>"}` or `{"over": "<list setting>"}`: the block (with its child blocks) is repeated.
     Copies are named `<id>-1`, `<id>-2` …; formulas in them read `index` (0, 1, …) and, over a list, `item` and
-    `item.<property>`. Optional `"name"`: a template for the copies' names (below).
+    `item.<property>`. Optional `"name"`: a template for the copies' names (below). Optional `"where"`: a condition
+    each entry must meet to make a copy (it reads `item`, `item.<property>` and `index`, the entry's place in the
+    list); the copies kept count `index` from 0 again. Optional `"split"` (only with `over`): a text setting is cut into
+    the list — `","` makes `"Knife,Rag"` two entries, `[",", ":"]` also cuts each entry into its parts, read as
+    `item.0`, `item.1` … (`"Knife:1"`: `item` is `Knife:1`, `item.0` `Knife`, `item.1` `1`; a part that is not there
+    has no value). Nothing is trimmed; an empty text has no entries.
 - **Names of repeated blocks.** A block whose kind is identified by a name — an event, a spawn zone, an event group, an
   item type, a loot type, a spawnable type, a random preset, a global, a message (its text), a player spawn group, a CE
   default or root class, an ignored type, an event child (its `type`) — would collide with its own copies, so each
@@ -61,14 +66,25 @@ mod's settings (below): `{"data": {"settings": [ … ]}}`.
   names the copy.
   - `fields` — per path in the block's `data`, `{"setting": "<name>"}` (the setting's value as it is; a coordinate is a
     whole position), `{"formula": "<formula>"}` (a number; `base` is the value in the project) or
-    `{"template": "<template>"}` (text, below). Settings and templates are applied before formulas. A block's paths
+    `{"template": "<template>"}` (text, below), each optionally with an `"if"`: while that condition does not hold the
+    value stays as the project has it (`{"formula": "round(item.slot)", "if": {"field": "item.slot", "op":
+    "not_empty"}}`). Settings and templates are applied before formulas. A block's paths
     stay outside objects in lists (`nominal`, `flags.deletable`, `PRABoxes[0][2]`); a value of such an object is set by
     its own rule.
 - On a **list element** of a block's data (an object of a group, an item of a preset — any object inside a list):
   `if`, `repeat` and `fields`, with paths in `fields` starting at the element (`pos`, `pos[0]`).
 - On a **change**: `if`, `formula` (only for `op: "set"`; names: the settings, `base` = the value found on the server,
   `vanilla` = Bohemia's value) or `template` (only for `op: "set"`, not beside a formula: the value is the text it
-  makes — a number where the change's `to` is a number and the text is one) and `required`.
+  makes — a number where the change's `to` is a number and the text is one), `key` and `required`.
+  - A formula on a change whose `to` is a list of numbers computes each of them: `index` is the number's place (0, 1,
+    …), `base` and `vanilla` the number at that place; the list keeps the length of `to`.
+    `{"op": "set", "block": "gameplaySetting", "key": {"path": "WorldsData.environmentMinTemps"}, "to": [0, 0, …],
+    "extensions": {"<url>": {"formula": "min_temp"}}}` writes the setting twelve times.
+  - `key` — per member of the change's key, `{"setting": …}`, `{"template": …}` or `{"formula": …}`: the member's value
+    on the server, so a setting names what the change targets (`"key": {"name": {"setting": "item1"}}` removes the
+    item type a server admin names). The members not listed keep the value the project has; reports still name the
+    change by its key in the project. A member without a value (an empty setting) is an error: the change is left out,
+    with the reason in the mod's log — give it an `if` that leaves it out first.
 
 Members not listed here are kept by every program that rewrites the entry. Patchers ignore `extensions` everywhere —
 of the project, of blocks and changes and of elements inside block data — and never write them into a mission file.
@@ -89,7 +105,7 @@ a path. Nothing else in the rules addresses an object by its place either: an el
 `{"all": [ … ]}`, `{"any": [ … ]}` and `{"not": { … }}`. Values compare loosely (`"1"`, `true` and `1` are the same
 for a yes/no setting).
 
-**Formulas**: numbers, names (also with parts: `source.x`), `+ - * /`, parentheses and `min`, `max`, `round`,
+**Formulas**: numbers, names (also with parts: `source.x`, `item.0`), `+ - * /`, parentheses and `min`, `max`, `round`,
 `floor`, `ceil`, `abs`, `clamp`; at most 500 characters.
 
 **Templates** build text: literal text with `{…}` parts, at most 1000 characters. A part is a name — a setting (also

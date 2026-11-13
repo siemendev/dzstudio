@@ -192,7 +192,7 @@ class DZS_ProjectRefs
 			return DZS_Texts.Pick("Servernachricht", "Server message");
 		if (kind == "eventGroup")
 			return DZS_Texts.Pick("Event-Gruppe", "Event group");
-		if (kind == "playerSpawnGroup" || kind == "playerSpawnPosition" || kind == "playerSpawnSection")
+		if (kind == "playerSpawnGroup" || kind == "playerSpawnPosition" || kind == "playerSpawnLoose" || kind == "playerSpawnSection")
 			return DZS_Texts.Pick("Spieler-Spawn", "Player spawn");
 		return kind;
 	}

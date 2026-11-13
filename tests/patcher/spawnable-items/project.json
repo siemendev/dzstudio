@@ -1,0 +1,70 @@
+{
+    "format": "dzstudio-project",
+    "version": 2,
+    "map": "chernarusplus",
+    "blocks": [],
+    "changes": [
+        {
+            "op": "remove",
+            "block": "spawnableItem",
+            "key": {
+                "name": "BandageDressing"
+            }
+        },
+        {
+            "op": "remove",
+            "block": "spawnableItem",
+            "key": {
+                "name": "HeadlightH7",
+                "type": "offroadhatchback"
+            }
+        },
+        {
+            "op": "remove",
+            "block": "spawnableItem",
+            "key": {
+                "name": "Rag",
+                "type": "OffroadHatchback"
+            }
+        },
+        {
+            "op": "remove",
+            "block": "spawnableItem",
+            "key": {
+                "name": "Nope"
+            }
+        },
+        {
+            "op": "set",
+            "block": "spawnableItem",
+            "key": {
+                "name": "Rag"
+            },
+            "field": "chance",
+            "to": 1
+        },
+        {
+            "op": "remove",
+            "block": "spawnableItem",
+            "key": {}
+        },
+        {
+            "op": "set",
+            "block": "spawnable",
+            "key": {
+                "name": "Barrel_Blue"
+            },
+            "field": "damage.min",
+            "to": 0.0
+        },
+        {
+            "op": "set",
+            "block": "spawnable",
+            "key": {
+                "name": "Barrel_Blue"
+            },
+            "field": "damage.max",
+            "to": 0.0
+        }
+    ]
+}

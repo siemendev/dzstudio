@@ -8,6 +8,8 @@ class DZS_PatchBlock : Managed
 	ref DZS_Json m_Parent;
 	string m_ParentId;
 	ref DZS_Json m_Data;
+	// written also where the base or an earlier own block already has an entry with its key (the file then holds it twice)
+	bool m_Duplicate;
 }
 
 class DZS_PatchChange : Managed
@@ -131,6 +133,8 @@ class DZS_PatchProject : Managed
 		b.m_Data = WithoutExtensions(bj.Get("data"));
 		if (!b.m_Data)
 			b.m_Data = DZS_Json.Obj();
+		DZS_Json dup = bj.Get("duplicate");
+		b.m_Duplicate = dup && dup.IsBool() && dup.m_Bool;
 		m_Blocks.Insert(b);
 	}
 
@@ -239,6 +243,11 @@ class DZS_PatchProject : Managed
 			else
 				par = DZS_Json.Null();
 			bj.Set("parent", par);
+			if (b.m_Duplicate)
+			{
+				DZS_Json dup = DZS_Json.Boolean(true);
+				bj.Set("duplicate", dup);
+			}
 			bj.Set("data", b.m_Data);
 			blocks.Add(bj);
 		}

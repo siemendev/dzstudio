@@ -1,0 +1,48 @@
+{
+    "format": "dzstudio-patch-report",
+    "version": 1,
+    "entries": [
+        {
+            "what": "change",
+            "index": 0,
+            "op": "remove",
+            "kind": "presetItem",
+            "key": {
+                "name": "tunacan"
+            },
+            "status": "applied",
+            "file": "cfgrandompresets.xml"
+        },
+        {
+            "what": "change",
+            "index": 1,
+            "op": "remove",
+            "kind": "presetItem",
+            "key": {
+                "name": "ACOGOptic",
+                "preset": "nope"
+            },
+            "status": "gone",
+            "file": "cfgrandompresets.xml"
+        },
+        {
+            "what": "change",
+            "index": 2,
+            "op": "remove",
+            "kind": "presetItem",
+            "key": {
+                "name": "ACOGOptic",
+                "preset": "optics"
+            },
+            "status": "applied",
+            "file": "cfgrandompresets.xml"
+        }
+    ],
+    "files": [
+        {
+            "path": "cfgrandompresets.xml",
+            "status": "written"
+        }
+    ],
+    "notes": []
+}
