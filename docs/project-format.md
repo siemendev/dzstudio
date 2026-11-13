@@ -37,7 +37,7 @@ dzStudio and [dzbot](https://dzbot.de) implement the patcher and are checked aga
 | `format` | string | Always `"dzstudio-project"`. |
 | `version` | integer | The format version, `2`. Keys, tolerances and patcher rules belong to it; changing any of them is a new version. A reader refuses a version it does not know. |
 | `map` | string | The map the project was made for, lower case (`chernarusplus`, `enoch`, `sakhal`, `deerisle` …). |
-| `slug` | string | Lower-case name used for the project's own files: `custom/dzstudio-<slug>.<block id>.json`. |
+| `slug` | string | Lower-case name used for the project's own files: `custom/dzstudio-<slug>.<block id>.json`. A program that applies the same project more than once to one mission gives the second application the slug `<slug>-2`, the third `<slug>-3` …, so each writes files of its own (below). |
 | `blocks` | array | Own blocks, in order (below). |
 | `changes` | array | Changes to existing entries, applied in order (below). |
 | `extensions` | object | Data of other programs and plugins for the whole project (below). The patcher ignores it. |
@@ -53,7 +53,11 @@ Members a program does not know stay in the file when it rewrites it.
 - `id` — unique in the project, `[A-Za-z0-9_-]`. A block that is a file of its own is written to
   `custom/dzstudio-<slug>.<id>.json`, so renaming a group never makes a new file. It lies in `custom/` because console
   servers load own mission files reliably only there (not two folders deep, not in other folders); the dot cannot
-  occur in a slug or an id, so two projects never share a file.
+  occur in a slug or an id, so two projects never share a file. Where one project is applied several times to the same
+  mission — dzStudio applying two projects that have the same slug, or dzbot running a project mod installed more than
+  once on a server — the first keeps `<slug>`, the second writes `custom/dzstudio-<slug>-2.<id>.json`, the third
+  `<slug>-3` …, each registered beside the others (case `registration-second-application`). The patcher itself only
+  ever sees the slug it is given.
 - `kind` — one of the kinds below.
 - `parent` — for kinds that live inside another entry: either the **key** of an entry of the base
   (`{"event": "VehicleCivilianSedan"}`: an own spawn position in a vanilla event) or the `id` of an own block (a string:

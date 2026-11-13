@@ -1,0 +1,20 @@
+{
+    "Objects": [
+        {
+            "name": "Land_Mil_Barracks1",
+            "pos": [100.000000, 5.500000, 200.000000],
+            "ypr": [90.000000, 0.000000, 0.000000],
+            "scale": 1,
+            "enableCEPersistency": false,
+            "customString": ""
+        },
+        {
+            "name": "Barrel_Blue",
+            "pos": [101.000000, 5.000000, 201.000000],
+            "ypr": [0.000000, 0.000000, 0.000000],
+            "scale": 1.5,
+            "enableCEPersistency": true,
+            "customString": "x"
+        }
+    ]
+}

@@ -110,7 +110,8 @@ log.
 **Server values** are names every rule reads besides the settings — in templates, conditions, `setting` and formulas —
 filled in by dzbot for the server the mod is installed on: `manager_url` (the address of the server's dzbot site),
 `mission` (its mission folder, `dayzOffline.chernarusplus`) and `installation_id` (the mod's installation on that
-server, a number as text; `preview` in previews). A setting with one of these names is shadowed by the server value.
+server, a number as text; `preview` in previews). A mod installed several times on a server has an `installation_id` per
+instance: a name that must differ between them (a restricted area's `areaName`, an event's name) takes it in a template. A setting with one of these names is shadowed by the server value.
 
 ## Settings
 

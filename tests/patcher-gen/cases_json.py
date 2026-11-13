@@ -402,6 +402,12 @@ def registrations():
               reg(None, "/spawners/a.json", "deduplicated"), reg(None, "spawners\\b.json", "deduplicated"),
               reg("b-koth", KP, "applied"), reg("b-two", TP, "applied")],
              [fl(GP, "written"), fl(KP, "created"), fl(TP, "created")], ["enableCfgGameplayFile"])
+    # the project applied a second time on top of the first: its own files go under "<slug>-2"
+    K2 = 'custom/dzstudio-test-2.b-koth.json'
+    reg_case("registration-second-application", {GP: SMALL % (',\n\t\t"objectSpawnersArr": ["%s"]' % KP), KP: SPAWNER_TEXT}, [blk],
+             {GP: SMALL % (',\n\t\t"objectSpawnersArr": ["%s", "%s"]' % (KP, K2)), K2: SPAWNER_TEXT},
+             [bl(0, "spawnerGroup", "b-koth", "applied", K2), reg("b-koth", K2, "applied")],
+             [fl(GP, "written"), fl(K2, "created")], ["enableCfgGameplayFile"], slug="test-2")
     # no cfggameplay.json in the base
     reg_case("registration-missing-gameplay", {"init.c": "void main() {}\n"}, [blk], {},
              [bl(0, "spawnerGroup", "b-koth", "invalid", GP, "missing-file")],
