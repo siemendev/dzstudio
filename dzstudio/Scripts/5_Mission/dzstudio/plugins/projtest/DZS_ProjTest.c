@@ -550,6 +550,12 @@ class DZS_ProjTest : DZS_Plugin
 			LootProbe(a[1], a[2]);
 			return;
 		}
+		if (c == "gesture")
+		{
+			// gesture — whether a plugin holds the kernel's gesture flag (undo, autosave and uploads wait) or the wheel
+			Log("gesture running " + m_Kernel.IsGestureRunning() + " wheel " + m_Kernel.IsWheelClaimed() + " shown " + (m_Kernel.GetShown() != null));
+			return;
+		}
 		if (c == "reopen")
 		{
 			m_ReopenLeft = a[1].ToInt();

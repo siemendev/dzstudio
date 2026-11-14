@@ -101,6 +101,9 @@ class DZS_PlacementPlugin : DZS_Plugin
 	static const int G_LASSO = 4;
 	static const int G_HANDLE = 5;
 	static const int G_CARRY = 6;
+	static const int G_KEYS = 7;
+	// a finished step waits for the claim of its objects
+	static const int G_WAIT = 8;
 	static const int DM_GROUND = 0;
 	static const int DM_ROTATE = 2;
 	static const int DM_PLANE = 3;
@@ -153,7 +156,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 	protected bool m_Series;
 	protected bool m_CatDrag;
 
-	// pointer
+	// pointer; m_Gesture changes only through Enter()
 	protected int m_Gesture;
 	protected bool m_LmbWas;
 	protected bool m_RmbWas;
@@ -236,7 +239,6 @@ class DZS_PlacementPlugin : DZS_Plugin
 	protected string m_SelSig;
 
 	// keys
-	protected bool m_KeyGesture;
 	protected bool m_KeyNeedRelease;
 	protected vector m_KeyMove;
 	protected float m_KeyYaw;
@@ -772,8 +774,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		m_SettleUntil = m_Time + 2;
 		m_Sel.Clear();
 		m_Lead = "";
-		m_Gesture = G_NONE;
-		m_KeyGesture = false;
+		EndGesture(false);
 		m_Swapping = false;
 		m_PickFor = "";
 		SelectionChanged();
@@ -938,7 +939,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		m_KeepHandValues = false;
 		if (was == "" && !DZS_UiRegistry.ModDown("Shift"))
 			ClearSelection();
-		CancelGesture();
+		EndGesture();
 		if (DZS_UiRegistry.KeyDown("MouseLeft") && !PointerInScene())
 			m_CatDrag = true;
 		MakePreview(inst);
@@ -1352,7 +1353,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		{
 			if (m_Hand != "")
 			{
-				CancelGesture();
+				EndGesture();
 				return;
 			}
 			UpdateCarry(inst, inScene);
@@ -1394,6 +1395,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 				Press(inst, mx, my);
 			return;
 		}
+		if (m_Gesture == G_KEYS)
+			return;
 
 		bool moved = Math.AbsInt(mx - m_PressX) + Math.AbsInt(my - m_PressY) > DZS_Scale.Px(DRAG_PX);
 		if (m_Gesture == G_PRESS_OBJ && moved && lmb && m_PressWasSel)
@@ -1514,19 +1517,19 @@ class DZS_PlacementPlugin : DZS_Plugin
 				AddToSelection(one, id);
 			else if (!m_PressWasSel)
 				SetSelection(one, id);
-			m_Gesture = G_PRESS_OBJ;
+			Enter(G_PRESS_OBJ);
 			return;
 		}
 		array<ref DZS_RayHit> hits = PickRay(Excluded());
 		if (hits.Count() > 0)
 			m_PressMapObj = hits[0].m_Obj;
-		m_Gesture = G_PRESS_EMPTY;
+		Enter(G_PRESS_EMPTY);
 	}
 
 	protected void Release(DZS_Instance inst, int mx, int my)
 	{
 		int g = m_Gesture;
-		m_Gesture = G_NONE;
+		Enter(G_NONE);
 		if (g == G_PRESS_OBJ)
 		{
 			if (m_PressAlt && !m_PressCtrl && PipettePlaced(inst, m_PressId, false))
@@ -1695,11 +1698,10 @@ class DZS_PlacementPlugin : DZS_Plugin
 		Snapshot(inst);
 		if (m_Work.Count() == 0)
 		{
-			m_Gesture = G_NONE;
+			Enter(G_NONE);
 			return;
 		}
-		m_Gesture = G_DRAG;
-		m_Kernel.SetGesture("placement", true);
+		Enter(G_DRAG);
 		DZS_PlaceObj grabbed = WorkOf(m_PressId);
 		if (!grabbed)
 			grabbed = WorkLead();
@@ -2008,9 +2010,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 		}
 	}
 
-	// "Claiming …": the step of a gesture on objects whose claim is still
-	// unconfirmed waits; the result stays as a view until the claim comes or the objects fall out of the selection.
-	protected bool m_CommitWait;
+	// "Claiming …": the step of a gesture on objects whose claim is still unconfirmed waits (G_WAIT); the result
+	// stays as a view until the claim comes or the objects fall out of the selection.
 
 	protected array<string> WorkIds()
 	{
@@ -2022,41 +2023,21 @@ class DZS_PlacementPlugin : DZS_Plugin
 
 	protected bool WaitingCommit(DZS_Instance inst)
 	{
-		if (!m_CommitWait && (m_Gesture == G_DRAG || m_Gesture == G_HANDLE || m_KeyGesture))
-		{
-			foreach (DZS_PlaceObj w : m_Work)
-			{
-				if (!IsSelectedFast(w.m_Id))
-				{
-					DZS_Log.Info("placement: gesture ends, objects left the selection");
-					CancelGesture();
-					break;
-				}
-			}
-		}
-		if (!m_CommitWait)
+		if (!Transforming() && m_Gesture != G_WAIT)
 			return false;
-		foreach (DZS_PlaceObj o : m_Work)
+		foreach (DZS_PlaceObj w : m_Work)
 		{
-			if (!IsSelectedFast(o.m_Id))
+			if (!IsSelectedFast(w.m_Id))
 			{
-				m_CommitWait = false;
-				DZS_LiveFeed.End(false);
-				m_GestureKind = "";
-				DZS_SceneApi scene = DZS_SceneApi.Get();
-				foreach (DZS_PlaceObj c : m_Work)
-					scene.ClearView(c.m_Id);
-				m_Kernel.SetGesture("placement", false);
-				m_Work.Clear();
-				m_Start.Clear();
-				m_WorkObjs.Clear();
-				DZS_Log.Info("placement: waiting step dropped, objects left the selection");
+				DZS_Log.Info("placement: gesture ends, objects left the selection");
+				EndGesture();
 				return false;
 			}
 		}
+		if (m_Gesture != G_WAIT)
+			return false;
 		if (DZS_SelectGuard.Waits(WorkIds()) != "")
 			return true;
-		m_CommitWait = false;
 		DZS_Log.Info("placement: claim confirmed, step now");
 		CommitWork(inst);
 		return false;
@@ -2066,11 +2047,11 @@ class DZS_PlacementPlugin : DZS_Plugin
 	{
 		if (DZS_SelectGuard.Waits(WorkIds()) != "")
 		{
-			m_CommitWait = true;
+			Enter(G_WAIT);
 			DZS_Log.Info("placement: step waits for the claim of " + m_Work.Count() + " object(s)");
 			return;
 		}
-		m_Kernel.SetGesture("placement", false);
+		Enter(G_NONE);
 		DZS_OpBuilder b = inst.BeginOperation("placement:edit", 1);
 		int n = 0;
 		for (int i = 0; i < m_Work.Count(); i++)
@@ -2151,36 +2132,55 @@ class DZS_PlacementPlugin : DZS_Plugin
 		m_WorkObjs.Clear();
 	}
 
-	protected void CancelGesture()
+	// The gesture state: m_Gesture, and with it the kernel's gesture flag (undo, autosave and uploads wait while it is
+	// set) and the wheel claim of a carry.
+	protected void Enter(int g)
 	{
-		DZS_SceneApi scene = DZS_SceneApi.Get();
-		if (m_Gesture == G_DRAG)
+		m_Gesture = g;
+		m_Kernel.SetGesture("placement", Running());
+		m_Kernel.ClaimWheel("placement", g == G_CARRY);
+	}
+
+	// Holds the kernel's gesture flag.
+	protected bool Running()
+	{
+		return m_Gesture == G_DRAG || m_Gesture == G_LASSO || m_Gesture == G_HANDLE || m_Gesture == G_CARRY || m_Gesture == G_KEYS || m_Gesture == G_WAIT;
+	}
+
+	// Moves, turns or scales the working set live.
+	protected bool Transforming()
+	{
+		return m_Gesture == G_DRAG || m_Gesture == G_HANDLE || m_Gesture == G_KEYS;
+	}
+
+	// The one way out of a gesture without a step: views back to the state (unless the scene is rebuilt anyway),
+	// live feed ended, flag and wheel released.
+	protected void EndGesture(bool clearViews = true)
+	{
+		int g = m_Gesture;
+		if (g == G_DRAG || g == G_CARRY)
 			ResetSurfLevel();
-		if (m_Gesture == G_CARRY)
+		if (Transforming() || g == G_CARRY || g == G_WAIT)
 		{
-			ResetSurfLevel();
-			m_Kernel.ClaimWheel("placement", false);
-			DZS_Log.Info("placement: carry cancelled");
-		}
-		if (m_Gesture == G_DRAG || m_Gesture == G_HANDLE || m_Gesture == G_CARRY || m_KeyGesture)
-		{
-			foreach (DZS_PlaceObj o : m_Work)
-				scene.ClearView(o.m_Id);
-			m_Kernel.SetGesture("placement", false);
+			if (clearViews)
+			{
+				DZS_SceneApi scene = DZS_SceneApi.Get();
+				foreach (DZS_PlaceObj o : m_Work)
+					scene.ClearView(o.m_Id);
+			}
 			DZS_LiveFeed.End(false);
-			DZS_Log.Info("placement: gesture cancelled");
+			DZS_Log.Info("placement: gesture " + g + " cancelled");
 		}
-		if (m_KeyGesture)
+		if (g == G_KEYS)
 			m_KeyNeedRelease = true;
-		m_KeyGesture = false;
 		m_Work.Clear();
 		m_Start.Clear();
 		m_WorkObjs.Clear();
-		m_Gesture = G_NONE;
 		m_HandleHeld = -1;
 		m_Lasso.Clear();
 		m_LassoHits.Clear();
 		m_GestureKind = "";
+		Enter(G_NONE);
 	}
 
 	// ---- drag-select ----
@@ -2238,7 +2238,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 
 	protected void BeginLasso(int mx, int my)
 	{
-		m_Gesture = G_LASSO;
+		Enter(G_LASSO);
 		m_Lasso.Clear();
 		m_Lasso.Insert(m_PressX);
 		m_Lasso.Insert(m_PressY);
@@ -2249,7 +2249,6 @@ class DZS_PlacementPlugin : DZS_Plugin
 		m_LassoPrevY = m_PressY;
 		m_LassoPoly.Clear();
 		m_BoxRect = BoxKindRect();
-		m_Kernel.SetGesture("placement", true);
 	}
 
 	protected void UpdateLasso(DZS_Instance inst, int mx, int my)
@@ -2332,7 +2331,6 @@ class DZS_PlacementPlugin : DZS_Plugin
 
 	protected void FinishLasso(DZS_Instance inst)
 	{
-		m_Kernel.SetGesture("placement", false);
 		array<string> hits = new array<string>();
 		hits.Copy(m_LassoHits);
 		bool shift = DZS_UiRegistry.ModDown("Shift");
@@ -2575,9 +2573,8 @@ class DZS_PlacementPlugin : DZS_Plugin
 			m_Start.Clear();
 			return;
 		}
-		m_Gesture = G_HANDLE;
+		Enter(G_HANDLE);
 		m_HandleHeld = m_HandleHover;
-		m_Kernel.SetGesture("placement", true);
 		m_HAccum = 0;
 		m_HLastX = mx;
 		m_HLastY = my;
@@ -2805,7 +2802,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 	protected void UpdateKeys(DZS_Instance inst, float dt)
 	{
 		DZS_UiRegistry ui = m_Kernel.GetUi();
-		bool blocked = m_Kernel.GetScreen().IsSceneKeyboardBlocked() || m_Hand != "" || m_Sel.Count() == 0 || m_Gesture != G_NONE;
+		bool blocked = m_Kernel.GetScreen().IsSceneKeyboardBlocked() || m_Hand != "" || m_Sel.Count() == 0 || (m_Gesture != G_NONE && m_Gesture != G_KEYS);
 		vector mv = "0 0 0";
 		float yaw = 0;
 		float roll = 0;
@@ -2836,7 +2833,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 				m_KeyNeedRelease = false;
 			return;
 		}
-		if (!m_KeyGesture)
+		if (m_Gesture != G_KEYS)
 		{
 			if (!any)
 				return;
@@ -2854,18 +2851,17 @@ class DZS_PlacementPlugin : DZS_Plugin
 				m_KeyNeedRelease = true;
 				return;
 			}
-			m_KeyGesture = true;
+			Enter(G_KEYS);
 			m_KeyMove = "0 0 0";
 			m_KeyYaw = 0;
 			m_KeyRoll = 0;
 			m_KeyPitch = 0;
 			m_KeyFactor = 1;
-			m_Kernel.SetGesture("placement", true);
 			DZS_Log.Info("placement: key gesture start");
 		}
 		if (!anyDown)
 		{
-			m_KeyGesture = false;
+			Enter(G_NONE);
 			if (m_KeyFactor != 1)
 				m_GestureKind = "scale";
 			else if (m_KeyYaw != 0 || m_KeyRoll != 0 || m_KeyPitch != 0)
@@ -2937,7 +2933,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 	bool EscActive(string what)
 	{
 		if (what == "gesture")
-			return m_Gesture == G_DRAG || m_Gesture == G_HANDLE || m_Gesture == G_LASSO || m_Gesture == G_CARRY || m_KeyGesture;
+			return Running() && m_Gesture != G_WAIT;
 		if (what == "pick")
 			return m_PickFor != "" || m_Swapping;
 		return m_Sel.Count() > 0 && m_Hand == "";
@@ -2947,9 +2943,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 	{
 		if (what == "gesture")
 		{
-			if (m_Gesture == G_LASSO)
-				m_Kernel.SetGesture("placement", false);
-			CancelGesture();
+			EndGesture();
 			return;
 		}
 		if (what == "pick")
@@ -3659,7 +3653,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		{
 			if (m_Gesture == G_CARRY)
 			{
-				CancelGesture();
+				EndGesture();
 				m_RPressScene = false;
 				m_RPressMapObj = null;
 				return;
@@ -5032,7 +5026,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 	// change of the state or the selection, every frame during a gesture.
 	protected void BigSelection(DZS_Instance inst)
 	{
-		bool live = m_Gesture != G_NONE || m_KeyGesture;
+		bool live = m_Gesture != G_NONE;
 		if (!live)
 			m_BigBaseSet = false;
 		int n = m_Sel.Count();
@@ -5232,7 +5226,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		if (!HandlesShown())
 			return;
 		array<ref DZS_PlaceObj> list = m_Work;
-		if (m_Gesture != G_HANDLE && m_Gesture != G_DRAG && !m_KeyGesture)
+		if (!Transforming())
 			list = FreeSelection(inst);
 		DZS_PlaceObj lead = LeadOf(list);
 		if (!lead)
@@ -5514,7 +5508,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 
 	protected void GestureLines(DZS_Instance inst, out string title, array<string> lines)
 	{
-		if (m_Gesture != G_DRAG && m_Gesture != G_HANDLE && m_Gesture != G_LASSO && !m_KeyGesture)
+		if (!Transforming() && m_Gesture != G_LASSO)
 			return;
 		if (m_Gesture == G_LASSO)
 		{
@@ -5536,7 +5530,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 		if (!lead || !start)
 			return;
 		string kind = m_GestureKind;
-		if (m_KeyGesture)
+		if (m_Gesture == G_KEYS)
 		{
 			if (m_KeyFactor != 1)
 				kind = "scale";
@@ -5602,7 +5596,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 			if (MeasureFoot(lead.Foot(), Excluded(), leadOff))
 				lines.Insert(Txt("über Grund ", "above ground ") + DZS_Num.Fixed(leadOff, 2) + " m");
 		}
-		if (m_KeyGesture)
+		if (m_Gesture == G_KEYS)
 		{
 			vector pivot = WorkPivot();
 			float sx, sy;
@@ -5642,11 +5636,9 @@ class DZS_PlacementPlugin : DZS_Plugin
 			m_CarryOffset = Math.Round(off * 1000) / 1000;
 		m_CarryShown = false;
 		ResetSurfLevel();
-		m_Gesture = G_CARRY;
+		Enter(G_CARRY);
 		m_GestureKind = "move";
 		m_GestureLabel = m_Work[0].m_Id;
-		m_Kernel.SetGesture("placement", true);
-		m_Kernel.ClaimWheel("placement", true);
 		DZS_Log.Info("placement: carry start " + m_Work.Count() + " object(s), ref " + m_CarryRef.ToString() + ", offset " + m_CarryOffset);
 	}
 
@@ -5725,8 +5717,7 @@ class DZS_PlacementPlugin : DZS_Plugin
 	{
 		if (!m_CarryShown)
 			return;
-		m_Kernel.ClaimWheel("placement", false);
-		m_Gesture = G_NONE;
+		Enter(G_NONE);
 		ResetSurfLevel();
 		m_GestureKind = "move";
 		CommitWork(inst);
