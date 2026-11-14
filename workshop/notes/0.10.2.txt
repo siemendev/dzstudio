@@ -1,0 +1,1 @@
+- Saving now shows a hint when a group holds plants or rocks placed by model path (palms, trees, bushes, rocks): since DayZ 1.30 the game creates them on the server only, so players cannot see them but still bump into them. This is a known game bug that Bohemia is working on; the objects are saved as before and should appear again once the game is fixed.
