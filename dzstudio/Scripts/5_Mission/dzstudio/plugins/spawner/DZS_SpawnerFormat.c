@@ -605,7 +605,7 @@ class DZS_SpawnerFormat : DZS_Format
 	}
 
 	// Tail of the file after the objects: root keys kept from reading, then the checks of the whole file.
-	void Finish(DZS_Instance inst, string groupId, DZS_TextWriter w, DZS_WriteResult res, int count, int hidden)
+	void Finish(DZS_Instance inst, string groupId, DZS_TextWriter w, DZS_WriteResult res, int count, int hidden, int modelPaths)
 	{
 		DZS_Issues issues = res.m_Issues;
 		if (count > 0)
@@ -633,6 +633,11 @@ class DZS_SpawnerFormat : DZS_Format
 				string nHidden = hidden.ToString();
 				issues.Add(DZS_Issue.HINT, nHidden + " ausgeblendete Objekte werden mitgeschrieben und erscheinen auf dem Server", nHidden + " hidden objects are written and appear on the server");
 			}
+		}
+		if (modelPaths > 0)
+		{
+			string nModels = modelPaths.ToString();
+			issues.Add(DZS_Issue.HINT, nModels + " Pflanzen und Felsen als Modellpfad — seit DayZ 1.30 unsichtbar, aber fest (Fehler im Spiel)", nModels + " plants and rocks as model paths — invisible but solid since DayZ 1.30 (a game bug)");
 		}
 		if (DZS_Files.Length(res.m_Chunks) > MAX_FILE)
 		{
@@ -852,6 +857,7 @@ class DZS_SpawnerWriter : DZS_FormatWriter
 	protected int m_Next;
 	protected int m_Written;
 	protected int m_Hidden;
+	protected int m_ModelPaths;
 	protected bool m_GroupHidden;
 	protected float m_WorldSize;
 	protected bool m_Done;
@@ -884,6 +890,10 @@ class DZS_SpawnerWriter : DZS_FormatWriter
 				continue;
 			if (m_GroupHidden || m_Inst.IsHidden(id))
 				m_Hidden++;
+			string name;
+			m_Inst.GetField(id, DZS_Obj.NAME, name);
+			if (DZS_Obj.IsModelPath(name) && DZS_SpawnerFormat.PathAllowed(name))
+				m_ModelPaths++;
 			string entry = m_Format.Entry(m_Inst, id, m_Result.m_Issues, m_WorldSize, m_Result);
 			string piece;
 			if (m_Written == 0)
@@ -898,7 +908,7 @@ class DZS_SpawnerWriter : DZS_FormatWriter
 		}
 		if (m_Written == 0)
 			m_W.Append("{\n    \"Objects\": []");
-		m_Format.Finish(m_Inst, m_Group, m_W, m_Result, m_Written, m_Hidden);
+		m_Format.Finish(m_Inst, m_Group, m_W, m_Result, m_Written, m_Hidden, m_ModelPaths);
 		m_Done = true;
 		return true;
 	}
