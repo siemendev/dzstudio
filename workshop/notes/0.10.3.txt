@@ -1,0 +1,1 @@
+- Switching to another project in the middle of moving or carrying objects no longer leaves the move half open: undo and autosave keep working in the new project.
