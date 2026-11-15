@@ -15,7 +15,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Version
         id: version
         run: |
@@ -46,7 +46,7 @@ jobs:
           python3 tools/dzpbo.py sign "$RUNNER_TEMP/dzstudio.biprivatekey" out/@dzstudio/Addons/dzstudio.pbo
           rm -f "$RUNNER_TEMP/dzstudio.biprivatekey"
           python3 tools/dzpbo.py verify keys/dzstudio.bikey out/@dzstudio/Addons/dzstudio.pbo
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dzstudio-${{ steps.version.outputs.version }}
           path: out/@dzstudio
@@ -61,7 +61,7 @@ jobs:
     env:
       VERSION: ${{ needs.build.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Is the version new?
@@ -79,7 +79,7 @@ jobs:
           fi
           echo "upload=true" >> "$GITHUB_OUTPUT"
       - if: steps.new.outputs.upload
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: dzstudio-${{ env.VERSION }}
           path: '@dzstudio'
