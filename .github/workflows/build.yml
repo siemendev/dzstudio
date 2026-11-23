@@ -46,7 +46,7 @@ jobs:
           python3 tools/dzpbo.py sign "$RUNNER_TEMP/dzstudio.biprivatekey" out/@dzstudio/Addons/dzstudio.pbo
           rm -f "$RUNNER_TEMP/dzstudio.biprivatekey"
           python3 tools/dzpbo.py verify keys/dzstudio.bikey out/@dzstudio/Addons/dzstudio.pbo
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dzstudio-${{ steps.version.outputs.version }}
           path: out/@dzstudio
@@ -79,7 +79,7 @@ jobs:
           fi
           echo "upload=true" >> "$GITHUB_OUTPUT"
       - if: steps.new.outputs.upload
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dzstudio-${{ env.VERSION }}
           path: '@dzstudio'
